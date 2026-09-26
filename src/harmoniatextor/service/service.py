@@ -975,44 +975,6 @@ class CompositionService:
             report=report,
         )
 
-    def overwrite_score(
-        self, work_id: str, movement_id: str, musicxml: str, *, check: bool = True
-    ) -> ToolResult:
-        """Replace a movement's whole score with an agent-supplied MusicXML.
-
-        This is the heavyweight escape hatch: it discards the current score and
-        rebuilds it from a complete document.  It should only be used when many
-        measures change at once; local changes belong to ``edit`` / ``insert`` /
-        ``delete`` / the technique tools.
-
-        Args:
-            work_id: Active work.
-            movement_id: Active movement.
-            musicxml: A complete replacement MusicXML score.
-            check: Whether to run the symbolic checker immediately.
-
-        Returns:
-            A tool result carrying the full score.
-        """
-        try:
-            score = from_musicxml(musicxml)
-        except Exception:
-            return ToolResult(False, error_code="BAD_PARAM", message="覆写 MusicXML 解析失败。")
-        work = self.store.load_work(work_id)
-        movement = self._owning_movement(work, movement_id)
-        report = self._check(work, movement, score) if check else None
-        revision = self._save_revision(
-            work, movement, movement_id, score, RevisionOrigin(ToolKind.REFINE), report
-        )
-        if report is not None and not report.ok:
-            return ToolResult(False, message=format_feedback(report), report=report)
-        return ToolResult(
-            True,
-            full_musicxml=revision.full_xml,
-            message=format_feedback(report) if report is not None else "谱面已覆写。",
-            report=report,
-        )
-
     def rollback(self, work_id: str, movement_id: str, seq: int) -> ToolResult:
         """Roll the canonical score back to an earlier revision.
 

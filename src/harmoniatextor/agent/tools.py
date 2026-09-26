@@ -15,7 +15,6 @@ from harmoniatextor.domain.params import (
     DeleteMeasureParams,
     EditParams,
     InsertMeasureParams,
-    OverwriteParams,
     RemovePartParams,
     SetTempoParams,
     SubmitThemeParams,
@@ -130,10 +129,6 @@ def build_tools(
             include_score=True,
         )
 
-    def overwrite(musicxml: str) -> str:
-        """Replace the whole movement score with a complete MusicXML document."""
-        return result_payload(service.overwrite_score(work_id, movement_id, musicxml, check=False))
-
     tools: list[BaseTool] = [
         StructuredTool.from_function(
             func=read,
@@ -218,17 +213,6 @@ def build_tools(
                 "contents."
             ),
             args_schema=DeleteMeasureParams,
-        ),
-        StructuredTool.from_function(
-            func=overwrite,
-            name="overwrite",
-            description=(
-                "Replace the ENTIRE movement score with a complete MusicXML document. "
-                "Use this only when many measures change at once; for local fixes "
-                "prefer edit / insert / delete and technique_*. Does not return the "
-                "score; call read if you need to inspect it afterwards."
-            ),
-            args_schema=OverwriteParams,
         ),
     ]
 
