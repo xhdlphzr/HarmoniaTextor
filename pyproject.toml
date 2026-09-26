@@ -1,0 +1,125 @@
+# SPDX-FileCopyrightText: 2026 xhdlphzr
+# SPDX-License-Identifier: MIT
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "harmoniatextor"
+version = "0.1.0"
+description = "Neuro-symbolic Bach-style music generation with symbolic validation."
+readme = "README.md"
+requires-python = ">=3.14"
+license = "MIT"
+authors = [{ name = "xhdlphzr" }]
+keywords = ["music", "bach", "neuro-symbolic", "musicxml", "counterpoint"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: End Users/Desktop",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Multimedia :: Sound/Audio",
+]
+dependencies = [
+  "music21>=10.0",
+  "flask>=3.0",
+  "pydantic>=2.6",
+  "langchain-core>=1.0",
+  "langchain>=1.0",
+  "langchain-openai>=1.0",
+  "pywebview>=5.0",
+]
+
+[project.optional-dependencies]
+# pywebview ships a bundled backend on Windows (pythonnet) and macOS (pyobjc);
+# Linux needs an explicit Qt WebEngine backend.
+desktop = [
+  "PyQt6>=6.6; sys_platform == 'linux'",
+  "PyQt6-WebEngine>=6.6; sys_platform == 'linux'",
+]
+
+[project.scripts]
+ht = "app.desktop:main"
+
+[project.urls]
+Homepage = "https://github.com/xhdlphzr/HarmoniaTextor"
+Repository = "https://github.com/xhdlphzr/HarmoniaTextor"
+Issues = "https://github.com/xhdlphzr/HarmoniaTextor/issues"
+
+[tool.uv]
+default-groups = ["dev"]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.0",
+  "pytest-cov>=5.0",
+  "ruff>=0.6",
+  "mypy>=1.10",
+  "reuse>=5.0",
+  "vulture>=2.11",
+  "pyinstaller>=6.6",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/harmoniatextor", "app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]
+addopts = "-q --cov=src --cov=app --cov-report=term-missing --cov-fail-under=100"
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+source = ["src", "app"]
+omit = ["*/__init__.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+  "pragma: no cover",
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+src = ["src", "app", "tests"]
+
+[tool.ruff.lint]
+select = [
+  "E",
+  "F",
+  "W",
+  "I",
+  "N",
+  "UP",
+  "B",
+  "C4",
+  "SIM",
+  "RET",
+  "ARG",
+  "PTH",
+  "PL",
+  "RUF",
+  "D",
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.isort]
+known-first-party = ["harmoniatextor", "app"]
+
+[tool.mypy]
+strict = true
+python_version = "3.14"
+exclude = ["build/", "dist/", ".venv/"]
+warn_unreachable = true
+show_error_codes = true
+plugins = ["pydantic.mypy"]
+
+[tool.vulture]
+min_confidence = 80
+paths = ["src", "app"]
+ignore_names = ["cls"]

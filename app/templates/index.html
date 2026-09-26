@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+<!--
+SPDX-FileCopyrightText: 2026 xhdlphzr
+SPDX-License-Identifier: MIT
+-->
+{% block title %}创作 · HarmoniaTextor{% endblock %}
+{% block content %}
+<section class="panel reveal composer" id="composer">
+  <h1 class="display">创作</h1>
+  <p class="muted">描述你想要的巴赫风格作品，作曲家智能体会自动完成作曲、符号层校验、乐谱与音频。</p>
+  <label class="field">
+    <span>创作提示词</span>
+    <textarea
+      id="prompt"
+      class="autogrow"
+      rows="3"
+      data-max-lines="13"
+      placeholder="例如：写一首三声部的巴赫风格赋格，主题活泼，使用密接和应。"
+    ></textarea>
+  </label>
+  <div class="composer-row">
+    <label class="field">
+      <span>体裁</span>
+      <select id="genre">
+        {% for genre in genres %}
+        <option value="{{ genre.id }}">{{ genre.display_name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button type="button" class="btn primary big" id="generate-btn">生成</button>
+  </div>
+</section>
+
+<section class="panel reveal hidden" id="progress-panel">
+  <h2>创作进度</h2>
+  <ol class="progress-list" id="progress-list"></ol>
+</section>
+
+<section class="panel reveal hidden" id="score-panel">
+  <h2>实时五线谱</h2>
+  <p class="muted small">创作过程中随 MusicXML 实时刷新，无需等到定稿。</p>
+  <div class="score-view" id="score-view"></div>
+</section>
+
+<section class="panel reveal hidden" id="plan-panel">
+  <h2>创作规划</h2>
+  <div class="plan-inline hidden" id="plan-inline"></div>
+</section>
+
+<section class="panel reveal hidden" id="checker-panel">
+  <h2>检查AI评审</h2>
+  <div class="checker-inline hidden" id="checker-inline"></div>
+</section>
+
+<section class="panel reveal hidden" id="result-panel">
+  <div class="result-head">
+    <h2 id="result-title">作品</h2>
+    <span class="chip state" id="result-status"></span>
+  </div>
+  <div class="actions">
+    <button type="button" class="btn" id="score-btn">显示五线谱</button>
+    <button type="button" class="btn" id="export-png">导出五线谱 PNG</button>
+    <a class="btn export-download" id="export-musicxml" href="#">导出 MusicXML</a>
+    <a class="btn export-download" id="export-m4a" href="#">导出 M4A</a>
+    <a class="btn export-download" id="export-mp3" href="#">导出 MP3</a>
+  </div>
+  <audio id="audition" controls></audio>
+  <p class="muted small" id="audio-hint"></p>
+  <ul class="violations" id="violation-list"></ul>
+  <div class="finalize-row">
+    <button type="button" class="btn primary" id="finalize-btn">定稿</button>
+    <button type="button" class="btn" id="revise-btn">不定稿，提意见</button>
+  </div>
+  <div class="hidden" id="feedback-area">
+    <label class="field">
+      <span>修改意见</span>
+      <textarea id="feedback-text" rows="3" placeholder="例如：第二乐句的低声部太平，请增加对位变化。"></textarea>
+    </label>
+    <button type="button" class="btn primary" id="feedback-btn">提交意见并继续</button>
+  </div>
+  <pre class="output" id="agent-summary"></pre>
+</section>
+
+<section class="panel reveal" id="history-panel">
+  <h2>作品历史</h2>
+  <ul class="work-list" id="history-list">
+    {% for work in works %}
+    <li
+      class="work-card"
+      data-work="{{ work.id }}"
+      data-movement="{{ work.movements[0].id if work.movements else 'm01' }}"
+    >
+      <a href="#" class="history-link">
+        <strong>{{ work.title }}</strong>
+        <span class="chip">{{ genre_labels.get(work.genre, work.genre) }}</span>
+        <span class="chip soft">{{ work.tonic.raw }}</span>
+        <span class="chip state">{{ status_labels.get(work.status.value, work.status.value) }}</span>
+        <span class="muted small">{{ work.created_at | localtime }}</span>
+      </a>
+    </li>
+    {% else %}
+    <li class="muted">还没有作品。</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

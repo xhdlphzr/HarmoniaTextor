@@ -1,0 +1,51 @@
+# SPDX-FileCopyrightText: 2026 xhdlphzr
+# SPDX-License-Identifier: MIT
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.12.x"
+          enable-cache: true
+
+      - name: Install Python
+        run: uv python install 3.14
+
+      - name: Sync dependencies
+        run: uv sync --group dev
+
+      - name: Lock check
+        run: uv lock --check
+
+      - name: REUSE lint
+        run: uv run reuse lint
+
+      - name: Pytest with 100% coverage
+        run: uv run pytest
+
+      - name: Ruff check
+        run: uv run ruff check .
+
+      - name: Mypy strict
+        run: uv run mypy --strict .
+
+      - name: Google docstring check
+        run: uv run ruff check --select D .
+
+      - name: Ruff format check
+        run: uv run ruff format --check .

@@ -1,0 +1,93 @@
+# SPDX-FileCopyrightText: 2026 xhdlphzr
+# SPDX-License-Identifier: MIT
+
+"""Audio synthesis pipeline built on FluidSynth and ffmpeg.
+
+The pipeline writes a temporary MIDI file, renders it to WAV with FluidSynth,
+then transcodes the WAV to the requested compressed format with ffmpeg.
+"""
+
+from __future__ import annotations
+
+import subprocess
+from pathlib import Path
+
+from music21 import stream
+
+from harmoniatextor.render.features import Features
+
+__all__ = ["FeatureUnavailableError", "synthesize_audio"]
+
+_CODECS: dict[str, str] = {"m4a": "aac", "mp3": "libmp3lame"}
+
+
+class FeatureUnavailableError(RuntimeError):
+    """Raised when a required audio backend binary is missing."""
+
+
+def synthesize_audio(
+    score: stream.Score,
+    out_path: Path,
+    features: Features,
+    fmt: str = "m4a",
+) -> Path:
+    """Render a score to a compressed audio file.
+
+    Args:
+        score: The score to render.
+        out_path: Destination path; the suffix follows ``fmt``.
+        features: Detected audio backend features.
+        fmt: Target format, either ``"m4a"`` or ``"mp3"``.
+
+    Returns:
+        The written audio path.
+
+    Raises:
+        FeatureUnavailableError: When ffmpeg, FluidSynth or a soundfont is
+            missing.
+    """
+    if not features.audio_available:
+        raise FeatureUnavailableError(
+            "ffmpeg、FluidSynth 与音色库(soundfont)是音频导出所必需的。"
+            "请运行 python tools/fetch_vendor.py 下载,或安装到系统 PATH。"
+        )
+    codec = _CODECS[fmt]
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    midi_path = out_path.with_suffix(".mid")
+    wav_path = out_path.with_suffix(".wav")
+    try:
+        score.write("midi", fp=str(midi_path))  # type: ignore[no-untyped-call]  # music21
+        assert features.fluidsynth is not None
+        assert features.soundfont is not None
+        assert features.ffmpeg is not None
+        subprocess.run(
+            [
+                str(features.fluidsynth),
+                "-ni",
+                "-F",
+                str(wav_path),
+                str(features.soundfont),
+                str(midi_path),
+            ],
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            [
+                str(features.ffmpeg),
+                "-y",
+                "-i",
+                str(wav_path),
+                "-c:a",
+                codec,
+                "-b:a",
+                "192k",
+                str(out_path),
+            ],
+            check=True,
+            capture_output=True,
+        )
+    finally:
+        midi_path.unlink(missing_ok=True)
+        wav_path.unlink(missing_ok=True)
+    return out_path

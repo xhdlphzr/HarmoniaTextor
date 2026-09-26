@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+<!--
+SPDX-FileCopyrightText: 2026 xhdlphzr
+SPDX-License-Identifier: MIT
+-->
+{% block title %}{{ work.title }} · HarmoniaTextor{% endblock %}
+{% block content %}
+<div class="workspace" data-work="{{ work.id }}" data-movement="{{ movement.id }}">
+  <section class="panel reveal">
+    <div class="panel-head">
+      <div>
+        <h1 class="display">{{ work.title }}</h1>
+        <p class="muted">
+          <span class="chip">{{ genre_labels.get(work.genre, work.genre) }}</span>
+          <span class="chip soft">{{ work.tonic.raw }}</span>
+          <span class="chip state" id="status-chip">{{ status_labels.get(work.status.value, work.status.value) }}</span>
+        </p>
+      </div>
+      <div class="movement-tabs">
+        {% for item in work.movements %}
+        <a
+          class="tab {% if item.id == movement.id %}active{% endif %}"
+          href="{{ url_for('work', work_id=work.id, movement=item.id) }}"
+          >{{ item.name }}</a
+        >
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <div class="grid">
+    <section class="panel reveal">
+      <h2>五线谱</h2>
+      <div class="actions">
+        <button type="button" class="btn" id="work-score-btn">刷新乐谱</button>
+        <button type="button" class="btn" id="work-png-btn">导出五线谱 PNG</button>
+      </div>
+      <div class="score-view" id="score-view"></div>
+    </section>
+
+    <section class="panel reveal">
+      <h2>试听</h2>
+      <audio id="audition" controls loop
+        src="{{ url_for('export', work_id=work.id, movement_id=movement.id, fmt='m4a') }}"></audio>
+      <p class="muted small">
+        循环播放，可反复聆听；若音频不可用，请运行
+        <code>python tools/fetch_vendor.py</code>。导出文件会保存到
+        <code>~/Downloads</code>。
+      </p>
+      <div class="actions">
+        <a class="btn export-download" href="{{ url_for('export', work_id=work.id, movement_id=movement.id, fmt='musicxml') }}">导出 MusicXML</a>
+        <a class="btn export-download" href="{{ url_for('export', work_id=work.id, movement_id=movement.id, fmt='m4a') }}">导出 M4A</a>
+        <a class="btn export-download" href="{{ url_for('export', work_id=work.id, movement_id=movement.id, fmt='mp3') }}">导出 MP3</a>
+        <a class="btn export-download" href="{{ url_for('export_all', work_id=work.id, fmt='musicxml') }}">导出全部乐章（zip）</a>
+      </div>
+    </section>
+
+    <section class="panel reveal">
+      <h2>符号层校验</h2>
+      <button class="btn primary" id="check-btn">运行检查</button>
+      <div class="drawer" id="check-drawer">
+        <ul id="violation-list" class="violations"></ul>
+      </div>
+    </section>
+
+    <section class="panel reveal">
+      <h2>创作规划</h2>
+      {% if plan %}
+      <pre class="output plan-text">{{ plan }}</pre>
+      {% else %}
+      <p class="muted">尚无创作规划；生成作品时会先由创作AI规划全部乐器与各声部的情感走向。</p>
+      {% endif %}
+    </section>
+
+    <section class="panel reveal">
+      <h2>检查AI评审</h2>
+      {% if review %}
+      <div class="checker-inline">
+        <div class="{{ 'checker-pass' if review.passed else 'checker-fail' }}">
+          {{ '✔ 检查AI 通过' if review.passed else '✘ 检查AI 打回' }}
+        </div>
+        {% if not review.passed and review.suggestions %}
+        <div class="checker-detail">{{ review.suggestions }}</div>
+        {% endif %}
+      </div>
+      {% else %}
+      <p class="muted">尚无检查AI评审记录；运行一次生成或修改后会显示。</p>
+      {% endif %}
+    </section>
+
+    <section class="panel reveal">
+      <h2>创作提示词</h2>
+      <p class="muted small">描述你想要的巴赫风格作品；Enter 换行，超过 13 行后框内滚动。</p>
+      <textarea
+        id="agent-goal"
+        class="autogrow"
+        rows="3"
+        data-max-lines="13"
+        placeholder="输入你的创作提示词…"
+      >创作一首巴赫风格的赋格。</textarea>
+      <button class="btn primary" id="agent-btn">运行一轮</button>
+      <pre id="agent-output" class="output"></pre>
+    </section>
+
+    <section class="panel reveal">
+      <h2>品鉴意见</h2>
+      <textarea id="audit-note" rows="3" placeholder="写下你的听感与修改意见…"></textarea>
+      <button class="btn primary" id="audit-btn">提交意见</button>
+      <span id="audit-status" class="muted small"></span>
+    </section>
+
+    <section class="panel reveal">
+      <h2>主题</h2>
+      {% if themes %}
+      <ul class="theme-list">
+        {% for theme_id, theme in themes.items() %}
+        <li>
+          <span class="chip">#{{ theme_id }}</span>
+          <span class="muted">{{ voice_labels.get(theme.voice, theme.voice) }} · 第 {{ theme.start_measure }} 小节</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="muted">尚无主题。</p>
+      {% endif %}
+    </section>
+
+    <section class="panel reveal">
+      <h2>版本时间线</h2>
+      <ol class="timeline">
+        {% for revision in revisions %}
+        <li class="{% if revision.ok %}ok{% else %}bad{% endif %}">
+          <span class="dot"></span>
+          <span>
+            r{{ revision.seq }} ·
+            {{ tool_labels.get(revision.source, revision.source) }}
+            {%- if revision.technique %}
+            · {{ technique_labels.get(revision.technique, revision.technique) }}
+            {%- endif %}
+          </span>
+          <button class="btn tiny rollback" data-seq="{{ revision.seq }}">回退</button>
+        </li>
+        {% endfor %}
+      </ol>
+      <button class="btn primary" id="finalize-btn">定稿</button>
+    </section>
+  </div>
+</div>
+{% endblock %}
