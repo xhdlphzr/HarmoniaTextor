@@ -657,3 +657,24 @@ class TestArchitecture:
         assert service.check_score(work.id, "m01", score).ok
         with pytest.raises(KeyError):
             service.current_musicxml(work.id, "nope")
+
+    def test_generation_lifecycle(self, service: CompositionService) -> None:
+        """A generation run is recorded as started and finished."""
+        work = service.create_work("Demo", "plain", "C")
+        assert service.latest_generation_state(work.id) is None
+        service.start_generation(work.id, "写一段")
+        assert service.latest_generation_state(work.id) == "generation_started"
+        service.finish_generation(work.id, True)
+        assert service.latest_generation_state(work.id) == "generation_finished"
+
+    def test_interrupt_stale_generations(self, service: CompositionService) -> None:
+        """Runs that never finished are marked as interrupted."""
+        stale = service.create_work("Stale", "plain", "C")
+        done = service.create_work("Done", "plain", "C")
+        service.start_generation(stale.id, "goal")
+        service.start_generation(done.id, "goal")
+        service.finish_generation(done.id, True)
+        assert service.interrupt_stale_generations() == 1
+        assert service.latest_generation_state(stale.id) == "generation_interrupted"
+        assert service.latest_generation_state(done.id) == "generation_finished"
+        assert service.interrupt_stale_generations() == 0

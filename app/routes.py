@@ -59,12 +59,19 @@ def _register_pages(app: Flask) -> None:
     def index() -> str:
         """Render the works index."""
         service = get_service(app)
-        works = [service.get_work(work_id) for work_id in service.list_works()]
+        work_ids = service.list_works()
+        works = [service.get_work(work_id) for work_id in work_ids]
         genres = service.genres.all()
+        interrupted = {
+            work_id
+            for work_id in work_ids
+            if service.latest_generation_state(work_id) == "generation_interrupted"
+        }
         return render_template(
             "index.html",
             works=works,
             genres=genres,
+            interrupted=interrupted,
             genre_labels={genre.id: genre.display_name for genre in genres},
             status_labels=WORK_STATUS_LABELS,
         )
@@ -222,34 +229,42 @@ def _start_agent_job(  # noqa: PLR0913, PLR0917
         The started job.
     """
     job = _jobs(app).create()
+    service.start_generation(work_id, prompt)
 
     def target(emit: EventCallback) -> dict[str, Any]:
-        window = context_window_tokens()
-        loop = AgentLoop(
-            service,
-            create_chat_model(),
-            reviewer=ReviewerAI(create_chat_model(), context_window=window),
-            context_window=window,
-        )
-        result = loop.run(work_id, movement_id, prompt, feedback=feedback, on_event=emit, plan=plan)
-        service.ensure_title(work_id)
-        if result.review_passed is not None:
-            service.record_review(
-                work_id, movement_id, result.review_passed, result.review_suggestions
+        finished = False
+        try:
+            window = context_window_tokens()
+            loop = AgentLoop(
+                service,
+                create_chat_model(),
+                reviewer=ReviewerAI(create_chat_model(), context_window=window),
+                context_window=window,
             )
-        report = service.check(work_id, movement_id)
-        return {
-            "work_id": work_id,
-            "movement_id": movement_id,
-            "completed": result.completed,
-            "steps": result.steps,
-            "final_text": result.final_text,
-            "plan": result.plan or service.latest_plan(work_id) or "",
-            "review_passed": result.review_passed,
-            "review_suggestions": result.review_suggestions,
-            "ok": report.ok and result.completed,
-            "violations": report.to_dict()["violations"],
-        }
+            result = loop.run(
+                work_id, movement_id, prompt, feedback=feedback, on_event=emit, plan=plan
+            )
+            service.ensure_title(work_id)
+            if result.review_passed is not None:
+                service.record_review(
+                    work_id, movement_id, result.review_passed, result.review_suggestions
+                )
+            report = service.check(work_id, movement_id)
+            finished = True
+            return {
+                "work_id": work_id,
+                "movement_id": movement_id,
+                "completed": result.completed,
+                "steps": result.steps,
+                "final_text": result.final_text,
+                "plan": result.plan or service.latest_plan(work_id) or "",
+                "review_passed": result.review_passed,
+                "review_suggestions": result.review_suggestions,
+                "ok": report.ok and result.completed,
+                "violations": report.to_dict()["violations"],
+            }
+        finally:
+            service.finish_generation(work_id, finished)
 
     _jobs(app).start(job, target)
     return job
@@ -268,40 +283,46 @@ def _start_architecture_job(app: Flask, service: Any, work_id: str, prompt: str)
         The started job.
     """
     job = _jobs(app).create()
+    service.start_generation(work_id, prompt)
 
     def target(emit: EventCallback) -> dict[str, Any]:
-        plan = Architect(service, create_chat_model()).plan(work_id, prompt, on_event=emit)
-        window = context_window_tokens()
-        composer = MovementComposer(
-            service,
-            create_chat_model(),
-            reviewer=ReviewerAI(create_chat_model(), context_window=window),
-            context_window=window,
-        )
-        outcome = composer.compose(work_id, prompt, on_event=emit)
-        service.ensure_title(work_id)
-        movements = service.get_work(work_id).movements
-        movement_id = movements[0].id if movements else "m01"
-        if outcome.review_passed is not None:
-            service.record_review(
-                work_id, movement_id, outcome.review_passed, outcome.review_suggestions
+        finished = False
+        try:
+            plan = Architect(service, create_chat_model()).plan(work_id, prompt, on_event=emit)
+            window = context_window_tokens()
+            composer = MovementComposer(
+                service,
+                create_chat_model(),
+                reviewer=ReviewerAI(create_chat_model(), context_window=window),
+                context_window=window,
             )
-        reports = [service.check(work_id, movement.id) for movement in movements]
-        violations = [item for report in reports for item in report.to_dict()["violations"]]
-        ok = bool(reports) and all(report.ok for report in reports) and outcome.completed
-        return {
-            "work_id": work_id,
-            "movement_id": movement_id,
-            "completed": outcome.completed,
-            "steps": len(movements),
-            "final_text": plan.plan,
-            "plan": plan.plan,
-            "plan_tree": plan.tree,
-            "review_passed": outcome.review_passed,
-            "review_suggestions": outcome.review_suggestions,
-            "ok": ok,
-            "violations": violations,
-        }
+            outcome = composer.compose(work_id, prompt, on_event=emit)
+            service.ensure_title(work_id)
+            movements = service.get_work(work_id).movements
+            movement_id = movements[0].id if movements else "m01"
+            if outcome.review_passed is not None:
+                service.record_review(
+                    work_id, movement_id, outcome.review_passed, outcome.review_suggestions
+                )
+            reports = [service.check(work_id, movement.id) for movement in movements]
+            violations = [item for report in reports for item in report.to_dict()["violations"]]
+            ok = bool(reports) and all(report.ok for report in reports) and outcome.completed
+            finished = True
+            return {
+                "work_id": work_id,
+                "movement_id": movement_id,
+                "completed": outcome.completed,
+                "steps": len(movements),
+                "final_text": plan.plan,
+                "plan": plan.plan,
+                "plan_tree": plan.tree,
+                "review_passed": outcome.review_passed,
+                "review_suggestions": outcome.review_suggestions,
+                "ok": ok,
+                "violations": violations,
+            }
+        finally:
+            service.finish_generation(work_id, finished)
 
     _jobs(app).start(job, target)
     return job

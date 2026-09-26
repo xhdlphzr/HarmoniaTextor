@@ -88,6 +88,7 @@ def create_app(
     data = Path(data_dir or os.environ.get("HARMONIA_DATA") or config_dir())
     vendor = Path(vendor_dir or os.environ.get("HARMONIA_VENDOR", "vendor"))
     service = CompositionService(ProjectStore(data))
+    service.interrupt_stale_generations()
     app.extensions["harmonia_service"] = service
     app.extensions["harmonia_export"] = ExportService(service, vendor)
 

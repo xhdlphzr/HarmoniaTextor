@@ -165,6 +165,11 @@ h2 {
   color: var(--ink-soft);
 }
 
+.chip.warn {
+  background: rgba(176, 58, 46, 0.12);
+  color: var(--error);
+}
+
 .create-form {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
