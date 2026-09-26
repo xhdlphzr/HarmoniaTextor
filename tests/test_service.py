@@ -14,6 +14,8 @@ from harmoniatextor.score.streamops import ScoreEditor
 from harmoniatextor.service.service import DEFAULT_TITLE, CompositionService
 
 _SYMPHONY_MOVEMENTS = 4
+_FAST_TEMPO = 100
+_SLOW_TEMPO = 72
 
 
 def melody_xml(notes: list[tuple[str, float]], voice: str = "soprano") -> str:
@@ -417,6 +419,60 @@ class TestInstruments:
         failing = CheckReport([CheckViolation("r", Severity.ERROR, 1, None, None, "k", "m", "s")])
         monkeypatch.setattr(service, "_check", lambda *_args, **_kwargs: failing)
         result = service.add_part(work.id, work.movements[0].id, "flute", "Flute")
+        assert not result.ok
+        assert result.report is failing
+
+    def test_remove_part(self, service: CompositionService) -> None:
+        """A voice can be removed, and a missing voice is rejected."""
+        work = service.create_work("Demo", "symphony", "C")
+        movement_id = work.movements[0].id
+        service.add_part(work.id, movement_id, "flute", "Flute", check=False)
+        assert service.remove_part(work.id, movement_id, "flute", check=False).ok
+        assert (
+            service.remove_part(work.id, movement_id, "flute", check=False).error_code
+            == "BAD_PARAM"
+        )
+
+    def test_remove_part_check_failure(
+        self, service: CompositionService, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A removal that fails the symbolic check returns the report."""
+        work = service.create_work("Demo", "symphony", "C")
+        movement_id = work.movements[0].id
+        service.add_part(work.id, movement_id, "flute", "Flute", check=False)
+        failing = CheckReport([CheckViolation("r", Severity.ERROR, 1, None, None, "k", "m", "s")])
+        monkeypatch.setattr(service, "_check", lambda *_args, **_kwargs: failing)
+        result = service.remove_part(work.id, movement_id, "flute")
+        assert not result.ok
+        assert result.report is failing
+
+    def test_set_tempo(self, service: CompositionService) -> None:
+        """The movement tempo is updated and reaches the score."""
+        work = service.create_work("Demo", "symphony", "C")
+        movement_id = work.movements[0].id
+        service.add_part(work.id, movement_id, "flute", "Flute", check=False)
+        assert service.set_tempo(work.id, movement_id, _FAST_TEMPO, check=False).ok
+        assert service.get_work(work.id).movements[0].tempo == _FAST_TEMPO
+        assert f"<per-minute>{_FAST_TEMPO}</per-minute>" in service.current_musicxml(
+            work.id, movement_id
+        )
+
+    def test_set_tempo_partless(self, service: CompositionService) -> None:
+        """Tempo can be set before any voice exists."""
+        work = service.create_work("Demo", "symphony", "C")
+        movement_id = work.movements[0].id
+        assert service.set_tempo(work.id, movement_id, _SLOW_TEMPO, check=False).ok
+        assert service.get_work(work.id).movements[0].tempo == _SLOW_TEMPO
+
+    def test_set_tempo_check_failure(
+        self, service: CompositionService, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A tempo change that fails the symbolic check returns the report."""
+        work = service.create_work("Demo", "symphony", "C")
+        movement_id = work.movements[0].id
+        failing = CheckReport([CheckViolation("r", Severity.ERROR, 1, None, None, "k", "m", "s")])
+        monkeypatch.setattr(service, "_check", lambda *_args, **_kwargs: failing)
+        result = service.set_tempo(work.id, movement_id, _SLOW_TEMPO)
         assert not result.ok
         assert result.report is failing
 

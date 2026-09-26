@@ -178,6 +178,41 @@ class ScoreEditor:
             container.remove(element)
             container.insert(offset, m21key.Key(key_name))
 
+    def set_tempo(self, bpm: int) -> None:
+        """Retune every tempo marking in the score.
+
+        Each existing marking is replaced with a fresh one so the new tempo is
+        what actually reaches the exported MusicXML and audio.
+
+        Args:
+            bpm: New tempo in quarter notes per minute.
+        """
+        self._tempo_bpm = bpm
+        marks = list(self.score.recurse().getElementsByClass(tempo.MetronomeMark))
+        for element in marks:
+            container = element.activeSite
+            assert container is not None
+            offset = element.offset
+            container.remove(element)
+            container.insert(offset, tempo.MetronomeMark(number=bpm))
+        if not marks and self.score.parts:
+            self._ensure_attributes(self.score.parts[0])
+
+    def remove_part(self, voice: str) -> bool:
+        """Remove a voice from the score.
+
+        Args:
+            voice: Voice slot name to remove.
+
+        Returns:
+            ``True`` when a part was removed.
+        """
+        for part in list(self.score.parts):
+            if str(part.id or part.partName) == voice:
+                self.score.remove(part)
+                return True
+        return False
+
     def _ensure_measure(self, part: stream.Part, number: int) -> stream.Measure:
         """Return the measure with ``number``, creating intervening measures.
 

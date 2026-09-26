@@ -666,6 +666,82 @@ class CompositionService:
             report=report,
         )
 
+    def remove_part(
+        self, work_id: str, movement_id: str, voice: str, *, check: bool = True
+    ) -> ToolResult:
+        """Remove a voice from a movement.
+
+        Args:
+            work_id: Active work.
+            movement_id: Active movement.
+            voice: Voice slot to remove.
+            check: Whether to run the symbolic checker immediately.
+
+        Returns:
+            A tool result carrying the full score.
+        """
+        work = self.store.load_work(work_id)
+        movement = self._owning_movement(work, movement_id)
+        score = self.current_score(work_id, movement_id)
+        editor = self._editor(score, movement)
+        if not editor.remove_part(voice):
+            return ToolResult(False, error_code="BAD_PARAM", message=f"声部不存在:{voice}")
+        report = self._check(work, movement, score) if check else None
+        revision = self._save_revision(
+            work,
+            movement,
+            movement_id,
+            score,
+            RevisionOrigin(ToolKind.PART, params={"voice": voice, "action": "remove"}),
+            report,
+        )
+        if report is not None and not report.ok:
+            return ToolResult(False, message=format_feedback(report), report=report)
+        return ToolResult(
+            True,
+            full_musicxml=revision.full_xml,
+            message=format_feedback(report) if report is not None else "声部已删除。",
+            report=report,
+        )
+
+    def set_tempo(
+        self, work_id: str, movement_id: str, bpm: int, *, check: bool = True
+    ) -> ToolResult:
+        """Change the tempo of a movement.
+
+        Args:
+            work_id: Active work.
+            movement_id: Active movement.
+            bpm: New tempo in quarter notes per minute.
+            check: Whether to run the symbolic checker immediately.
+
+        Returns:
+            A tool result carrying the full score.
+        """
+        work = self.store.load_work(work_id)
+        movement = self._owning_movement(work, movement_id)
+        movement.tempo = bpm
+        score = self.current_score(work_id, movement_id)
+        editor = self._editor(score, movement)
+        editor.set_tempo(bpm)
+        report = self._check(work, movement, score) if check else None
+        revision = self._save_revision(
+            work,
+            movement,
+            movement_id,
+            score,
+            RevisionOrigin(ToolKind.TEMPO, params={"bpm": bpm}),
+            report,
+        )
+        if report is not None and not report.ok:
+            return ToolResult(False, message=format_feedback(report), report=report)
+        return ToolResult(
+            True,
+            full_musicxml=revision.full_xml,
+            message=format_feedback(report) if report is not None else f"速度已改为 {bpm}。",
+            report=report,
+        )
+
     def apply_technique(
         self,
         work_id: str,

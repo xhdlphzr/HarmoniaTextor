@@ -16,6 +16,8 @@ from harmoniatextor.domain.params import (
     EditParams,
     InsertMeasureParams,
     OverwriteParams,
+    RemovePartParams,
+    SetTempoParams,
     SubmitThemeParams,
 )
 from harmoniatextor.service.service import CompositionService, ToolResult
@@ -98,6 +100,14 @@ def build_tools(
             service.add_part(work_id, movement_id, voice, instrument or None, check=False)
         )
 
+    def remove_part(voice: str) -> str:
+        """Remove a voice from the movement."""
+        return result_payload(service.remove_part(work_id, movement_id, voice, check=False))
+
+    def set_tempo(bpm: int) -> str:
+        """Change the tempo of the movement."""
+        return result_payload(service.set_tempo(work_id, movement_id, bpm, check=False))
+
     def edit(measure: int, voice: str, musicxml: str = "") -> str:
         """Replace or clear one measure of one voice."""
         return result_payload(
@@ -156,6 +166,24 @@ def build_tools(
                 "(e.g. violin1 and violin2) or to add a new instrument to the texture."
             ),
             args_schema=AddPartParams,
+        ),
+        StructuredTool.from_function(
+            func=remove_part,
+            name="remove_part",
+            description=(
+                "Remove a voice (part) from the movement by its slot name. Use this "
+                "when the planned texture needs fewer voices."
+            ),
+            args_schema=RemovePartParams,
+        ),
+        StructuredTool.from_function(
+            func=set_tempo,
+            name="set_tempo",
+            description=(
+                "Change the movement tempo in quarter notes per minute (BPM). "
+                "Use this to adjust the speed of the whole movement."
+            ),
+            args_schema=SetTempoParams,
         ),
         StructuredTool.from_function(
             func=edit,
