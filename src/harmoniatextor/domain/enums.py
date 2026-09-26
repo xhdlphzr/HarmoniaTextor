@@ -57,6 +57,7 @@ class ToolKind(StrEnum):
     IMPORT = "import"
     ROLLBACK = "rollback"
     PART = "part"
+    TEMPO = "tempo"
     MERGE = "merge"
 
 
@@ -112,5 +113,6 @@ TOOL_KIND_LABELS: dict[str, str] = {
     ToolKind.IMPORT.value: "初始谱",
     ToolKind.ROLLBACK.value: "回退",
     ToolKind.PART.value: "声部",
+    ToolKind.TEMPO.value: "速度",
     ToolKind.MERGE.value: "合并",
 }

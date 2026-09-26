@@ -39,11 +39,13 @@ __all__ = [
     "PedalPointParams",
     "PedalToneParams",
     "RecapitulationParams",
+    "RemovePartParams",
     "RetrogradeParams",
     "RhythmicIndependenceParams",
     "RondoParams",
     "SequenceParams",
     "SetMovementPromptParams",
+    "SetTempoParams",
     "SetTitleParams",
     "StrettoParams",
     "SubmitThemeParams",
@@ -402,6 +404,26 @@ class AddPartParams(_Params):
         default="",
         description="Instrument for the new part, e.g. 'Violin', 'Flute', 'Cello'.",
     )
+
+
+class RemovePartParams(_Params):
+    """Parameters for the remove-part tool.
+
+    Attributes:
+        voice: Voice slot to remove.
+    """
+
+    voice: str = Field(min_length=1, description="Voice slot name to remove.")
+
+
+class SetTempoParams(_Params):
+    """Parameters for the set-tempo tool.
+
+    Attributes:
+        bpm: New tempo in quarter notes per minute.
+    """
+
+    bpm: int = Field(ge=20, le=300, description="New tempo in quarter notes per minute (20-300).")
 
 
 class SetTitleParams(_Params):

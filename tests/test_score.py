@@ -33,6 +33,7 @@ from harmoniatextor.score.streamops import ScoreEditor
 _DEFAULT_BAR_LENGTH = 4.0
 _TWO_EVENTS = 2
 _SECOND_MEASURE = 2
+_TEMPO = 90
 
 
 class TestIO:
@@ -88,6 +89,21 @@ class TestScoreEditor:
         editor = ScoreEditor(score4)
         assert editor.get_part("flute") is None
         assert editor.get_part("flute", create=True) is not None
+
+    def test_remove_part(self, score4: stream.Score) -> None:
+        """A voice can be removed; a missing voice is a no-op."""
+        editor = ScoreEditor(score4)
+        assert editor.remove_part("soprano")
+        assert not editor.remove_part("soprano")
+
+    def test_set_tempo_adds_marking(self) -> None:
+        """A part without a tempo marking gets one."""
+        score = stream.Score()
+        score.insert(0.0, new_part("flute"))
+        ScoreEditor(score).set_tempo(_TEMPO)
+        marks = list(score.recurse().getElementsByClass("MetronomeMark"))
+        assert marks
+        assert int(marks[0].number) == _TEMPO
 
     def test_write_across_measures(self, score4: stream.Score) -> None:
         """Writing a long line creates measures as needed."""
