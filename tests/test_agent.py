@@ -53,7 +53,7 @@ from harmoniatextor.score.streamops import ScoreEditor
 from harmoniatextor.service.service import CompositionService, ToolResult
 from harmoniatextor.techniques import build_default_registry
 
-_EXPECTED_TOOL_COUNT = 34
+_EXPECTED_TOOL_COUNT = 33
 _AUTO_CONTINUE_CALLS = 2
 _COUNTED_TOKENS = 7
 _HEURISTIC_MIN = 10
@@ -326,7 +326,6 @@ class TestTools:
         assert "edit" in names
         assert "insert" in names
         assert "delete" in names
-        assert "overwrite" in names
         assert "refine_score" not in names
         assert len(tools) == _EXPECTED_TOOL_COUNT
 
@@ -349,7 +348,6 @@ class TestTools:
             "edit",
             "insert",
             "delete",
-            "overwrite",
         } <= names
         assert "set_title" not in names
         assert sum(1 for name in names if name.startswith("technique_")) == len(
@@ -374,8 +372,6 @@ class TestTools:
         assert "full_musicxml" in inserted
         deleted = tools["delete"].invoke({"measure": 1})
         assert "full_musicxml" in deleted
-        overwritten = tools["overwrite"].invoke({"musicxml": theme_xml()})
-        assert "full_musicxml" not in overwritten
         full = tools["read"].invoke({})
         assert "score-partwise" in full
 

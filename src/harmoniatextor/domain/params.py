@@ -35,7 +35,6 @@ __all__ = [
     "MeasurePosition",
     "MeasureRange",
     "ModulationBridgeParams",
-    "OverwriteParams",
     "PedalPointParams",
     "PedalToneParams",
     "RecapitulationParams",
@@ -476,16 +475,6 @@ class DeleteMeasureParams(_Params):
     """
 
     measure: int = Field(ge=1, description="One-based measure number to remove.")
-
-
-class OverwriteParams(_Params):
-    """Parameters for the whole-score overwrite tool.
-
-    Attributes:
-        musicxml: A complete replacement MusicXML score.
-    """
-
-    musicxml: str = Field(min_length=1, description="A complete replacement MusicXML score.")
 
 
 class AddMovementParams(_Params):

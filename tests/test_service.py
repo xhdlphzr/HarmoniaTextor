@@ -649,31 +649,6 @@ class TestArchitecture:
         assert not result.ok
         assert result.report is not None
 
-    def test_overwrite_score(self, service: CompositionService) -> None:
-        """The whole movement score can be overwritten."""
-        work = service.create_work("Demo", "plain", "C")
-        movement_id = work.movements[0].id
-        service.submit_theme(work.id, movement_id, melody_xml([("C5", 1.0)]), check=False)
-        result = service.overwrite_score(
-            work.id, movement_id, melody_xml([("G5", 1.0)]), check=False
-        )
-        assert result.ok
-        score = service.current_score(work.id, movement_id)
-        assert ScoreEditor(score).read_line("soprano", 1, 1) == [ThemeNote("G5", 1.0)]
-
-    def test_overwrite_score_errors(
-        self, service: CompositionService, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """Overwrite rejects bad XML and reports a failing check."""
-        work = service.create_work("Demo", "plain", "C")
-        movement_id = work.movements[0].id
-        assert service.overwrite_score(work.id, movement_id, "nope").error_code == "BAD_PARAM"
-        failing = CheckReport([CheckViolation("r", Severity.ERROR, 1, None, None, "k", "m", "s")])
-        monkeypatch.setattr(service, "_check", lambda *_args, **_kwargs: failing)
-        result = service.overwrite_score(work.id, movement_id, melody_xml([("C5", 1.0)]))
-        assert not result.ok
-        assert result.report is not None
-
     def test_prompts_and_missing(self, service: CompositionService) -> None:
         """Coverage tracks movements without a prompt."""
         work = service.create_work("Demo", "plain", "C", with_movements=False)
