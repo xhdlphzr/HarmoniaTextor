@@ -12,55 +12,52 @@ permissions:
 
 jobs:
   build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: windows-latest
-            artifact: HarmoniaTextor-windows
-          - os: macos-latest
-            artifact: HarmoniaTextor-macos
-          - os: ubuntu-latest
-            artifact: HarmoniaTextor-linux
-    runs-on: ${{ matrix.os }}
+        os: [windows-latest, macos-latest, ubuntu-latest]
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
         with:
-          version: "0.12.x"
           enable-cache: true
+          cache-dependency-glob: "uv.lock"
 
-      - name: Install Python
-        run: uv python install 3.14
+      - name: "Install dependencies (incl. dev: pyinstaller)"
+        run: uv sync --frozen --extra desktop
 
-      - name: Sync dependencies
-        run: uv sync --extra desktop --group dev
-
-      - name: Build bundle with PyInstaller
-        run: uv run --no-sync pyinstaller --noconfirm --clean HarmoniaTextor.spec
-
-      - name: Package (Windows)
+      - name: Install zip (Windows)
         if: runner.os == 'Windows'
-        shell: pwsh
-        run: 7z a -v1g -tzip "${{ matrix.artifact }}.zip" .\dist\HarmoniaTextor\*
+        run: choco install zip -y
 
-      - name: Package (macOS)
-        if: runner.os == 'macOS'
-        shell: bash
-        run: |
-          tar -czf archive.tar.gz -C dist HarmoniaTextor.app
-          split -b 1024m -d archive.tar.gz "${{ matrix.artifact }}.tar.gz.part-"
-
-      - name: Package (Linux)
+      - name: Install zip (Linux)
         if: runner.os == 'Linux'
+        run: sudo apt-get install -y zip
+
+      # ---------- Windows / macOS / Linux: PyInstaller 出包（onedir 目录） ----------
+      - name: Build with PyInstaller
+        run: uv run --no-sync pyinstaller HarmoniaTextor.spec --clean
+
+      # ---------- 分卷压缩（统一 zip -s 1g） ----------
+      - name: Compress into 1GB volumes
         shell: bash
         run: |
-          tar -czf archive.tar.gz -C dist HarmoniaTextor
-          split -b 1024m -d archive.tar.gz "${{ matrix.artifact }}.tar.gz.part-"
+          cd dist
+          if [ -d HarmoniaTextor.app ]; then
+            target=HarmoniaTextor.app
+          else
+            target=HarmoniaTextor
+          fi
+          zip -s 1g -r "HarmoniaTextor-${{ runner.os }}.zip" "$target"
 
-      - name: Upload release assets
-        uses: softprops/action-gh-release@v2
-        with:
-          files: ${{ matrix.artifact }}.*
+      # ---------- 上传到 Release 附件 ----------
+      - name: Upload to Release
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ github.event.release.tag_name }}" dist/HarmoniaTextor-${{ runner.os }}.z* --repo "${{ github.repository }}" --clobber
