@@ -146,6 +146,15 @@ class TestPages:
         assert response.status_code == _HTTP_OK
         assert work.title in response.get_data(as_text=True)
 
+    def test_index_marks_interrupted_generation(self, app: Flask, client: FlaskClient) -> None:
+        """An interrupted generation is marked in the index."""
+        service = get_service(app)
+        work = service.create_work("中断作品", "plain", "C", with_movements=False)
+        service.start_generation(work.id, "写一段")
+        service.interrupt_stale_generations()
+        page = client.get("/").get_data(as_text=True)
+        assert "生成中断" in page
+
     def test_work_without_movements_redirects(self, app: Flask, client: FlaskClient) -> None:
         """A work without movements redirects to the index."""
         work = get_service(app).create_work("空作品", "plain", "C", with_movements=False)

@@ -47,6 +47,10 @@ __all__ = [
 
 DEFAULT_TITLE = "未命名作品"
 
+_GENERATION_EVENTS = frozenset(
+    {"generation_started", "generation_finished", "generation_interrupted"}
+)
+
 VOICE_PROFILES: dict[str, list[str]] = {
     "four_part": ["soprano", "alto", "tenor", "bass"],
     "solo_tutti": ["solo", "violin1", "violin2", "viola", "cello"],
@@ -1039,6 +1043,60 @@ class CompositionService:
             if event.get("event") == "plan":
                 return str(event.get("text", ""))
         return None
+
+    def start_generation(self, work_id: str, prompt: str) -> None:
+        """Record that an automatic generation run started.
+
+        Args:
+            work_id: Work identifier.
+            prompt: The composition goal the run was started with.
+        """
+        self.store.append_journal(work_id, {"event": "generation_started", "prompt": prompt})
+
+    def finish_generation(self, work_id: str, completed: bool) -> None:
+        """Record that an automatic generation run reached its end.
+
+        Args:
+            work_id: Work identifier.
+            completed: Whether the run reached its end (``False`` when it
+                crashed before finishing).
+        """
+        self.store.append_journal(work_id, {"event": "generation_finished", "completed": completed})
+
+    def latest_generation_state(self, work_id: str) -> str | None:
+        """Return the latest generation lifecycle event of a work.
+
+        Args:
+            work_id: Work identifier.
+
+        Returns:
+            ``generation_started``, ``generation_finished`` or
+            ``generation_interrupted``, or ``None`` when the work was never
+            generated automatically.
+        """
+        for event in reversed(self.store.load_journal(work_id)):
+            name = str(event.get("event", ""))
+            if name in _GENERATION_EVENTS:
+                return name
+        return None
+
+    def interrupt_stale_generations(self) -> int:
+        """Mark generation runs that never finished, for example after a crash.
+
+        Partially generated works are already persisted revision by revision;
+        this only adds an explicit ``generation_interrupted`` marker so an
+        interrupted run stays visible in the work history instead of looking
+        like an idle draft.
+
+        Returns:
+            The number of works newly marked as interrupted.
+        """
+        marked = 0
+        for work_id in self.list_works():
+            if self.latest_generation_state(work_id) == "generation_started":
+                self.store.append_journal(work_id, {"event": "generation_interrupted"})
+                marked += 1
+        return marked
 
     def _check(
         self,
