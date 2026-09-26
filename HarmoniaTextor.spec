@@ -24,8 +24,15 @@ datas = [
     ("app/static", "app/static"),
     ("assets", "assets"),
 ]
+
+# pywebview is imported dynamically (importlib.import_module("webview")), so
+# PyInstaller cannot see it.  Its platform backends load their JavaScript and
+# native WebView2 libraries from package data at runtime, so bundle both the
+# package data and every importable submodule explicitly.
+datas += collect_data_files("webview")
 binaries = []
-hiddenimports = ["app.desktop"]
+hiddenimports = ["app.desktop", "webview"]
+hiddenimports += collect_submodules("webview", on_error="ignore")
 
 # Bundle music21 code and its non-corpus data.  The upstream corpus manifest
 # references a few files that are not shipped, so missing entries are dropped.
