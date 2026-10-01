@@ -23,6 +23,7 @@ from harmoniatextor.techniques.base import (
     Technique,
     TechniqueCategory,
     TechniqueContext,
+    TechniqueError,
     TechniqueResult,
 )
 from harmoniatextor.techniques.helpers import (
@@ -109,6 +110,24 @@ class ExpositionTechnique(Technique[ExpositionParams]):
         return TechniqueResult(ctx.score)
 
 
+def _require_voices(editor: ScoreEditor) -> list[str]:
+    """Return the score's voices, refusing to invent a default texture.
+
+    Args:
+        editor: Score editor.
+
+    Returns:
+        The voice slot names.
+
+    Raises:
+        TechniqueError: When the movement has no voices yet.
+    """
+    voices = editor.voice_names()
+    if not voices:
+        raise TechniqueError("NO_VOICE", "本乐章还没有任何声部,请先用 add_part 创建声部。")
+    return voices
+
+
 class DevelopmentTechnique(Technique[DevelopmentParams]):
     """Develop themes through a sequence of keys and techniques."""
 
@@ -121,7 +140,7 @@ class DevelopmentTechnique(Technique[DevelopmentParams]):
     def apply(self, ctx: TechniqueContext, params: DevelopmentParams) -> TechniqueResult:
         """Build a development block."""
         editor = ScoreEditor(ctx.score)
-        voices = editor.voice_names() or ["soprano", "alto", "tenor", "bass"]
+        voices = _require_voices(editor)
         bar = editor.bar_length()
         measure = params.measure_range.start
         warnings: list[str] = []
@@ -171,7 +190,7 @@ class RecapitulationTechnique(Technique[RecapitulationParams]):
     def apply(self, ctx: TechniqueContext, params: RecapitulationParams) -> TechniqueResult:
         """Build a recapitulation block."""
         editor = ScoreEditor(ctx.score)
-        voices = editor.voice_names() or ["soprano"]
+        voices = _require_voices(editor)
         bar = editor.bar_length()
         measure = params.measure_start
         for index, theme_id in enumerate(params.theme_ids):
@@ -194,7 +213,7 @@ class RondoTechnique(Technique[RondoParams]):
     def apply(self, ctx: TechniqueContext, params: RondoParams) -> TechniqueResult:
         """Build a rondo form."""
         editor = ScoreEditor(ctx.score)
-        voices = editor.voice_names() or ["soprano"]
+        voices = _require_voices(editor)
         bar = editor.bar_length()
         refrain = get_theme(ctx, params.refrain_theme_id)
         refrain_notes = transpose_to_key(refrain.notes, params.tonic)

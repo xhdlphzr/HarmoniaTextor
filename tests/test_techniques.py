@@ -21,7 +21,7 @@ from harmoniatextor.techniques.helpers import (
     transpose_to_key,
 )
 from harmoniatextor.techniques.melodic import _smooth_leaps
-from harmoniatextor.techniques.structural import _vary
+from harmoniatextor.techniques.structural import _require_voices, _vary
 
 REGISTRY = build_default_registry()
 
@@ -645,3 +645,9 @@ class TestRegistry:
     def test_schema(self) -> None:
         """Techniques expose a JSON schema."""
         assert "properties" in REGISTRY.get("imitation").schema()
+
+
+def test_require_voices_refuses_default_texture() -> None:
+    """A structural technique never invents a default four-part texture."""
+    with pytest.raises(TechniqueError, match="add_part"):
+        _require_voices(ScoreEditor(stream.Score()))
