@@ -96,6 +96,12 @@ class TestScoreEditor:
         assert editor.remove_part("soprano")
         assert not editor.remove_part("soprano")
 
+    def test_annotate_missing_target(self, score4: stream.Score) -> None:
+        """Annotating a missing voice or measure is a no-op."""
+        editor = ScoreEditor(score4)
+        assert not editor.annotate("ghost", 1, "dynamic", "f")
+        assert not editor.annotate("soprano", 99, "dynamic", "f")
+
     def test_set_tempo_adds_marking(self) -> None:
         """A part without a tempo marking gets one."""
         score = stream.Score()

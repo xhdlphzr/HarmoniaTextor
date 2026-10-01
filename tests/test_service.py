@@ -16,6 +16,7 @@ from harmoniatextor.service.service import DEFAULT_TITLE, CompositionService
 _SYMPHONY_MOVEMENTS = 4
 _FAST_TEMPO = 100
 _SLOW_TEMPO = 72
+_INTERRUPTED_WORKS = 2
 
 
 def melody_xml(notes: list[tuple[str, float]], voice: str = "soprano") -> str:
@@ -464,6 +465,82 @@ class TestInstruments:
         assert service.set_tempo(work.id, movement_id, _SLOW_TEMPO, check=False).ok
         assert service.get_work(work.id).movements[0].tempo == _SLOW_TEMPO
 
+    def test_annotate_marks(self, service: CompositionService) -> None:
+        """Every supported expressive mark can be added."""
+        work = service.create_work("Demo", "plain", "C")
+        movement_id = work.movements[0].id
+        service.submit_theme(
+            work.id, movement_id, melody_xml([("C5", 1.0), ("D5", 1.0)]), check=False
+        )
+        marks = [
+            ("dynamic", "f"),
+            ("text", "dolce"),
+            ("crescendo", ""),
+            ("diminuendo", ""),
+            ("accent", ""),
+            ("tenuto", ""),
+            ("staccato", ""),
+            ("slur", ""),
+            ("pedal", ""),
+            ("tempo", "90"),
+        ]
+        for mark, value in marks:
+            result = service.annotate(work.id, movement_id, 1, "soprano", mark, value, check=False)
+            assert result.ok, mark
+        xml = service.current_musicxml(work.id, movement_id)
+        assert "dolce" in xml
+        assert "<wedge" in xml
+        assert "<slur" in xml
+        assert "<pedal" in xml
+        assert "accent" in xml
+        assert "tenuto" in xml
+        assert "staccato" in xml
+
+    def test_annotate_errors(self, service: CompositionService) -> None:
+        """Unknown voices, measures, marks and values are rejected."""
+        work = service.create_work("Demo", "plain", "C")
+        movement_id = work.movements[0].id
+        service.submit_theme(work.id, movement_id, melody_xml([("C5", 1.0)]), check=False)
+        assert (
+            service.annotate(
+                work.id, movement_id, 1, "ghost", "dynamic", "f", check=False
+            ).error_code
+            == "BAD_PARAM"
+        )
+        assert (
+            service.annotate(
+                work.id, movement_id, 99, "soprano", "dynamic", "f", check=False
+            ).error_code
+            == "BAD_PARAM"
+        )
+        assert (
+            service.annotate(work.id, movement_id, 1, "soprano", "nope", "", check=False).error_code
+            == "BAD_PARAM"
+        )
+        assert (
+            service.annotate(
+                work.id, movement_id, 1, "soprano", "tempo", "abc", check=False
+            ).error_code
+            == "BAD_PARAM"
+        )
+        assert (
+            service.annotate(work.id, movement_id, 1, "soprano", "slur", "", check=False).error_code
+            == "BAD_PARAM"
+        )
+
+    def test_annotate_check_failure(
+        self, service: CompositionService, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A mark that fails the symbolic check returns the report."""
+        work = service.create_work("Demo", "plain", "C")
+        movement_id = work.movements[0].id
+        service.submit_theme(work.id, movement_id, melody_xml([("C5", 1.0)]), check=False)
+        failing = CheckReport([CheckViolation("r", Severity.ERROR, 1, None, None, "k", "m", "s")])
+        monkeypatch.setattr(service, "_check", lambda *_args, **_kwargs: failing)
+        result = service.annotate(work.id, movement_id, 1, "soprano", "dynamic", "f")
+        assert not result.ok
+        assert result.report is failing
+
     def test_set_tempo_check_failure(
         self, service: CompositionService, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -689,23 +766,36 @@ class TestArchitecture:
         with pytest.raises(KeyError):
             service.current_musicxml(work.id, "nope")
 
+    def test_history_is_newest_first(self, service: CompositionService) -> None:
+        """Works are listed in strict reverse-chronological order."""
+        service.create_work("First", "plain", "C")
+        second = service.create_work("Second", "plain", "C")
+        assert service.list_works()[0] == second.id
+
     def test_generation_lifecycle(self, service: CompositionService) -> None:
-        """A generation run is recorded as started and finished."""
+        """A generation run is recorded as started then finished or failed."""
         work = service.create_work("Demo", "plain", "C")
         assert service.latest_generation_state(work.id) is None
         service.start_generation(work.id, "写一段")
         assert service.latest_generation_state(work.id) == "generation_started"
         service.finish_generation(work.id, True)
         assert service.latest_generation_state(work.id) == "generation_finished"
+        service.start_generation(work.id, "再来")
+        service.finish_generation(work.id, False)
+        assert service.latest_generation_state(work.id) == "generation_failed"
 
     def test_interrupt_stale_generations(self, service: CompositionService) -> None:
-        """Runs that never finished are marked as interrupted."""
+        """Runs without a completion tag (killed or failed) are interrupted."""
         stale = service.create_work("Stale", "plain", "C")
+        crashed = service.create_work("Crashed", "plain", "C")
         done = service.create_work("Done", "plain", "C")
         service.start_generation(stale.id, "goal")
+        service.start_generation(crashed.id, "goal")
+        service.finish_generation(crashed.id, False)
         service.start_generation(done.id, "goal")
         service.finish_generation(done.id, True)
-        assert service.interrupt_stale_generations() == 1
+        assert service.interrupt_stale_generations() == _INTERRUPTED_WORKS
         assert service.latest_generation_state(stale.id) == "generation_interrupted"
+        assert service.latest_generation_state(crashed.id) == "generation_interrupted"
         assert service.latest_generation_state(done.id) == "generation_finished"
         assert service.interrupt_stale_generations() == 0

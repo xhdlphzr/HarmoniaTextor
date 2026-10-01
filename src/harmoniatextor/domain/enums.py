@@ -58,6 +58,7 @@ class ToolKind(StrEnum):
     ROLLBACK = "rollback"
     PART = "part"
     TEMPO = "tempo"
+    MARK = "mark"
     MERGE = "merge"
 
 
@@ -114,5 +115,6 @@ TOOL_KIND_LABELS: dict[str, str] = {
     ToolKind.ROLLBACK.value: "回退",
     ToolKind.PART.value: "声部",
     ToolKind.TEMPO.value: "速度",
+    ToolKind.MARK.value: "记号",
     ToolKind.MERGE.value: "合并",
 }
