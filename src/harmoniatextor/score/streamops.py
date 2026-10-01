@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from music21 import chord, meter, stream, tempo
+from music21 import articulations, chord, dynamics, expressions, meter, spanner, stream, tempo
 from music21 import key as m21key
 from music21 import note as m21note
 from music21 import pitch as m21pitch
@@ -21,7 +21,14 @@ from harmoniatextor.score.io import make_instrument, new_part
 
 __all__ = ["ScoreEditor"]
 
+_ARTICULATIONS: dict[str, type[articulations.Articulation]] = {
+    "accent": articulations.Accent,
+    "tenuto": articulations.Tenuto,
+    "staccato": articulations.Staccato,
+}
+
 _EPSILON = 1e-6
+_MIN_SLUR_NOTES = 2
 
 
 class ScoreEditor:
@@ -212,6 +219,74 @@ class ScoreEditor:
                 self.score.remove(part)
                 return True
         return False
+
+    def annotate(  # noqa: PLR0912
+        self, voice: str, measure: int, mark: str, value: str = ""
+    ) -> bool:
+        """Add an expressive mark to one measure of a voice.
+
+        Supported marks are ``dynamic`` (value like ``"f"``), ``text`` (an
+        expression such as ``"dolce"``), ``crescendo``, ``diminuendo``,
+        ``accent``, ``tenuto``, ``staccato``, ``slur``, ``pedal`` and ``tempo``
+        (value is the BPM, for a mid-piece tempo change).
+
+        Args:
+            voice: Voice slot to annotate.
+            measure: One-based measure number.
+            mark: The mark kind.
+            value: Mark-specific value.
+
+        Returns:
+            ``True`` when the mark was applied.
+        """
+        part = self.get_part(voice)
+        if part is None:
+            return False
+        target = part.measure(measure)
+        if target is None:
+            return False
+        notes = [item for item in target.notes if isinstance(item, m21note.Note)]
+        if mark == "dynamic":
+            target.insert(0.0, dynamics.Dynamic(value or "mf"))  # type: ignore[no-untyped-call]
+        elif mark == "text":
+            target.insert(
+                0.0,
+                expressions.TextExpression(value or "dolce"),  # type: ignore[no-untyped-call]
+            )
+        elif mark in {"crescendo", "diminuendo"}:
+            wedge = (
+                dynamics.Crescendo()  # type: ignore[no-untyped-call]
+                if mark == "crescendo"
+                else dynamics.Diminuendo()  # type: ignore[no-untyped-call]
+            )
+            target.insert(0.0, wedge)
+            if notes:
+                wedge.addSpannedElements(notes[0], notes[-1])
+        elif mark in _ARTICULATIONS:
+            for item in notes:
+                item.articulations.append(_ARTICULATIONS[mark]())
+        elif mark == "slur":
+            if len(notes) < _MIN_SLUR_NOTES:
+                return False
+            slur = spanner.Slur()  # type: ignore[no-untyped-call]
+            target.insert(0.0, slur)
+            slur.addSpannedElements(notes[0], notes[-1])
+        elif mark == "pedal":
+            pedal = expressions.PedalMark()
+            pedal.pedalForm = expressions.PedalForm.Symbol
+            pedal.pedalType = expressions.PedalType.Sustain
+            target.insert(0.0, pedal)
+            if notes:
+                pedal.addSpannedElements(notes[0], notes[-1])
+        elif mark == "tempo":
+            try:
+                bpm = int(value)
+            except ValueError:
+                return False
+            target.insert(0.0, tempo.MetronomeMark(number=bpm))
+        else:
+            return False
+        return True
 
     def _ensure_measure(self, part: stream.Part, number: int) -> stream.Measure:
         """Return the measure with ``number``, creating intervening measures.

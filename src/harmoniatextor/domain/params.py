@@ -17,6 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 __all__ = [
     "AddMovementParams",
     "AddPartParams",
+    "AnnotateParams",
     "AugmentationParams",
     "ChromaticHarmonyParams",
     "CounterRhythmParams",
@@ -385,8 +386,11 @@ class SubmitThemeParams(_Params):
         description="Target voice slot such as 'violin1'; empty uses the fragment's first part.",
     )
     instrument: str = Field(
-        default="",
-        description="Instrument for the target part, e.g. 'Violin', 'Flute', 'Cello'.",
+        min_length=1,
+        description=(
+            "Required. The instrument for the target part, e.g. 'Violin', 'Flute', "
+            "'Cello', 'Piano'. It is never inferred from the voice name."
+        ),
     )
 
 
@@ -395,13 +399,16 @@ class AddPartParams(_Params):
 
     Attributes:
         voice: Voice slot name for the new part.
-        instrument: Instrument to assign to the new part.
+        instrument: Instrument to assign to the new part (required).
     """
 
     voice: str = Field(min_length=1, description="Voice slot name for the new part.")
     instrument: str = Field(
-        default="",
-        description="Instrument for the new part, e.g. 'Violin', 'Flute', 'Cello'.",
+        min_length=1,
+        description=(
+            "Required. The instrument for the new part, e.g. 'Violin', 'Flute', "
+            "'Cello', 'Piano'. It is never inferred from the voice name."
+        ),
     )
 
 
@@ -423,6 +430,39 @@ class SetTempoParams(_Params):
     """
 
     bpm: int = Field(ge=20, le=300, description="New tempo in quarter notes per minute (20-300).")
+
+
+class AnnotateParams(_Params):
+    """Parameters for the annotate tool.
+
+    Attributes:
+        measure: One-based measure number to annotate.
+        voice: Voice slot to annotate.
+        mark: The kind of expressive mark.
+        value: Mark-specific value.
+    """
+
+    measure: int = Field(ge=1, description="One-based measure number to annotate.")
+    voice: str = Field(min_length=1, description="Voice slot to annotate.")
+    mark: Literal[
+        "dynamic",
+        "text",
+        "crescendo",
+        "diminuendo",
+        "accent",
+        "tenuto",
+        "staccato",
+        "slur",
+        "pedal",
+        "tempo",
+    ] = Field(description="The kind of expressive mark.")
+    value: str = Field(
+        default="",
+        description=(
+            "For 'dynamic' a name like 'pp'/'f'; for 'text' free text such as "
+            "'dolce'; for 'tempo' the BPM as a number; ignored for the rest."
+        ),
+    )
 
 
 class SetTitleParams(_Params):

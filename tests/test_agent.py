@@ -53,7 +53,7 @@ from harmoniatextor.score.streamops import ScoreEditor
 from harmoniatextor.service.service import CompositionService, ToolResult
 from harmoniatextor.techniques import build_default_registry
 
-_EXPECTED_TOOL_COUNT = 33
+_EXPECTED_TOOL_COUNT = 34
 _AUTO_CONTINUE_CALLS = 2
 _COUNTED_TOKENS = 7
 _HEURISTIC_MIN = 10
@@ -323,6 +323,7 @@ class TestTools:
         assert "add_part" in names
         assert "remove_part" in names
         assert "set_tempo" in names
+        assert "annotate" in names
         assert "edit" in names
         assert "insert" in names
         assert "delete" in names
@@ -345,6 +346,7 @@ class TestTools:
             "add_part",
             "remove_part",
             "set_tempo",
+            "annotate",
             "edit",
             "insert",
             "delete",
@@ -358,7 +360,7 @@ class TestTools:
         """The submission and edit tools execute through the service."""
         service, work_id, movement_id, _ = prepared
         tools = {tool.name: tool for tool in build_tools(service, work_id, movement_id)}
-        submitted = tools["submit_theme"].invoke({"musicxml": theme_xml()})
+        submitted = tools["submit_theme"].invoke({"musicxml": theme_xml(), "instrument": "Soprano"})
         assert "theme_id" in submitted
         added = tools["add_part"].invoke({"voice": "flute", "instrument": "Flute"})
         assert "ok" in added
@@ -368,6 +370,10 @@ class TestTools:
         assert "ok" in tempo
         edited = tools["edit"].invoke({"measure": 1, "voice": "soprano", "musicxml": theme_xml()})
         assert "full_musicxml" not in edited
+        marked = tools["annotate"].invoke(
+            {"measure": 1, "voice": "soprano", "mark": "dynamic", "value": "f"}
+        )
+        assert "ok" in marked
         inserted = tools["insert"].invoke({"measure": 1})
         assert "full_musicxml" in inserted
         deleted = tools["delete"].invoke({"measure": 1})
@@ -385,7 +391,9 @@ class TestTools:
         """Agent tools defer the symbolic check to the review step."""
         service, work_id, movement_id, _ = prepared
         tools = {tool.name: tool for tool in build_tools(service, work_id, movement_id)}
-        payload = json.loads(tools["submit_theme"].invoke({"musicxml": theme_xml()}))
+        payload = json.loads(
+            tools["submit_theme"].invoke({"musicxml": theme_xml(), "instrument": "Soprano"})
+        )
         assert payload["ok"] is True
         assert "violations" not in payload
         assert payload["theme_id"] is not None
@@ -402,6 +410,9 @@ class TestPrompts:
         assert "层次感" in prompt
         assert "没有任何声部" in prompt
         assert "add_part" in prompt
+        assert "所有 musicxml 参数都是片段" in prompt
+        assert "第一个 part" in prompt
+        assert "修正:" in prompt
 
 
 class TestAgentLoop:
@@ -1176,9 +1187,15 @@ class TestMovementComposer:
         work_id = two_movement_work(service)
         model = ValidatingChatModel(
             responses=[
-                tool_call("submit_theme", {"musicxml": theme_xml(), "voice": "soprano"}),
+                tool_call(
+                    "submit_theme",
+                    {"musicxml": theme_xml(), "voice": "soprano", "instrument": "Soprano"},
+                ),
                 AIMessage(content="done"),
-                tool_call("submit_theme", {"musicxml": theme_xml(), "voice": "soprano"}),
+                tool_call(
+                    "submit_theme",
+                    {"musicxml": theme_xml(), "voice": "soprano", "instrument": "Soprano"},
+                ),
                 AIMessage(content="done"),
             ]
         )
@@ -1208,11 +1225,20 @@ class TestMovementComposer:
         service.check_score = fake_check  # type: ignore[method-assign]
         model = ValidatingChatModel(
             responses=[
-                tool_call("submit_theme", {"musicxml": theme_xml(), "voice": "soprano"}),
+                tool_call(
+                    "submit_theme",
+                    {"musicxml": theme_xml(), "voice": "soprano", "instrument": "Soprano"},
+                ),
                 AIMessage(content="done"),
-                tool_call("submit_theme", {"musicxml": theme_xml(), "voice": "soprano"}),
+                tool_call(
+                    "submit_theme",
+                    {"musicxml": theme_xml(), "voice": "soprano", "instrument": "Soprano"},
+                ),
                 AIMessage(content="done"),
-                tool_call("submit_theme", {"musicxml": theme_xml(), "voice": "soprano"}),
+                tool_call(
+                    "submit_theme",
+                    {"musicxml": theme_xml(), "voice": "soprano", "instrument": "Soprano"},
+                ),
                 AIMessage(content="done"),
             ]
         )
@@ -1234,9 +1260,15 @@ class TestMovementComposer:
         service.set_movement_prompt(work.id, "m01", "p1")
         model = ValidatingChatModel(
             responses=[
-                tool_call("submit_theme", {"musicxml": theme_xml(), "voice": "soprano"}),
+                tool_call(
+                    "submit_theme",
+                    {"musicxml": theme_xml(), "voice": "soprano", "instrument": "Soprano"},
+                ),
                 AIMessage(content="done"),
-                tool_call("submit_theme", {"musicxml": theme_xml(), "voice": "soprano"}),
+                tool_call(
+                    "submit_theme",
+                    {"musicxml": theme_xml(), "voice": "soprano", "instrument": "Soprano"},
+                ),
                 AIMessage(content="done"),
             ]
         )
@@ -1259,9 +1291,15 @@ class TestMovementComposer:
         service.set_movement_prompt(work.id, "m01", "p1")
         model = RecordingChatModel(
             responses=[
-                tool_call("submit_theme", {"musicxml": theme_xml(), "voice": "soprano"}),
+                tool_call(
+                    "submit_theme",
+                    {"musicxml": theme_xml(), "voice": "soprano", "instrument": "Soprano"},
+                ),
                 AIMessage(content="done"),
-                tool_call("submit_theme", {"musicxml": theme_xml(), "voice": "soprano"}),
+                tool_call(
+                    "submit_theme",
+                    {"musicxml": theme_xml(), "voice": "soprano", "instrument": "Soprano"},
+                ),
                 AIMessage(content="done"),
             ]
         )
@@ -1281,9 +1319,15 @@ class TestMovementComposer:
         service.set_movement_prompt(work.id, "m01", "p1")
         model = ValidatingChatModel(
             responses=[
-                tool_call("submit_theme", {"musicxml": theme_xml(), "voice": "soprano"}),
+                tool_call(
+                    "submit_theme",
+                    {"musicxml": theme_xml(), "voice": "soprano", "instrument": "Soprano"},
+                ),
                 AIMessage(content="done"),
-                tool_call("submit_theme", {"musicxml": theme_xml(), "voice": "soprano"}),
+                tool_call(
+                    "submit_theme",
+                    {"musicxml": theme_xml(), "voice": "soprano", "instrument": "Soprano"},
+                ),
                 AIMessage(content="done"),
             ]
         )
@@ -1325,9 +1369,15 @@ class TestMovementComposer:
         model = ValidatingChatModel(
             responses=[
                 AIMessage(content="我完成了"),
-                tool_call("submit_theme", {"musicxml": theme_xml(), "voice": "soprano"}),
+                tool_call(
+                    "submit_theme",
+                    {"musicxml": theme_xml(), "voice": "soprano", "instrument": "Soprano"},
+                ),
                 AIMessage(content="好了"),
-                tool_call("submit_theme", {"musicxml": theme_xml(), "voice": "soprano"}),
+                tool_call(
+                    "submit_theme",
+                    {"musicxml": theme_xml(), "voice": "soprano", "instrument": "Soprano"},
+                ),
                 AIMessage(content="好了"),
             ]
         )
@@ -1343,9 +1393,15 @@ class TestMovementComposer:
         work_id = two_movement_work(service)
         model = ValidatingChatModel(
             responses=[
-                tool_call("submit_theme", {"musicxml": theme_xml(), "voice": "soprano"}),
+                tool_call(
+                    "submit_theme",
+                    {"musicxml": theme_xml(), "voice": "soprano", "instrument": "Soprano"},
+                ),
                 AIMessage(content="a"),
-                tool_call("submit_theme", {"musicxml": theme_xml(), "voice": "soprano"}),
+                tool_call(
+                    "submit_theme",
+                    {"musicxml": theme_xml(), "voice": "soprano", "instrument": "Soprano"},
+                ),
                 AIMessage(content="b"),
             ]
         )

@@ -39,7 +39,6 @@ from harmoniatextor.techniques.registry import (
 
 __all__ = [
     "DEFAULT_TITLE",
-    "VOICE_PROFILES",
     "CompositionService",
     "RevisionOrigin",
     "ToolResult",
@@ -47,15 +46,17 @@ __all__ = [
 
 DEFAULT_TITLE = "未命名作品"
 
+#: The only event that marks a generation as *completed*.  Anything else
+#: (started but never tagged, or failed with an error) counts as interrupted.
 _GENERATION_EVENTS = frozenset(
-    {"generation_started", "generation_finished", "generation_interrupted"}
+    {
+        "generation_started",
+        "generation_finished",
+        "generation_failed",
+        "generation_interrupted",
+    }
 )
-
-VOICE_PROFILES: dict[str, list[str]] = {
-    "four_part": ["soprano", "alto", "tenor", "bass"],
-    "solo_tutti": ["solo", "violin1", "violin2", "viola", "cello"],
-    "orchestra": ["violin1", "violin2", "viola", "cello", "contrabass"],
-}
+_GENERATION_COMPLETED = "generation_finished"
 
 
 @dataclass(slots=True)
@@ -373,20 +374,6 @@ class CompositionService:
                 else:
                     registry[theme_id] = replace(theme, start_measure=1)
         return registry
-
-    def suggested_voices(self, movement: Movement) -> list[str]:
-        """Return the voice slots suggested by a movement's texture profile.
-
-        The score starts empty; this is only a hint the composer AI may follow
-        when it creates voices with ``add_part``.
-
-        Args:
-            movement: Owning movement.
-
-        Returns:
-            Suggested voice slot names.
-        """
-        return list(VOICE_PROFILES.get(movement.voice_profile, VOICE_PROFILES["four_part"]))
 
     def _initial_score(self, movement: Movement) -> stream.Score:
         """Build the empty starting score of a composition target.
@@ -742,6 +729,63 @@ class CompositionService:
             report=report,
         )
 
+    def annotate(  # noqa: PLR0913, PLR0917
+        self,
+        work_id: str,
+        movement_id: str,
+        measure: int,
+        voice: str,
+        mark: str,
+        value: str = "",
+        *,
+        check: bool = True,
+    ) -> ToolResult:
+        """Add an expressive mark (dynamic, slur, pedal, ...) to a measure.
+
+        Args:
+            work_id: Active work.
+            movement_id: Active movement.
+            measure: One-based measure number.
+            voice: Voice slot to annotate.
+            mark: Mark kind, e.g. ``"dynamic"`` or ``"slur"``.
+            value: Mark-specific value (dynamic name, text, or tempo BPM).
+            check: Whether to run the symbolic checker immediately.
+
+        Returns:
+            A tool result carrying the full score.
+        """
+        work = self.store.load_work(work_id)
+        movement = self._owning_movement(work, movement_id)
+        score = self.current_score(work_id, movement_id)
+        editor = self._editor(score, movement)
+        if editor.get_part(voice) is None:
+            return ToolResult(False, error_code="BAD_PARAM", message=f"声部不存在:{voice}")
+        if not editor.annotate(voice, measure, mark, value):
+            return ToolResult(
+                False,
+                error_code="BAD_PARAM",
+                message=f"无法在小节 {measure} 的 {voice} 上添加记号:{mark}。",
+            )
+        report = self._check(work, movement, score) if check else None
+        revision = self._save_revision(
+            work,
+            movement,
+            movement_id,
+            score,
+            RevisionOrigin(
+                ToolKind.MARK, params={"measure": measure, "voice": voice, "mark": mark}
+            ),
+            report,
+        )
+        if report is not None and not report.ok:
+            return ToolResult(False, message=format_feedback(report), report=report)
+        return ToolResult(
+            True,
+            full_musicxml=revision.full_xml,
+            message=format_feedback(report) if report is not None else f"已添加记号:{mark}。",
+            report=report,
+        )
+
     def apply_technique(
         self,
         work_id: str,
@@ -1092,14 +1136,20 @@ class CompositionService:
         self.store.append_journal(work_id, {"event": "generation_started", "prompt": prompt})
 
     def finish_generation(self, work_id: str, completed: bool) -> None:
-        """Record that an automatic generation run reached its end.
+        """Tag a generation run as completed, or record that it failed.
+
+        Only a run that reaches its end without crashing is tagged with
+        ``generation_finished``.  A run stopped by an error is recorded as
+        ``generation_failed`` so that :meth:`interrupt_stale_generations` treats
+        it exactly like a run that was killed (both are un-tagged).
 
         Args:
             work_id: Work identifier.
             completed: Whether the run reached its end (``False`` when it
                 crashed before finishing).
         """
-        self.store.append_journal(work_id, {"event": "generation_finished", "completed": completed})
+        event = _GENERATION_COMPLETED if completed else "generation_failed"
+        self.store.append_journal(work_id, {"event": event, "completed": completed})
 
     def latest_generation_state(self, work_id: str) -> str | None:
         """Return the latest generation lifecycle event of a work.
@@ -1131,7 +1181,8 @@ class CompositionService:
         """
         marked = 0
         for work_id in self.list_works():
-            if self.latest_generation_state(work_id) == "generation_started":
+            state = self.latest_generation_state(work_id)
+            if state is not None and state not in (_GENERATION_COMPLETED, "generation_interrupted"):
                 self.store.append_journal(work_id, {"event": "generation_interrupted"})
                 marked += 1
         return marked

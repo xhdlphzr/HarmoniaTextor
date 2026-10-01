@@ -12,6 +12,7 @@ from langchain_core.tools import BaseTool, StructuredTool
 
 from harmoniatextor.domain.params import (
     AddPartParams,
+    AnnotateParams,
     DeleteMeasureParams,
     EditParams,
     InsertMeasureParams,
@@ -79,24 +80,24 @@ def build_tools(
         xml = service.current_musicxml(work_id, movement_id)
         return xml or "空谱:本乐章还没有任何声部。请先用 add_part 建立声部。"
 
-    def submit_theme(musicxml: str, key: str = "", voice: str = "", instrument: str = "") -> str:
-        """Submit a theme melody and choose the key."""
+    def submit_theme(musicxml: str, instrument: str, key: str = "", voice: str = "") -> str:
+        """Submit a theme melody, choosing the target part's instrument."""
         return result_payload(
             service.submit_theme(
                 work_id,
                 movement_id,
                 musicxml,
                 voice=voice or None,
-                instrument=instrument or None,
+                instrument=instrument,
                 key=key or None,
                 check=False,
             )
         )
 
-    def add_part(voice: str, instrument: str = "") -> str:
-        """Add a new instrumental part to the movement."""
+    def add_part(voice: str, instrument: str) -> str:
+        """Add a new instrumental part and always name its instrument."""
         return result_payload(
-            service.add_part(work_id, movement_id, voice, instrument or None, check=False)
+            service.add_part(work_id, movement_id, voice, instrument, check=False)
         )
 
     def remove_part(voice: str) -> str:
@@ -106,6 +107,12 @@ def build_tools(
     def set_tempo(bpm: int) -> str:
         """Change the tempo of the movement."""
         return result_payload(service.set_tempo(work_id, movement_id, bpm, check=False))
+
+    def annotate(measure: int, voice: str, mark: str, value: str = "") -> str:
+        """Add an expressive mark to one measure of one voice."""
+        return result_payload(
+            service.annotate(work_id, movement_id, measure, voice, mark, value, check=False)
+        )
 
     def edit(measure: int, voice: str, musicxml: str = "") -> str:
         """Replace or clear one measure of one voice."""
@@ -144,9 +151,9 @@ def build_tools(
             name="submit_theme",
             description=(
                 "Submit a new theme melody as MusicXML and choose the key and mode of "
-                "the movement (e.g. 'C' for C major, 'a' for A minor). Also choose the "
-                "target voice slot and its instrument. Returns the assigned theme "
-                "number and the complete updated score."
+                "the movement (e.g. 'C' for C major, 'a' for A minor). Give the target "
+                "voice slot and, required, that part's instrument. Returns the assigned "
+                "theme number and the check result."
             ),
             args_schema=SubmitThemeParams,
         ),
@@ -154,11 +161,10 @@ def build_tools(
             func=add_part,
             name="add_part",
             description=(
-                "Add a new instrumental part to the movement. Give voice (the slot "
-                "name) and optionally instrument (e.g. 'Flute', 'Violin', 'Cello', "
-                "'Oboe'); when omitted, the instrument is inferred from the voice "
-                "name. Use this to write separate parts for the same instrument "
-                "(e.g. violin1 and violin2) or to add a new instrument to the texture."
+                "Add a new part to the movement. Give voice (the slot name) and its "
+                "instrument (required, e.g. 'Flute', 'Violin', 'Cello', 'Piano'); the "
+                "instrument is never inferred. Use this to write separate parts for the "
+                "same instrument (e.g. violin1 and violin2) or to add a new instrument."
             ),
             args_schema=AddPartParams,
         ),
@@ -179,6 +185,17 @@ def build_tools(
                 "Use this to adjust the speed of the whole movement."
             ),
             args_schema=SetTempoParams,
+        ),
+        StructuredTool.from_function(
+            func=annotate,
+            name="annotate",
+            description=(
+                "Add an expressive mark to one measure of one voice. mark is one of: "
+                "dynamic (value like 'pp','mf','f','ff'), text (value like 'dolce'), "
+                "crescendo, diminuendo, accent, tenuto, staccato, slur, pedal, or "
+                "tempo (value = BPM, for a tempo change inside the movement)."
+            ),
+            args_schema=AnnotateParams,
         ),
         StructuredTool.from_function(
             func=edit,

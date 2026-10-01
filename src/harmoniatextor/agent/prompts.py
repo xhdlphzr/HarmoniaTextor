@@ -62,16 +62,18 @@ _ROLE = (
 
 _PROTOCOL = (
     "工作协议(请严格遵守以下全部限制):\n"
-    "0. **本乐章的乐谱初始是空的,没有任何声部**。你必须先用 add_part 创建你需要的"
-    "每一个声部槽位(voice)与乐器(instrument);用 submit_theme 时若指定了 voice,"
-    "系统也会自动创建该声部。不要依赖任何默认声部。\n"
+    "0. **本乐章的乐谱初始是空的,没有任何声部**。你必须用 add_part 按本乐章 prompt "
+    "写明的乐器逐个创建声部;add_part 与 submit_theme **都必须显式给出 instrument**"
+    "(如 Piano / Violin / Flute / Cello),系统**不会**替你推断乐器。"
+    "**prompt 没有要求的声部一律不要创建**"
+    "(例如钢琴独奏就只建钢琴声部,绝不建女高/女低/男高/男低等无关声部)。\n"
     "1. 用 submit_theme 提交主题旋律,并在这里决定调式:在 key 参数给出绝对调式"
     '(大写为大调、小写为小调,如 "C" 是 C 大调、"a" 是 a 小调);'
     "同时指定声部槽位(voice)与该声部的乐器(instrument,如 Violin/Flute/Cello/Oboe)。"
     "一个乐章可以提交多个主题,每个主题都会分配一个递增编号。\n"
     "2. 声部用 add_part 增、remove_part 删(都按声部槽位);同一乐器可拥有多个声部"
-    "(如 violin1 与 violin2 都是 Violin)。需要调整整个乐章速度时用 set_tempo(bpm,"
-    "四分音符/分钟)。声部数量、编制与速度由你决定。\n"
+    "(如 violin1 与 violin2 都是 Violin)。**声部数量与编制严格以本乐章 prompt 为准**;"
+    "需要调整整个乐章速度时用 set_tempo(bpm,四分音符/分钟)。\n"
     "3. 用 technique_* 工具引用主题编号并给出参数,逐步构建乐曲;"
     "要尽量多用技法来发展旋律(模仿、模进、倒影、扩缩、密接和应、增值减值等),"
     "不要只把主题写一遍;需要转调或改变调式时,使用技法包中的移调/调性转换技法。"
@@ -91,11 +93,33 @@ _PROTOCOL = (
     "这两个工具会返回修改后的完整谱。需要加长/缩短乐曲时用它们,"
     "edit 只清空内容、不会增减小节。\n"
     "8. 每次只做一件事;引用主题时必须使用已分配的主题编号。\n"
-    "9. 基本成型后,用 edit 逐小节微调收尾。修改时请多用装饰音"
+    "9. 表情与记号用 annotate(measure, voice, mark, value) 添加:mark 取 "
+    "dynamic(力度,value 如 pp/mf/f/ff)、text(表情文字,value 如 dolce)、"
+    "crescendo/diminuendo(渐强/渐弱)、accent/tenuto/staccato(重音/保持音/跳音)、"
+    "slur(连音线)、pedal(踏板)、tempo(乐章中途变速,value 为 BPM)。"
+    "请在合适位置运用这些记号,让音乐更有表情与呼吸。\n"
+    "10. 基本成型后,用 edit 逐小节微调收尾。修改时请多用装饰音"
     "(倚音、经过音、辅助音、回音等),适当调整部分音高与节奏以免单调,"
     "并适当留出空白(休止)让音乐有呼吸感。\n"
-    "10. 必须逐条满足上面的符号层硬性限制,否则会被打回返工。\n"
-    "11. 通过校验后总结你的作曲意图,供人工品鉴。"
+    "11. 必须逐条满足上面的符号层硬性限制,否则会被打回返工。\n"
+    "12. 通过校验后总结你的作曲意图,供人工品鉴。"
+)
+
+_MUSICXML_FORMAT = (
+    "MusicXML 参数格式(重要:**所有 musicxml 参数都是片段,不是完整乐谱**):\n"
+    "- 片段必须是一个可解析的 MusicXML 文档,基本形如 "
+    '`<?xml version="1.0" encoding="UTF-8"?><score-partwise><part><measure><note>'
+    "<pitch><step>C</step><octave>5</octave></pitch><duration>1</duration>"
+    "</note>...</measure></part></score-partwise>`;"
+    "系统只读取其中**第一个 part**的音符(音高与时值),其余结构会被忽略。\n"
+    "- submit_theme.musicxml:只含主题的**单声部、单行旋律**(可跨若干小节);"
+    "调性由 key 参数决定、目标声部由 voice 参数决定;"
+    "片段里的调号/拍号/声部名一律忽略。\n"
+    "- edit.musicxml:只含**目标声部在目标这一小节**里的旋律;系统用它替换该小节;"
+    "留空(不传或空串)表示清空该小节。\n"
+    "- insert.musicxml:只含**新小节、目标声部**的旋律;留空表示插入一个空小节。\n"
+    "- 不要提交整份总谱,也不要在片段里放多个声部或多个小节(多余内容会被忽略)。\n"
+    "- read() 返回的才是**完整乐谱**;不要把 read 的输出原样再回传给任何修改工具。"
 )
 
 STEP1_INSTRUCTION = (
@@ -144,6 +168,8 @@ def system_prompt(genre: Genre, techniques: TechniqueRegistry) -> str:
             "",
             "可用技法:",
             *technique_lines,
+            "",
+            _MUSICXML_FORMAT,
             "",
             "符号层硬性限制(违反任意一条都会被判失败并打回,必须逐条遵守):",
             *rule_lines,

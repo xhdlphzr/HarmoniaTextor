@@ -241,13 +241,16 @@ class ProjectStore:
         )
 
     def list_works(self) -> list[str]:
-        """List all stored work identifiers.
+        """List all stored work identifiers, newest first.
+
+        Works are ordered by creation time so the history is always presented in
+        strict chronological order rather than by the random identifier.
 
         Returns:
-            Sorted work identifiers.
+            Work identifiers, most recently created first.
         """
         with self._connect() as conn:
-            rows = conn.execute("SELECT id FROM works ORDER BY id").fetchall()
+            rows = conn.execute("SELECT id FROM works ORDER BY created_at DESC, id").fetchall()
         return [str(row[0]) for row in rows]
 
     def save_revision_for(self, work_id: str, revision: Revision) -> None:
