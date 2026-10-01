@@ -11,13 +11,39 @@ import pytest
 
 from harmoniatextor.domain.models import ThemeNote
 from harmoniatextor.render.audio import FeatureUnavailableError, synthesize_audio
-from harmoniatextor.render.exporter import ExportService
+from harmoniatextor.render.exporter import ExportService, safe_filename
 from harmoniatextor.render.features import FeatureDetector, Features
 from harmoniatextor.score.io import new_score, to_musicxml
 from harmoniatextor.score.streamops import ScoreEditor
 from harmoniatextor.service.service import CompositionService
 
 _EXPECTED_CALLS = 2
+_MAX_FILENAME = 120
+
+
+class TestSafeFilename:
+    """Title sanitisation for exported file names."""
+
+    def test_removes_forbidden(self) -> None:
+        """Characters forbidden by the filesystems are removed."""
+        assert safe_filename('a<b>c:d"e/f\\g|h?i*j', "fb") == "abcdefghij"
+
+    def test_collapses_and_trims(self) -> None:
+        """Whitespace is collapsed and trailing dots stripped."""
+        assert safe_filename("  你好   世界.  ", "fb") == "你好 世界"
+
+    def test_empty_falls_back(self) -> None:
+        """A blank or dot-only title uses the fallback."""
+        assert safe_filename("   ", "fb") == "fb"
+        assert safe_filename("...", "fb") == "fb"
+
+    def test_reserved_falls_back(self) -> None:
+        """Reserved device names use the fallback."""
+        assert safe_filename("CON", "fb") == "fb"
+
+    def test_too_long_truncated(self) -> None:
+        """Over-long titles are capped."""
+        assert len(safe_filename("x" * 500, "fb")) == _MAX_FILENAME
 
 
 def _movement_xml() -> str:
@@ -137,6 +163,27 @@ class TestAudio:
         assert not (tmp_path / "out.mid").exists()
         assert not (tmp_path / "out.wav").exists()
 
+    def test_synthesize_serialises_same_output(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Two exports of the same file both succeed (per-output lock reuse)."""
+        calls: list[list[str]] = []
+
+        def fake_run(args: list[str], **_kwargs: object) -> None:
+            calls.append(args)
+
+        monkeypatch.setattr("harmoniatextor.render.audio.subprocess.run", fake_run)
+        score = new_score(key="C", time_signature="4/4", tempo_bpm=80, voices=["soprano"])
+        features = Features(
+            ffmpeg=tmp_path / "ffmpeg.exe",
+            fluidsynth=tmp_path / "fluidsynth.exe",
+            soundfont=tmp_path / "s.sf2",
+        )
+        out = tmp_path / "same.m4a"
+        synthesize_audio(score, out, features, "m4a")
+        synthesize_audio(score, out, features, "m4a")
+        assert len(calls) == _EXPECTED_CALLS * 2
+
 
 class TestExportService:
     """Export operations."""
@@ -233,7 +280,39 @@ class TestExportService:
         result = exporter.export_work(work_id, "musicxml", tmp_path / "out")
         assert result.ok
         assert result.path is not None
-        assert result.path.name == f"{work_id}.musicxml"
+        assert result.path.name == "Demo.musicxml"
+
+    def test_export_uses_sanitised_title(self, service: CompositionService, tmp_path: Path) -> None:
+        """Exported files use the sanitised work title."""
+        work = service.create_work("我的作品:第一首/测试", "plain", "C")
+        exporter = ExportService(service, tmp_path / "vendor")
+        result = exporter.export_musicxml(work.id, work.movements[0].id, tmp_path / "out")
+        assert result.ok
+        assert result.path is not None
+        assert "我的作品第一首测试" in result.path.name
+        assert all(char not in result.path.name for char in '<>:"/\\|?*')
+
+    def test_export_work_uses_title(self, service: CompositionService, tmp_path: Path) -> None:
+        """The merged work export is named after the title."""
+        work = service.create_work("标题:测试", "plain", "C")
+        service.submit_theme(work.id, work.movements[0].id, _movement_xml(), check=False)
+        exporter = ExportService(service, tmp_path / "vendor")
+        result = exporter.export_work(work.id, "musicxml", tmp_path / "out")
+        assert result.ok
+        assert result.path is not None
+        assert result.path.name == "标题测试.musicxml"
+
+    def test_export_missing_movement_uses_title(
+        self, service: CompositionService, tmp_path: Path
+    ) -> None:
+        """An unknown movement still exports under the work title."""
+        work = service.create_work("标题", "plain", "C")
+        service.submit_theme(work.id, work.movements[0].id, _movement_xml(), check=False)
+        exporter = ExportService(service, tmp_path / "vendor")
+        result = exporter.export_musicxml(work.id, "nope", tmp_path / "out")
+        assert result.ok
+        assert result.path is not None
+        assert result.path.name == "标题.musicxml"
 
     def test_export_work_movements_formats(
         self, service: CompositionService, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
