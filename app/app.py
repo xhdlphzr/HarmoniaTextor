@@ -9,7 +9,7 @@ import os
 from datetime import UTC, datetime
 from pathlib import Path
 
-from flask import Flask
+from flask import Flask, Response
 
 from app.context import get_export_service, get_service
 from app.routes import register_routes
@@ -22,6 +22,16 @@ from harmoniatextor.storage.project_store import ProjectStore
 __all__ = ["create_app", "get_export_service", "get_service", "local_time"]
 
 _ASSET_FILES = ("js/app.js", "css/style.css")
+
+#: Responses that must never be cached, so the desktop webview always shows the
+#: current works, live score and progress instead of a stale copy.
+_NO_STORE_MIMETYPES = frozenset(
+    {
+        "text/html",
+        "application/json",
+        "application/vnd.recordare.musicxml+xml",
+    }
+)
 
 
 def local_time(value: str) -> str:
@@ -91,6 +101,23 @@ def create_app(
     service.interrupt_stale_generations()
     app.extensions["harmonia_service"] = service
     app.extensions["harmonia_export"] = ExportService(service, vendor)
+
+    @app.after_request
+    def _disable_caching(response: Response) -> Response:
+        """Stop the desktop webview from caching pages and API responses.
+
+        Args:
+            response: The response about to be sent.
+
+        Returns:
+            The response with no-store headers for cacheable HTML/JSON/score
+            payloads.
+        """
+        if response.mimetype in _NO_STORE_MIMETYPES:
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
 
     @app.context_processor
     def _inject_assets() -> dict[str, str]:

@@ -112,6 +112,21 @@ class DesktopApp:
         self.host = host
         self.port = port
 
+    def _mark_interrupted(self) -> None:
+        """Best-effort: mark still-running generations as interrupted.
+
+        When the window is closed the daemon job threads are killed without
+        running their cleanup, so the current run never gets a completion tag.
+        Flushing the interrupted marker here means the work is already recorded
+        as interrupted the moment the app closes, not only after the next start.
+        """
+        extensions = getattr(self.flask_app, "extensions", None)
+        if not isinstance(extensions, dict):
+            return
+        service = extensions.get("harmonia_service")
+        if service is not None:
+            service.interrupt_stale_generations()
+
     def run(self) -> None:
         """Serve the application and open the native window."""
         server: BaseWSGIServer = make_server(self.host, self.port, self.flask_app, threaded=True)
@@ -127,6 +142,7 @@ class DesktopApp:
             )
             self.webview_module.start(icon=_window_icon())
         finally:
+            self._mark_interrupted()
             server.shutdown()
             thread.join(timeout=5)
 

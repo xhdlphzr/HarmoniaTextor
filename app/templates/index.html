@@ -37,7 +37,10 @@ SPDX-License-Identifier: MIT
 </section>
 
 <section class="panel reveal hidden" id="score-panel">
-  <h2>实时五线谱</h2>
+  <div class="panel-head">
+    <h2>实时五线谱</h2>
+    <button type="button" class="btn tiny" id="copy-score-btn">复制乐谱</button>
+  </div>
   <p class="muted small">创作过程中随 MusicXML 实时刷新，无需等到定稿。</p>
   <div class="score-view" id="score-view"></div>
 </section>
@@ -95,7 +98,10 @@ SPDX-License-Identifier: MIT
         <span class="chip">{{ genre_labels.get(work.genre, work.genre) }}</span>
         <span class="chip soft">{{ work.tonic.raw }}</span>
         <span class="chip state">{{ status_labels.get(work.status.value, work.status.value) }}</span>
-        {% if work.id in interrupted %}<span class="chip warn">生成中断</span>{% endif %}
+        {% set generation = generation_states.get(work.id) %}
+        {% if generation == 'generation_interrupted' %}<span class="chip warn">生成中断</span>
+        {% elif generation == 'generation_failed' %}<span class="chip warn">生成失败</span>
+        {% elif generation == 'generation_started' %}<span class="chip soft">生成中</span>{% endif %}
         <span class="muted small">{{ work.created_at | localtime }}</span>
       </a>
     </li>
