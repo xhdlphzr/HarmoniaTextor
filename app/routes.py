@@ -62,16 +62,14 @@ def _register_pages(app: Flask) -> None:
         work_ids = service.list_works()
         works = [service.get_work(work_id) for work_id in work_ids]
         genres = service.genres.all()
-        interrupted = {
-            work_id
-            for work_id in work_ids
-            if service.latest_generation_state(work_id) == "generation_interrupted"
+        generation_states = {
+            work_id: service.latest_generation_state(work_id) for work_id in work_ids
         }
         return render_template(
             "index.html",
             works=works,
             genres=genres,
-            interrupted=interrupted,
+            generation_states=generation_states,
             genre_labels={genre.id: genre.display_name for genre in genres},
             status_labels=WORK_STATUS_LABELS,
         )

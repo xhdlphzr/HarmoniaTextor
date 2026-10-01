@@ -125,6 +125,21 @@ class TestPages:
         assert response.status_code == _HTTP_OK
         assert "HarmoniaTextor" in response.get_data(as_text=True)
 
+    def test_index_no_store(self, client: FlaskClient) -> None:
+        """Pages are not cached by the desktop webview."""
+        response = client.get("/")
+        assert "no-store" in response.headers.get("Cache-Control", "")
+        response.close()
+
+    def test_history_persists_across_restarts(self, tmp_path: Path) -> None:
+        """Works survive an application restart on the same data directory."""
+        first = create_app(data_dir=tmp_path, vendor_dir=tmp_path / "vendor", testing=True)
+        work = get_service(first).create_work("持久作品", "plain", "C")
+        second = create_app(data_dir=tmp_path, vendor_dir=tmp_path / "vendor", testing=True)
+        assert work.id in get_service(second).list_works()
+        page = second.test_client().get("/").get_data(as_text=True)
+        assert "持久作品" in page
+
     def test_create_and_view(self, client: FlaskClient) -> None:
         """Creating a work redirects to its workspace."""
         response = client.post("/works", data={"title": "Demo", "genre": "plain"})
@@ -154,6 +169,23 @@ class TestPages:
         service.interrupt_stale_generations()
         page = client.get("/").get_data(as_text=True)
         assert "生成中断" in page
+
+    def test_index_marks_failed_generation(self, app: Flask, client: FlaskClient) -> None:
+        """A generation stopped by an error is marked in the index."""
+        service = get_service(app)
+        work = service.create_work("失败作品", "plain", "C", with_movements=False)
+        service.start_generation(work.id, "写一段")
+        service.finish_generation(work.id, False)
+        page = client.get("/").get_data(as_text=True)
+        assert "生成失败" in page
+
+    def test_index_marks_running_generation(self, app: Flask, client: FlaskClient) -> None:
+        """A generation still running is marked in the index."""
+        service = get_service(app)
+        work = service.create_work("生成中作品", "plain", "C", with_movements=False)
+        service.start_generation(work.id, "写一段")
+        page = client.get("/").get_data(as_text=True)
+        assert "生成中" in page
 
     def test_work_without_movements_redirects(self, app: Flask, client: FlaskClient) -> None:
         """A work without movements redirects to the index."""

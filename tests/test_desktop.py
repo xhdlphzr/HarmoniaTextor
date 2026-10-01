@@ -43,6 +43,31 @@ def wsgi_app(_environ: dict[str, Any], start_response: Any) -> list[bytes]:
     return [b"ok"]
 
 
+class FakeService:
+    """A service double that counts interrupt calls."""
+
+    def __init__(self) -> None:
+        """Initialise the counter."""
+        self.calls = 0
+
+    def interrupt_stale_generations(self) -> int:
+        """Record one interrupt call."""
+        self.calls += 1
+        return 0
+
+
+class FakeFlaskApp:
+    """A callable WSGI app carrying Flask-style extensions."""
+
+    def __init__(self, service: object) -> None:
+        """Store a single service extension."""
+        self.extensions: dict[str, object] = {"harmonia_service": service}
+
+    def __call__(self, environ: dict[str, Any], start_response: Any) -> list[bytes]:
+        """Delegate to the minimal WSGI app."""
+        return wsgi_app(environ, start_response)
+
+
 class TestDesktop:
     """Desktop shell behaviour."""
 
@@ -73,6 +98,16 @@ class TestDesktop:
         webview = FakeWebview()
         desktop.DesktopApp(wsgi_app, webview).run()
         assert captured.get("threaded") is True
+
+    def test_mark_interrupted(self) -> None:
+        """Closing the window marks running generations as interrupted."""
+        service = FakeService()
+        desktop.DesktopApp(FakeFlaskApp(service), FakeWebview())._mark_interrupted()
+        assert service.calls == 1
+
+    def test_mark_interrupted_without_service(self) -> None:
+        """An app whose service extension is missing is ignored."""
+        desktop.DesktopApp(FakeFlaskApp(None), FakeWebview())._mark_interrupted()
 
     def test_main(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """The entry point wires the app and webview together."""
