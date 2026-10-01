@@ -322,6 +322,8 @@ class TestEngine:
         text = format_feedback(CheckReport(violations=[error]))
         assert "检查不通过" in text
         assert "pf5th" in text
+        assert "修改建议" in text
+        assert "edit(measure, voice, musicxml)" in text
 
     def test_profile_default(self) -> None:
         """Unknown rules default to enabled."""

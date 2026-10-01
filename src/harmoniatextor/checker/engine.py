@@ -10,7 +10,7 @@ from music21 import stream
 from harmoniatextor.checker.base import CheckRule
 from harmoniatextor.checker.context import CheckerContext
 from harmoniatextor.checker.profile import ValidationProfile
-from harmoniatextor.checker.rules import BUILTIN_RULES
+from harmoniatextor.checker.rules import BUILTIN_RULES, RULE_CONSTRAINTS
 from harmoniatextor.domain.models import CheckReport, CheckViolation
 
 __all__ = ["CheckEngine", "format_feedback"]
@@ -93,9 +93,11 @@ def format_feedback(report: CheckReport) -> str:
         voices = (
             f"{item.voice_a} 与 {item.voice_b}" if item.voice_b else (item.voice_a or "全体声部")
         )
+        fix = RULE_CONSTRAINTS.get(item.rule_id, "")
+        suffix = f" 修改建议:{fix}" if fix else ""
         lines.append(
             f"{index}) 小节 {item.measure} · 声部 {voices} · 规则 {item.rule_id}:"
-            f"{item.message_zh} 具体位置:{item.snippet}"
+            f"{item.message_zh} 具体位置:{item.snippet}{suffix}"
         )
-    lines.append("请针对上面每一处,明确指出并修改对应小节与声部的音符。")
+    lines.append("请针对上面每一处,按修改建议用 edit(measure, voice, musicxml) 改对应小节与声部。")
     return "\n".join(lines)
