@@ -9,7 +9,10 @@ then transcodes the WAV to the requested compressed format with ffmpeg.
 
 from __future__ import annotations
 
+import shutil
 import subprocess
+import tempfile
+import threading
 from pathlib import Path
 
 from music21 import stream
@@ -20,9 +23,36 @@ __all__ = ["FeatureUnavailableError", "synthesize_audio"]
 
 _CODECS: dict[str, str] = {"m4a": "aac", "mp3": "libmp3lame"}
 
+_LOCKS: dict[str, threading.Lock] = {}
+_LOCKS_GUARD = threading.Lock()
+
 
 class FeatureUnavailableError(RuntimeError):
     """Raised when a required audio backend binary is missing."""
+
+
+def _lock_for(path: Path) -> threading.Lock:
+    """Return a process-wide lock serialising exports of one output file.
+
+    The browser may request the same audio file more than once at a time (for
+    example the auto-playing ``<audio>`` element and a manual export).  Without
+    serialisation both runs would write the same intermediates and output,
+    which on Windows raises ``PermissionError`` when one run deletes a file the
+    other still holds.
+
+    Args:
+        path: Output audio path.
+
+    Returns:
+        A lock dedicated to that path.
+    """
+    key = str(path)
+    with _LOCKS_GUARD:
+        lock = _LOCKS.get(key)
+        if lock is None:
+            lock = threading.Lock()
+            _LOCKS[key] = lock
+        return lock
 
 
 def synthesize_audio(
@@ -53,41 +83,45 @@ def synthesize_audio(
         )
     codec = _CODECS[fmt]
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    midi_path = out_path.with_suffix(".mid")
-    wav_path = out_path.with_suffix(".wav")
-    try:
-        score.write("midi", fp=str(midi_path))  # type: ignore[no-untyped-call]  # music21
-        assert features.fluidsynth is not None
-        assert features.soundfont is not None
-        assert features.ffmpeg is not None
-        subprocess.run(
-            [
-                str(features.fluidsynth),
-                "-ni",
-                "-F",
-                str(wav_path),
-                str(features.soundfont),
-                str(midi_path),
-            ],
-            check=True,
-            capture_output=True,
-        )
-        subprocess.run(
-            [
-                str(features.ffmpeg),
-                "-y",
-                "-i",
-                str(wav_path),
-                "-c:a",
-                codec,
-                "-b:a",
-                "192k",
-                str(out_path),
-            ],
-            check=True,
-            capture_output=True,
-        )
-    finally:
-        midi_path.unlink(missing_ok=True)
-        wav_path.unlink(missing_ok=True)
+    with _lock_for(out_path):
+        # A unique temp directory keeps concurrent exports from sharing (and
+        # fighting over) the intermediate MIDI/WAV files, and the whole
+        # directory is removed best-effort so a lock can never crash the export.
+        temp_dir = Path(tempfile.mkdtemp(prefix="ht-audio-"))
+        midi_path = temp_dir / "score.mid"
+        wav_path = temp_dir / "score.wav"
+        try:
+            score.write("midi", fp=str(midi_path))  # type: ignore[no-untyped-call]  # music21
+            assert features.fluidsynth is not None
+            assert features.soundfont is not None
+            assert features.ffmpeg is not None
+            subprocess.run(
+                [
+                    str(features.fluidsynth),
+                    "-ni",
+                    "-F",
+                    str(wav_path),
+                    str(features.soundfont),
+                    str(midi_path),
+                ],
+                check=True,
+                capture_output=True,
+            )
+            subprocess.run(
+                [
+                    str(features.ffmpeg),
+                    "-y",
+                    "-i",
+                    str(wav_path),
+                    "-c:a",
+                    codec,
+                    "-b:a",
+                    "192k",
+                    str(out_path),
+                ],
+                check=True,
+                capture_output=True,
+            )
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
     return out_path
