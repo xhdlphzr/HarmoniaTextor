@@ -5,6 +5,6 @@
 
 from __future__ import annotations
 
-from harmoniatextor.service.service import VOICE_PROFILES, CompositionService, ToolResult
+from harmoniatextor.service.service import CompositionService, ToolResult
 
-__all__ = ["VOICE_PROFILES", "CompositionService", "ToolResult"]
+__all__ = ["CompositionService", "ToolResult"]

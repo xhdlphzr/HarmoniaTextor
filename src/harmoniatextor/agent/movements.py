@@ -245,14 +245,6 @@ class MovementComposer:
             f"【总目标】\n{goal}",
             f"【本乐章要求({movement.name})】\n{movement.prompt}",
         ]
-        voices = self.service.suggested_voices(movement)
-        if voices:
-            parts.append(
-                "【声部提示】本乐章从空谱开始,没有任何默认声部;体裁建议的声部槽位为:"
-                + "、".join(voices)
-                + "。请用 add_part 逐个创建(或在 submit_theme 时指定 voice),"
-                "最终编制由你决定。"
-            )
         themes = self._previous_themes(work_id, movement.id)
         if themes:
             parts.append("【此前已出现的主题(可引用/发展/加变奏,但不可修改原主题)】\n" + themes)
