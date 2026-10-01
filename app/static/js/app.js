@@ -42,6 +42,26 @@ SPDX-License-Identifier: MIT
     }, 2600);
   }
 
+  function copyScore(url) {
+    fetch(url)
+      .then((response) => response.text())
+      .then((xml) => {
+        if (!xml || !xml.trim()) {
+          showToast("尚无乐谱可复制。", "bad");
+          return;
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(xml).then(
+            () => showToast("已复制 MusicXML。", "ok"),
+            () => showToast("复制失败，请手动选择文字复制。", "bad")
+          );
+        } else {
+          showToast("复制失败，请手动选择文字复制。", "bad");
+        }
+      })
+      .catch(() => showToast("读取乐谱失败。", "bad"));
+  }
+
   document.addEventListener("click", (event) => {
     const target = event.target;
     const link = target && target.closest ? target.closest("a.export-download") : null;
@@ -810,6 +830,14 @@ SPDX-License-Identifier: MIT
       }
     });
 
+    on("copy-score-btn", "click", () => {
+      if (!current) {
+        showToast("尚无乐谱可复制。", "bad");
+        return;
+      }
+      copyScore(api(current.workId, current.movementId, "score"));
+    });
+
     on("export-png", "click", () => {
       if (current) {
         downloadScorePng(byId("score-view"), `${current.workId}-${current.movementId}.png`);
@@ -918,6 +946,13 @@ SPDX-License-Identifier: MIT
     if (workPngBtn) {
       workPngBtn.addEventListener("click", () => {
         downloadScorePng(scoreView, `${workId}-${movementId}.png`);
+      });
+    }
+
+    const workCopyBtn = byId("work-copy-btn");
+    if (workCopyBtn) {
+      workCopyBtn.addEventListener("click", () => {
+        copyScore(`${base}/score`);
       });
     }
 
