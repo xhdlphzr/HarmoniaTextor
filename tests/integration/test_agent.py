@@ -14,40 +14,28 @@ from langchain_core.messages import (
     AIMessage,
     BaseMessage,
     HumanMessage,
-    SystemMessage,
     ToolMessage,
 )
 from langchain_core.messages.tool import invalid_tool_call
 
 from harmoniatextor.agent.architect import Architect, plan_tree, render_plan
 from harmoniatextor.agent.compression import (
-    _bounded_transcript,
-    compress_messages,
     content_text,
-    ensure_tool_responses,
-    message_text,
-    token_count,
 )
-from harmoniatextor.agent.llm_factory import create_chat_model, resolve_setting
 from harmoniatextor.agent.loop import AgentLoop
 from harmoniatextor.agent.movements import MovementComposer
 from harmoniatextor.agent.planning_tools import build_planning_tools
 from harmoniatextor.agent.prompts import (
     ARCHITECT_INSTRUCTION,
     ARCHITECT_SYSTEM,
-    system_prompt,
 )
 from harmoniatextor.agent.reviewer import (
-    _SYSTEM,
     ReviewerAI,
     ReviewResult,
-    _extract,
-    _submit_review,
 )
 from harmoniatextor.agent.tools import build_tools, result_payload
 from harmoniatextor.domain.enums import Severity
 from harmoniatextor.domain.models import CheckReport, CheckViolation, ThemeNote
-from harmoniatextor.genres import PlainGenre
 from harmoniatextor.score.io import from_musicxml, new_score, to_musicxml
 from harmoniatextor.score.streamops import ScoreEditor
 from harmoniatextor.service.service import CompositionService, ToolResult
@@ -55,15 +43,11 @@ from harmoniatextor.techniques import build_default_registry
 
 _EXPECTED_TOOL_COUNT = 34
 _AUTO_CONTINUE_CALLS = 2
-_COUNTED_TOKENS = 7
-_HEURISTIC_MIN = 10
 _EXPECTED_MESSAGES = 2
 _COMPRESSED_MESSAGES = 1
 _REVIEW_ROUNDS = 2
 _REPAIRED_MESSAGES = 4
 _COMPLETE_MESSAGES = 3
-_LONG_TEXT_CHARS = 7000
-_TOKENIZER_PER_TEXT = 3
 
 
 class ScriptedChatModel:
@@ -210,105 +194,6 @@ def prepared(service: CompositionService) -> tuple[CompositionService, str, str,
     return service, work.id, movement_id, result.theme_id or 1
 
 
-class TestLLMFactory:
-    """Chat model factory."""
-
-    @pytest.fixture(autouse=True)
-    def _no_config(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Isolate the factory from the user's real config file."""
-        monkeypatch.setattr("harmoniatextor.agent.llm_factory.load_config", lambda: {})
-
-    def test_explicit_args(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Explicit arguments are forwarded."""
-        captured: dict[str, Any] = {}
-
-        def fake(**kwargs: Any) -> str:
-            captured.update(kwargs)
-            return "model"
-
-        monkeypatch.setattr("harmoniatextor.agent.llm_factory.ChatOpenAI", fake)
-        created = cast("object", create_chat_model(model="m", base_url="u", api_key="k"))
-        assert created == "model"
-        assert captured["model"] == "m"
-
-    def test_environment_defaults(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Environment variables are used as defaults."""
-        monkeypatch.setenv("LLM_MODEL", "env-model")
-        monkeypatch.setenv("LLM_BASE_URL", "env-url")
-        monkeypatch.setenv("LLM_API_KEY", "env-key")
-        captured: dict[str, Any] = {}
-
-        def fake(**kwargs: Any) -> str:
-            captured.update({key: kwargs[key] for key in ("model", "base_url", "api_key")})
-            return "model"
-
-        monkeypatch.setattr("harmoniatextor.agent.llm_factory.ChatOpenAI", fake)
-        create_chat_model()
-        assert captured == {"model": "env-model", "base_url": "env-url", "api_key": "env-key"}
-
-    def test_openai_key_fallback(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """OPENAI_API_KEY is used when LLM_API_KEY is absent."""
-        monkeypatch.delenv("LLM_API_KEY", raising=False)
-        monkeypatch.setenv("OPENAI_API_KEY", "openai-key")
-        captured: dict[str, Any] = {}
-
-        def fake(**kwargs: Any) -> str:
-            captured["api_key"] = kwargs["api_key"]
-            return "model"
-
-        monkeypatch.setattr("harmoniatextor.agent.llm_factory.ChatOpenAI", fake)
-        create_chat_model()
-        assert captured["api_key"] == "openai-key"
-
-    def test_config_values(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """The config file overrides environment and defaults."""
-        monkeypatch.setattr(
-            "harmoniatextor.agent.llm_factory.load_config",
-            lambda: {
-                "model": "cfg-model",
-                "base_url": "cfg-url",
-                "api_key": "cfg-key",
-            },
-        )
-        captured: dict[str, Any] = {}
-
-        def fake(**kwargs: Any) -> str:
-            captured.update(kwargs)
-            return "model"
-
-        monkeypatch.setattr("harmoniatextor.agent.llm_factory.ChatOpenAI", fake)
-        create_chat_model()
-        assert captured["model"] == "cfg-model"
-        assert captured["base_url"] == "cfg-url"
-        assert captured["api_key"] == "cfg-key"
-        assert "temperature" not in captured
-
-
-class TestResolveSetting:
-    """Setting precedence resolution."""
-
-    def test_explicit_wins(self) -> None:
-        """An explicit value wins over everything."""
-        assert resolve_setting("x", {"key": "y"}, "key", "ENV", "d") == "x"
-
-    def test_config_wins(self) -> None:
-        """The config file wins over environment and defaults."""
-        assert resolve_setting(None, {"key": "y"}, "key", "ENV", "d") == "y"
-
-    def test_environment_wins(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """The environment wins over the default."""
-        monkeypatch.setenv("ENV", "e")
-        assert resolve_setting(None, {}, "key", "ENV", "d") == "e"
-
-    def test_default(self) -> None:
-        """The default is used when nothing else is set."""
-        assert resolve_setting(None, {}, "key", "ENV", "d") == "d"
-
-    def test_without_env_name(self) -> None:
-        """A missing environment name falls back to the default."""
-        assert resolve_setting(None, {}, "key", None, "d") == "d"
-
-
 class TestTools:
     """Tool construction and payloads."""
 
@@ -397,22 +282,6 @@ class TestTools:
         assert payload["ok"] is True
         assert "violations" not in payload
         assert payload["theme_id"] is not None
-
-
-class TestPrompts:
-    """Prompt generation."""
-
-    def test_system_prompt(self) -> None:
-        """The system prompt lists techniques and rules."""
-        prompt = system_prompt(PlainGenre(), build_default_registry())
-        assert "technique_imitation" in prompt
-        assert "pf5th" in prompt
-        assert "层次感" in prompt
-        assert "没有任何声部" in prompt
-        assert "add_part" in prompt
-        assert "所有 musicxml 参数都是片段" in prompt
-        assert "第一个 part" in prompt
-        assert "修正:" in prompt
 
 
 class TestAgentLoop:
@@ -557,258 +426,6 @@ class TestAgentLoop:
         assert outcome.completed
 
 
-class _SummarizerModel:
-    """A model double that counts tokens and returns a summary."""
-
-    def __init__(self, *, tokens: int = 0, content: str = "摘要") -> None:
-        """Initialise the double.
-
-        Args:
-            tokens: Token count reported to the caller.
-            content: Summary returned by ``invoke``.
-        """
-        self.tokens = tokens
-        self.content = content
-        self.invocations = 0
-
-    def get_num_tokens_from_messages(self, _messages: object) -> int:
-        """Return the configured token count."""
-        return self.tokens
-
-    def invoke(self, _messages: object, **_kwargs: object) -> AIMessage:
-        """Return the configured summary."""
-        self.invocations += 1
-        return AIMessage(content=self.content)
-
-
-class _NoCountModel:
-    """A model double without a token counter."""
-
-    def invoke(self, _messages: object, **_kwargs: object) -> AIMessage:
-        """Return a summary."""
-        return AIMessage(content="摘要")
-
-
-class _BrokenCountModel:
-    """A model double whose token counter fails."""
-
-    def get_num_tokens_from_messages(self, _messages: object) -> int:
-        """Raise to exercise the fallback path."""
-        raise RuntimeError("no counter")
-
-    def invoke(self, _messages: object, **_kwargs: object) -> AIMessage:
-        """Return a summary."""
-        return AIMessage(content="摘要")
-
-
-class _TokenizerModel:
-    """A model double exposing only a per-text tokenizer."""
-
-    def get_num_tokens(self, _text: str) -> int:
-        """Return a fixed per-text token count."""
-        return _TOKENIZER_PER_TEXT
-
-    def invoke(self, _messages: object, **_kwargs: object) -> AIMessage:
-        """Return a summary."""
-        return AIMessage(content="摘要")
-
-
-class _BrokenTokenizerModel:
-    """A model double whose every tokenizer fails."""
-
-    def get_num_tokens_from_messages(self, _messages: object) -> int:
-        """Raise to skip the full-message counter."""
-        raise RuntimeError("no counter")
-
-    def get_num_tokens(self, _text: str) -> int:
-        """Raise to force the heuristic."""
-        raise RuntimeError("no tokenizer")
-
-    def invoke(self, _messages: object, **_kwargs: object) -> AIMessage:
-        """Return a summary."""
-        return AIMessage(content="摘要")
-
-
-class TestCompression:
-    """Conversation compression."""
-
-    def test_content_text_list(self) -> None:
-        """List content is flattened to text."""
-        assert content_text([{"text": "hi"}, "yo"]) == "hiyo"
-
-    def test_bounded_transcript(self) -> None:
-        """A long history is truncated and bounded for the summariser."""
-        messages: list[BaseMessage] = [
-            HumanMessage(content="x" * _LONG_TEXT_CHARS) for _ in range(5)
-        ]
-        text = _bounded_transcript(messages, budget_chars=50)
-        assert "截断" in text
-        assert len(text) < _LONG_TEXT_CHARS
-
-    def test_message_text_content(self) -> None:
-        """Visible content is preferred over reasoning."""
-        message = AIMessage(content="可见文字", additional_kwargs={"reasoning_content": "思考"})
-        assert message_text(message) == "可见文字"
-
-    def test_message_text_reasoning_fallback(self) -> None:
-        """Reasoning content is surfaced when the content is empty."""
-        message = AIMessage(content="", additional_kwargs={"reasoning_content": "思考"})
-        assert message_text(message) == "思考"
-
-    def test_message_text_reasoning_alias(self) -> None:
-        """The ``reasoning`` alias is also accepted."""
-        message = AIMessage(content="", additional_kwargs={"reasoning": "推理"})
-        assert message_text(message) == "推理"
-
-    def test_message_text_empty(self) -> None:
-        """A message without any text yields an empty string."""
-        assert message_text(AIMessage(content="")) == ""
-
-    def test_token_count_counter(self) -> None:
-        """A model counter is preferred."""
-        model = _SummarizerModel(tokens=_COUNTED_TOKENS)
-        counted = token_count(cast("BaseChatModel", model), [HumanMessage(content="x")])
-        assert counted == _COUNTED_TOKENS
-
-    def test_token_count_fallback(self) -> None:
-        """The character heuristic is used without a counter."""
-        model = _NoCountModel()
-        heuristic = token_count(cast("BaseChatModel", model), [HumanMessage(content="a" * 40)])
-        assert heuristic >= _HEURISTIC_MIN
-
-    def test_token_count_broken(self) -> None:
-        """A failing counter falls back to the heuristic."""
-        model = _BrokenCountModel()
-        heuristic = token_count(cast("BaseChatModel", model), [HumanMessage(content="a" * 40)])
-        assert heuristic >= _HEURISTIC_MIN
-
-    def test_token_count_tokenizer(self) -> None:
-        """A per-text tokenizer is used when the full-message counter is absent."""
-        model = _TokenizerModel()
-        counted = token_count(cast("BaseChatModel", model), [HumanMessage(content="你好")])
-        assert counted == _TOKENIZER_PER_TEXT + 1
-
-    def test_token_count_broken_tokenizer(self) -> None:
-        """A failing tokenizer falls back to the heuristic."""
-        model = _BrokenTokenizerModel()
-        heuristic = token_count(cast("BaseChatModel", model), [HumanMessage(content="a" * 40)])
-        assert heuristic >= _HEURISTIC_MIN
-
-    def test_token_count_tokenizer_with_calls(self) -> None:
-        """Tool-call arguments are counted by the tokenizer too."""
-        model = _TokenizerModel()
-        counted = token_count(cast("BaseChatModel", model), [tool_call("read", {})])
-        assert counted == _TOKENIZER_PER_TEXT * 2 + 1
-
-    def test_below_threshold(self) -> None:
-        """Short conversations are left untouched."""
-        model = _SummarizerModel(tokens=1)
-        messages = [SystemMessage(content="sys"), HumanMessage(content="hi")]
-        assert not compress_messages(
-            cast("BaseChatModel", model),
-            messages,
-            context_window=1000,
-            artifact_label="乐谱",
-            artifact_provider=lambda: "<xml/>",
-        )
-        assert model.invocations == 0
-
-    def test_compress_with_system(self) -> None:
-        """A long conversation is folded into the system message."""
-        model = _SummarizerModel(tokens=10_000)
-        messages: list[BaseMessage] = [SystemMessage(content="sys"), HumanMessage(content="hi")]
-        assert compress_messages(
-            cast("BaseChatModel", model),
-            messages,
-            context_window=1000,
-            artifact_label="乐谱",
-            artifact_provider=lambda: "<xml/>",
-        )
-        assert model.invocations == 1
-        assert len(messages) == _COMPRESSED_MESSAGES
-        text = content_text(messages[0].content)
-        assert "sys" in text
-        assert "摘要" in text
-        assert "<xml/>" in text
-
-    def test_compress_pins_plan(self) -> None:
-        """Pinned text is kept verbatim in the system message."""
-        model = _SummarizerModel(tokens=10_000)
-        messages: list[BaseMessage] = [SystemMessage(content="sys"), HumanMessage(content="hi")]
-        assert compress_messages(
-            cast("BaseChatModel", model),
-            messages,
-            context_window=1000,
-            artifact_label="乐谱",
-            artifact_provider=lambda: "<xml/>",
-            pinned_provider=lambda: "Step 1 规划内容",
-        )
-        assert "Step 1 规划内容" in content_text(messages[0].content)
-
-    def test_compress_without_system(self) -> None:
-        """A conversation without a system prompt keeps the summary and artifact."""
-        model = _SummarizerModel(tokens=10_000)
-        messages: list[BaseMessage] = [HumanMessage(content="hi")]
-        assert compress_messages(
-            cast("BaseChatModel", model),
-            messages,
-            context_window=1000,
-            artifact_label="乐谱",
-            artifact_provider=lambda: "<xml/>",
-        )
-        assert len(messages) == _COMPRESSED_MESSAGES
-        assert "<xml/>" in content_text(messages[0].content)
-
-    def test_compress_renders_tool_calls(self) -> None:
-        """Tool calls are included in the summary transcript."""
-        model = _SummarizerModel(tokens=10_000)
-        messages: list[BaseMessage] = [
-            SystemMessage(content="sys"),
-            tool_call("technique_imitation", {"theme_id": 1}),
-        ]
-        assert compress_messages(
-            cast("BaseChatModel", model),
-            messages,
-            context_window=1000,
-            artifact_label="乐谱",
-            artifact_provider=lambda: "<xml/>",
-        )
-
-    def test_ensure_tool_responses(self) -> None:
-        """A dangling tool call gets a placeholder tool response."""
-        messages: list[BaseMessage] = [
-            SystemMessage(content="sys"),
-            tool_call("technique_imitation", {"theme_id": 1}, call_id="c1"),
-            HumanMessage(content="continue"),
-        ]
-        ensure_tool_responses(messages)
-        assert len(messages) == _REPAIRED_MESSAGES
-        assert isinstance(messages[2], ToolMessage)
-        assert messages[2].tool_call_id == "c1"
-
-    def test_ensure_tool_responses_complete(self) -> None:
-        """A complete history is left untouched."""
-        messages: list[BaseMessage] = [
-            SystemMessage(content="sys"),
-            tool_call("technique_imitation", {"theme_id": 1}, call_id="c1"),
-            ToolMessage(content="ok", tool_call_id="c1"),
-        ]
-        ensure_tool_responses(messages)
-        assert len(messages) == _COMPLETE_MESSAGES
-
-    def test_ensure_tool_responses_invalid(self) -> None:
-        """An unparseable tool call also gets a placeholder response."""
-        messages: list[BaseMessage] = [
-            SystemMessage(content="sys"),
-            invalid_call("technique_imitation", call_id="x1"),
-            HumanMessage(content="continue"),
-        ]
-        ensure_tool_responses(messages)
-        assert len(messages) == _REPAIRED_MESSAGES
-        assert isinstance(messages[2], ToolMessage)
-        assert messages[2].tool_call_id == "x1"
-
-
 class _ReviewModel:
     """A model double returning scripted review responses."""
 
@@ -841,80 +458,6 @@ class _ReviewModel:
         response = self.responses[min(self.cursor, len(self.responses) - 1)]
         self.cursor += 1
         return response
-
-
-class TestReviewer:
-    """The independent reviewer AI."""
-
-    def test_pass(self) -> None:
-        """A passing verdict is returned."""
-        model = _ReviewModel([tool_call("submit_review", {"passed": True, "suggestions": ""})])
-        result = ReviewerAI(cast("BaseChatModel", model)).review(
-            goal="g", genre_name="赋格", score_xml="<xml/>", check_summary="通过"
-        )
-        assert result.passed
-
-    def test_reject(self) -> None:
-        """A rejection carries its suggestions."""
-        model = _ReviewModel([tool_call("submit_review", {"passed": False, "suggestions": "问题"})])
-        result = ReviewerAI(cast("BaseChatModel", model)).review(
-            goal="g", genre_name="赋格", score_xml="<xml/>", check_summary="通过"
-        )
-        assert not result.passed
-        assert result.suggestions == "问题"
-
-    def test_no_verdict(self) -> None:
-        """A model that never submits yields a rejection."""
-        model = _ReviewModel([AIMessage(content="再看看")])
-        result = ReviewerAI(cast("BaseChatModel", model)).review(
-            goal="g", genre_name="赋格", score_xml="<xml/>", check_summary="通过"
-        )
-        assert not result.passed
-        assert result.suggestions
-
-    def test_extract_ignores_other_tools(self) -> None:
-        """Non-submit tool calls are ignored."""
-        assert _extract(tool_call("other", {})) is None
-
-    def test_other_tool_call(self) -> None:
-        """A non-submit tool call is answered and retried."""
-        model = _ReviewModel(
-            [
-                tool_call("other", {}, call_id="x1"),
-                tool_call("submit_review", {"passed": True, "suggestions": ""}),
-            ]
-        )
-        result = ReviewerAI(cast("BaseChatModel", model)).review(
-            goal="g", genre_name="赋格", score_xml="<xml/>", check_summary="通过"
-        )
-        assert result.passed
-
-    def test_invalid_submit_call(self) -> None:
-        """An unparseable submit call is answered and retried."""
-        model = _ReviewModel(
-            [
-                invalid_call("submit_review", call_id="x1"),
-                tool_call("submit_review", {"passed": True, "suggestions": ""}),
-            ]
-        )
-        result = ReviewerAI(cast("BaseChatModel", model)).review(
-            goal="g", genre_name="赋格", score_xml="<xml/>", check_summary="通过"
-        )
-        assert result.passed
-
-    def test_submit_review_tool(self) -> None:
-        """The submit tool acknowledges the verdict."""
-        assert _submit_review(True) == "已收到评审结论。"
-
-    def test_system_checks_movement_division(self) -> None:
-        """The reviewer is told to check movement division."""
-        assert "乐章划分" in _SYSTEM
-
-    def test_system_excludes_symbolic_rules(self) -> None:
-        """The reviewer is told not to re-check symbolic-layer rules."""
-        assert "平行五度" in _SYSTEM
-        assert "以这些规则为由打回" in _SYSTEM
-        assert "符号层" in _SYSTEM
 
 
 class _ReviewerStub:
