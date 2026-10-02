@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from harmoniatextor.domain.enums import (
     TOOL_KIND_LABELS,
+    VOICE_LABELS,
     VOICE_SLOTS,
     WORK_STATUS_LABELS,
     Severity,
@@ -14,6 +15,7 @@ from harmoniatextor.domain.enums import (
     VoiceSlot,
     WorkStatus,
 )
+from harmoniatextor.i18n import catalog_for
 
 
 class TestEnums:
@@ -30,6 +32,13 @@ class TestEnums:
             assert kind.value in TOOL_KIND_LABELS
         for status in WorkStatus:
             assert status.value in WORK_STATUS_LABELS
+
+    def test_labels_are_message_ids(self) -> None:
+        """Every label resolves to a message id in the catalogue."""
+        english = catalog_for("en")
+        for mapping in (TOOL_KIND_LABELS, WORK_STATUS_LABELS, VOICE_LABELS):
+            for message_id in mapping.values():
+                assert message_id in english
 
     def test_severity(self) -> None:
         """Severities serialise to their names."""

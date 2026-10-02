@@ -23,6 +23,8 @@ datas = [
     ("app/templates", "app/templates"),
     ("app/static", "app/static"),
     ("assets", "assets"),
+    # Interface message catalogues (en.yaml / zh.yaml).
+    ("i18n", "i18n"),
 ]
 
 # pywebview is imported dynamically (importlib.import_module("webview")), so

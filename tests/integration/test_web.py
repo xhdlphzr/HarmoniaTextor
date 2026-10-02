@@ -16,6 +16,7 @@ from app.app import _asset_version, create_app, get_export_service, get_service,
 from app.jobs import Job
 from app.routes import _stream
 from harmoniatextor import __version__
+from harmoniatextor.config import save_config
 from harmoniatextor.domain.models import ThemeNote
 from harmoniatextor.score.io import new_score, to_musicxml
 from harmoniatextor.score.streamops import ScoreEditor
@@ -98,8 +99,9 @@ def theme_xml() -> str:
 
 @pytest.fixture
 def app(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Flask:
-    """Return a testing Flask app."""
+    """Return a testing Flask app with an isolated configuration directory."""
     monkeypatch.setenv("HARMONIA_DOWNLOADS", str(tmp_path / "downloads"))
+    monkeypatch.setattr("harmoniatextor.config.config_dir", lambda: tmp_path / "config")
     return create_app(tmp_path / "data", tmp_path / "vendor", testing=True)
 
 
@@ -124,6 +126,19 @@ class TestPages:
         response = client.get("/")
         assert response.status_code == _HTTP_OK
         assert "HarmoniaTextor" in response.get_data(as_text=True)
+
+    def test_language_defaults_to_english(self, client: FlaskClient) -> None:
+        """The interface is English by default."""
+        page = client.get("/").get_data(as_text=True)
+        assert 'lang="en"' in page
+        assert "Create" in page
+
+    def test_language_switch_to_chinese(self, client: FlaskClient) -> None:
+        """The configured language is rendered."""
+        save_config({"language": "zh"})
+        page = client.get("/").get_data(as_text=True)
+        assert 'lang="zh-CN"' in page
+        assert "创作规划" in page
 
     def test_index_no_store(self, client: FlaskClient) -> None:
         """Pages are not cached by the desktop webview."""
@@ -168,7 +183,7 @@ class TestPages:
         service.start_generation(work.id, "写一段")
         service.interrupt_stale_generations()
         page = client.get("/").get_data(as_text=True)
-        assert "生成中断" in page
+        assert "Interrupted" in page
 
     def test_index_marks_failed_generation(self, app: Flask, client: FlaskClient) -> None:
         """A generation stopped by an error is marked in the index."""
@@ -177,7 +192,7 @@ class TestPages:
         service.start_generation(work.id, "写一段")
         service.finish_generation(work.id, False)
         page = client.get("/").get_data(as_text=True)
-        assert "生成失败" in page
+        assert "Failed" in page
 
     def test_index_marks_running_generation(self, app: Flask, client: FlaskClient) -> None:
         """A generation still running is marked in the index."""
@@ -185,7 +200,7 @@ class TestPages:
         work = service.create_work("生成中作品", "plain", "C", with_movements=False)
         service.start_generation(work.id, "写一段")
         page = client.get("/").get_data(as_text=True)
-        assert "生成中" in page
+        assert "Running" in page
 
     def test_work_without_movements_redirects(self, app: Flask, client: FlaskClient) -> None:
         """A work without movements redirects to the index."""
@@ -197,7 +212,7 @@ class TestPages:
         work_id, movement_id = make_work(app)
         get_service(app).record_review(work_id, movement_id, False, "节奏太整齐")
         page = client.get(f"/works/{work_id}").get_data(as_text=True)
-        assert "检查AI" in page
+        assert "Reviewer" in page
         assert "节奏太整齐" in page
 
     def test_work_with_plan(self, app: Flask, client: FlaskClient) -> None:
@@ -205,7 +220,7 @@ class TestPages:
         work_id, movement_id = make_work(app)
         get_service(app).record_plan(work_id, movement_id, "钢琴:平静到激昂")
         page = client.get(f"/works/{work_id}").get_data(as_text=True)
-        assert "创作规划" in page
+        assert "Plan" in page
         assert "钢琴:平静到激昂" in page
 
     def test_favicon(self, client: FlaskClient) -> None:

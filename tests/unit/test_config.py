@@ -30,6 +30,7 @@ class TestConfig:
         assert defaults["model"] == "gpt-4o-mini"
         assert defaults["api_key"] == ""
         assert defaults["context_window"] == _DEFAULT_WINDOW_K
+        assert defaults["language"] == "en"
         assert "temperature" not in defaults
 
     def test_context_window_values(self) -> None:

@@ -5,16 +5,24 @@
 
 from __future__ import annotations
 
+import json
 import os
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from flask import Flask, Response
 
 from app.context import get_export_service, get_service
 from app.routes import register_routes
 from harmoniatextor import __version__
-from harmoniatextor.config import config_dir
+from harmoniatextor.config import config_dir, current_config
+from harmoniatextor.i18n import (
+    DEFAULT_LANGUAGE,
+    catalog_for,
+    normalize_language,
+    translate,
+)
 from harmoniatextor.render.exporter import ExportService
 from harmoniatextor.service.service import CompositionService
 from harmoniatextor.storage.project_store import ProjectStore
@@ -120,13 +128,19 @@ def create_app(
         return response
 
     @app.context_processor
-    def _inject_assets() -> dict[str, str]:
-        """Expose the static asset version to templates.
+    def _inject_assets() -> dict[str, Any]:
+        """Expose the static asset version and localisation to templates.
 
         Returns:
-            A mapping with the ``asset_version`` key.
+            A mapping with ``asset_version``, ``lang``, ``t`` and ``i18n_json``.
         """
-        return {"asset_version": _asset_version(app.static_folder)}
+        language = normalize_language(current_config().get("language", DEFAULT_LANGUAGE))
+        return {
+            "asset_version": _asset_version(app.static_folder),
+            "lang": language,
+            "t": lambda text, **kwargs: translate(text, language, **kwargs),
+            "i18n_json": json.dumps(catalog_for(language), ensure_ascii=False),
+        }
 
     app.add_template_filter(local_time, "localtime")
     register_routes(app)

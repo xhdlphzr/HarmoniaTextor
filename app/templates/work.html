@@ -11,9 +11,9 @@ SPDX-License-Identifier: MIT
       <div>
         <h1 class="display">{{ work.title }}</h1>
         <p class="muted">
-          <span class="chip">{{ genre_labels.get(work.genre, work.genre) }}</span>
+          <span class="chip">{{ t(genre_labels.get(work.genre, work.genre)) }}</span>
           <span class="chip soft">{{ work.tonic.raw }}</span>
-          <span class="chip state" id="status-chip">{{ status_labels.get(work.status.value, work.status.value) }}</span>
+          <span class="chip state" id="status-chip">{{ t(status_labels.get(work.status.value, work.status.value)) }}</span>
         </p>
       </div>
       <div class="movement-tabs">
@@ -30,119 +30,119 @@ SPDX-License-Identifier: MIT
 
   <div class="grid">
     <section class="panel reveal">
-      <h2>五线谱</h2>
+      <h2>{{ t('work.score') }}</h2>
       <div class="actions">
-        <button type="button" class="btn" id="work-score-btn">刷新乐谱</button>
-        <button type="button" class="btn" id="work-png-btn">导出五线谱 PNG</button>
-        <button type="button" class="btn" id="work-copy-btn">复制乐谱</button>
+        <button type="button" class="btn" id="work-score-btn">{{ t('work.refresh') }}</button>
+        <button type="button" class="btn" id="work-png-btn">{{ t('export.png') }}</button>
+        <button type="button" class="btn" id="work-copy-btn">{{ t('score.copy') }}</button>
       </div>
       <div class="score-view" id="score-view"></div>
     </section>
 
     <section class="panel reveal">
-      <h2>试听</h2>
+      <h2>{{ t('work.listen') }}</h2>
       <audio id="audition" controls loop
         src="{{ url_for('export', work_id=work.id, movement_id=movement.id, fmt='m4a') }}"></audio>
       <p class="muted small">
-        循环播放，可反复聆听；音频组件（ffmpeg、FluidSynth、音色库）会在首次启动时自动下载。
-        导出文件会保存到 <code>~/Downloads</code>。
+        {{ t('work.audio_hint') }}
+        {{ t('work.export_to') }} <code>~/Downloads</code>{{ t('common.period') }}
       </p>
       <div class="actions">
-        <a class="btn export-download" href="{{ url_for('export', work_id=work.id, movement_id=movement.id, fmt='musicxml') }}">导出 MusicXML</a>
-        <a class="btn export-download" href="{{ url_for('export', work_id=work.id, movement_id=movement.id, fmt='m4a') }}">导出 M4A</a>
-        <a class="btn export-download" href="{{ url_for('export', work_id=work.id, movement_id=movement.id, fmt='mp3') }}">导出 MP3</a>
-        <a class="btn export-download" href="{{ url_for('export_all', work_id=work.id, fmt='musicxml') }}">导出全部乐章（zip）</a>
+        <a class="btn export-download" href="{{ url_for('export', work_id=work.id, movement_id=movement.id, fmt='musicxml') }}">{{ t('export.musicxml') }}</a>
+        <a class="btn export-download" href="{{ url_for('export', work_id=work.id, movement_id=movement.id, fmt='m4a') }}">{{ t('export.m4a') }}</a>
+        <a class="btn export-download" href="{{ url_for('export', work_id=work.id, movement_id=movement.id, fmt='mp3') }}">{{ t('export.mp3') }}</a>
+        <a class="btn export-download" href="{{ url_for('export_all', work_id=work.id, fmt='musicxml') }}">{{ t('export.zip') }}</a>
       </div>
     </section>
 
     <section class="panel reveal">
-      <h2>符号层校验</h2>
-      <button class="btn primary" id="check-btn">运行检查</button>
+      <h2>{{ t('checker.symbolic') }}</h2>
+      <button class="btn primary" id="check-btn">{{ t('checker.run') }}</button>
       <div class="drawer" id="check-drawer">
         <ul id="violation-list" class="violations"></ul>
       </div>
     </section>
 
     <section class="panel reveal">
-      <h2>创作规划</h2>
+      <h2>{{ t('plan.title') }}</h2>
       {% if plan %}
       <pre class="output plan-text">{{ plan }}</pre>
       {% else %}
-      <p class="muted">尚无创作规划；生成作品时会先由创作AI规划全部乐器与各声部的情感走向。</p>
+      <p class="muted">{{ t('plan.empty') }}</p>
       {% endif %}
     </section>
 
     <section class="panel reveal">
-      <h2>检查AI评审</h2>
+      <h2>{{ t('checker.title') }}</h2>
       {% if review %}
       <div class="checker-inline">
         <div class="{{ 'checker-pass' if review.passed else 'checker-fail' }}">
-          {{ '✔ 检查AI 通过' if review.passed else '✘ 检查AI 打回' }}
+          {{ t('checker.passed') if review.passed else t('checker.rejected') }}
         </div>
         {% if not review.passed and review.suggestions %}
         <div class="checker-detail">{{ review.suggestions }}</div>
         {% endif %}
       </div>
       {% else %}
-      <p class="muted">尚无检查AI评审记录；运行一次生成或修改后会显示。</p>
+      <p class="muted">{{ t('checker.empty') }}</p>
       {% endif %}
     </section>
 
     <section class="panel reveal">
-      <h2>创作提示词</h2>
-      <p class="muted small">描述你想要的巴赫风格作品；Enter 换行，超过 13 行后框内滚动。</p>
+      <h2>{{ t('composer.prompt_label') }}</h2>
+      <p class="muted small">{{ t('composer.prompt_hint') }}</p>
       <textarea
         id="agent-goal"
         class="autogrow"
         rows="3"
         data-max-lines="13"
-        placeholder="输入你的创作提示词…"
-      >创作一首巴赫风格的赋格。</textarea>
-      <button class="btn primary" id="agent-btn">运行一轮</button>
+        placeholder="{{ t('composer.prompt_placeholder_work') }}"
+      >{{ t('composer.prompt_default') }}</textarea>
+      <button class="btn primary" id="agent-btn">{{ t('composer.run') }}</button>
       <pre id="agent-output" class="output"></pre>
     </section>
 
     <section class="panel reveal">
-      <h2>品鉴意见</h2>
-      <textarea id="audit-note" rows="3" placeholder="写下你的听感与修改意见…"></textarea>
-      <button class="btn primary" id="audit-btn">提交意见</button>
+      <h2>{{ t('audition.title') }}</h2>
+      <textarea id="audit-note" rows="3" placeholder="{{ t('audition.placeholder') }}"></textarea>
+      <button class="btn primary" id="audit-btn">{{ t('audition.submit') }}</button>
       <span id="audit-status" class="muted small"></span>
     </section>
 
     <section class="panel reveal">
-      <h2>主题</h2>
+      <h2>{{ t('theme.title') }}</h2>
       {% if themes %}
       <ul class="theme-list">
         {% for theme_id, theme in themes.items() %}
         <li>
           <span class="chip">#{{ theme_id }}</span>
-          <span class="muted">{{ voice_labels.get(theme.voice, theme.voice) }} · 第 {{ theme.start_measure }} 小节</span>
+          <span class="muted">{{ t(voice_labels.get(theme.voice, theme.voice)) }} · {{ t('theme.measure', measure=theme.start_measure) }}</span>
         </li>
         {% endfor %}
       </ul>
       {% else %}
-      <p class="muted">尚无主题。</p>
+      <p class="muted">{{ t('theme.empty') }}</p>
       {% endif %}
     </section>
 
     <section class="panel reveal">
-      <h2>版本时间线</h2>
+      <h2>{{ t('timeline.title') }}</h2>
       <ol class="timeline">
         {% for revision in revisions %}
         <li class="{% if revision.ok %}ok{% else %}bad{% endif %}">
           <span class="dot"></span>
           <span>
             r{{ revision.seq }} ·
-            {{ tool_labels.get(revision.source, revision.source) }}
+            {{ t(tool_labels.get(revision.source, revision.source)) }}
             {%- if revision.technique %}
             · {{ technique_labels.get(revision.technique, revision.technique) }}
             {%- endif %}
           </span>
-          <button class="btn tiny rollback" data-seq="{{ revision.seq }}">回退</button>
+          <button class="btn tiny rollback" data-seq="{{ revision.seq }}">{{ t('tool.rollback') }}</button>
         </li>
         {% endfor %}
       </ol>
-      <button class="btn primary" id="finalize-btn">定稿</button>
+      <button class="btn primary" id="finalize-btn">{{ t('result.finalize') }}</button>
     </section>
   </div>
 </div>
