@@ -79,7 +79,7 @@ def synthesize_audio(
     if not features.audio_available:
         raise FeatureUnavailableError(
             "ffmpeg、FluidSynth 与音色库(soundfont)是音频导出所必需的。"
-            "请运行 python tools/fetch_vendor.py 下载,或安装到系统 PATH。"
+            "首次启动会自动下载;若仍不可用,请检查网络,或把它们安装到系统 PATH。"
         )
     codec = _CODECS[fmt]
     out_path.parent.mkdir(parents=True, exist_ok=True)

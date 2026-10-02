@@ -96,7 +96,7 @@ def create_app(
     app.config["TESTING"] = testing
     app.config["TEMPLATES_AUTO_RELOAD"] = True
     data = Path(data_dir or os.environ.get("HARMONIA_DATA") or config_dir())
-    vendor = Path(vendor_dir or os.environ.get("HARMONIA_VENDOR", "vendor"))
+    vendor = Path(vendor_dir or os.environ.get("HARMONIA_VENDOR") or (config_dir() / "vendor"))
     service = CompositionService(ProjectStore(data))
     service.interrupt_stale_generations()
     app.extensions["harmonia_service"] = service

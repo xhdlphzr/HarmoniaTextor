@@ -44,9 +44,8 @@ SPDX-License-Identifier: MIT
       <audio id="audition" controls loop
         src="{{ url_for('export', work_id=work.id, movement_id=movement.id, fmt='m4a') }}"></audio>
       <p class="muted small">
-        循环播放，可反复聆听；若音频不可用，请运行
-        <code>python tools/fetch_vendor.py</code>。导出文件会保存到
-        <code>~/Downloads</code>。
+        循环播放，可反复聆听；音频组件（ffmpeg、FluidSynth、音色库）会在首次启动时自动下载。
+        导出文件会保存到 <code>~/Downloads</code>。
       </p>
       <div class="actions">
         <a class="btn export-download" href="{{ url_for('export', work_id=work.id, movement_id=movement.id, fmt='musicxml') }}">导出 MusicXML</a>
