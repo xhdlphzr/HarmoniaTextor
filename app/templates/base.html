@@ -23,6 +23,19 @@ SPDX-License-Identifier: MIT
         <span class="brand-sub">{{ t('brand.tagline') }}</span>
       </a>
       <nav class="topnav">
+        <span class="llm-indicator">
+          <button
+            type="button"
+            class="btn-icon"
+            id="llm-ping-btn"
+            title="{{ t('llm.ping') }}"
+          >
+            &#8635;
+          </button>
+          <span class="llm-label">AI</span>
+          <span class="llm-dot llm-dot-checking" id="llm-status-dot"></span>
+          <span class="llm-status-text" id="llm-status-text"></span>
+        </span>
         <select class="lang-select" id="lang-select" title="{{ t('common.language') }}">
           <option value="en" {% if lang == 'en' %}selected{% endif %}>English</option>
           <option value="zh" {% if lang == 'zh' %}selected{% endif %}>中文</option>

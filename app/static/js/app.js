@@ -322,6 +322,57 @@ SPDX-License-Identifier: MIT
     });
   }
 
+  /* --------------------------------------------------- llm connectivity */
+
+  const LLM_BUTTONS = ["generate-btn", "agent-btn", "feedback-btn"];
+  let llmConnected = false;
+
+  function applyLlmButtons() {
+    LLM_BUTTONS.forEach((id) => {
+      const button = byId(id);
+      if (button) {
+        button.disabled = !llmConnected;
+      }
+    });
+  }
+
+  function applyLlmStatus(status) {
+    const dot = byId("llm-status-dot");
+    const text = byId("llm-status-text");
+    if (dot) {
+      dot.className = "llm-dot";
+      if (status === "ok") {
+        dot.classList.add("llm-dot-ok");
+      } else if (status === "error") {
+        dot.classList.add("llm-dot-error");
+      } else {
+        dot.classList.add("llm-dot-checking");
+      }
+    }
+    if (text) {
+      text.textContent = status === "error" ? t("llm.failed") : "";
+    }
+    llmConnected = status === "ok";
+    applyLlmButtons();
+  }
+
+  function probeLlm(url, options) {
+    const dot = byId("llm-status-dot");
+    if (dot) {
+      dot.className = "llm-dot llm-dot-checking";
+    }
+    fetch(url, options)
+      .then((response) => response.json())
+      .then((data) => applyLlmStatus(data.status))
+      .catch(() => applyLlmButtons());
+  }
+
+  if (byId("llm-status-dot")) {
+    applyLlmButtons();
+    on("llm-ping-btn", "click", () => probeLlm("/api/llm-ping", { method: "POST" }));
+    probeLlm("/api/llm-status");
+  }
+
   /* -------------------------------------------------------------- composer */
 
   const composer = byId("composer");

@@ -472,6 +472,19 @@ class TestConfigApi:
         """A non-object payload is rejected."""
         assert client.post("/api/config", json=[1, 2]).status_code == _HTTP_BAD_REQUEST
 
+    def test_llm_status_probes_once(
+        self, client: FlaskClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The status endpoint probes while unknown and then caches."""
+        monkeypatch.setattr("app.routes.check_connection", lambda: "ok")
+        assert client.get("/api/llm-status").get_json() == {"status": "ok"}
+        assert client.get("/api/llm-status").get_json() == {"status": "ok"}
+
+    def test_llm_ping(self, client: FlaskClient, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The ping endpoint forces a fresh probe."""
+        monkeypatch.setattr("app.routes.check_connection", lambda: "error")
+        assert client.post("/api/llm-ping").get_json() == {"status": "error"}
+
 
 class TestJobs:
     """Background generation and progress streaming."""

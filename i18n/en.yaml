@@ -20,6 +20,9 @@
 "common.period": "."
 "common.unknown_error": "unknown error"
 
+"llm.ping": "Check connection"
+"llm.failed": "Connection failed"
+
 "composer.intro": "Describe the Bach-style piece you want; the composer agent writes, checks, and renders the score and audio automatically."
 "composer.prompt_label": "Composition prompt"
 "composer.prompt_placeholder": "e.g. A lively three-part Bach-style fugue using stretto."

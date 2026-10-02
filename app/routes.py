@@ -17,6 +17,7 @@ from app.assets import favicon_icon
 from app.context import get_export_service, get_service
 from app.jobs import EventCallback, Job, JobManager
 from harmoniatextor.agent.architect import Architect
+from harmoniatextor.agent.health import UNKNOWN, check_connection
 from harmoniatextor.agent.llm_factory import create_chat_model
 from harmoniatextor.agent.loop import AgentLoop
 from harmoniatextor.agent.movements import MovementComposer
@@ -41,6 +42,7 @@ def register_routes(app: Flask) -> None:
         app: Flask application.
     """
     app.extensions["harmonia_jobs"] = JobManager()
+    app.extensions["harmonia_llm_status"] = {"status": UNKNOWN}
     _register_pages(app)
     _register_config(app)
     _register_jobs(app)
@@ -138,7 +140,21 @@ def _register_config(app: Flask) -> None:
         if not isinstance(payload, dict):
             return jsonify({"ok": False, "error": "invalid payload"}), 400
         save_config({str(key): value for key, value in payload.items()})
+        _llm_state(app)["status"] = UNKNOWN
         return jsonify({"ok": True, "config": current_config()})
+
+    @app.get("/api/llm-status")
+    def llm_status() -> Response:
+        """Return endpoint connectivity, probing once while unknown."""
+        state = _llm_state(app)
+        if state["status"] == UNKNOWN:
+            refresh_llm_status(app)
+        return jsonify({"status": state["status"]})
+
+    @app.post("/api/llm-ping")
+    def llm_ping() -> Response:
+        """Force a connectivity probe of the configured endpoint."""
+        return jsonify({"status": refresh_llm_status(app)})
 
 
 def _register_jobs(app: Flask) -> None:
@@ -200,6 +216,33 @@ def _jobs(app: Flask) -> JobManager:
     """
     manager: JobManager = app.extensions["harmonia_jobs"]
     return manager
+
+
+def _llm_state(app: Flask) -> dict[str, str]:
+    """Return the mutable endpoint-connectivity state.
+
+    Args:
+        app: Flask application.
+
+    Returns:
+        The status mapping bound to the application.
+    """
+    state: dict[str, str] = app.extensions["harmonia_llm_status"]
+    return state
+
+
+def refresh_llm_status(app: Flask) -> str:
+    """Probe the configured endpoint and cache the result.
+
+    Args:
+        app: Flask application.
+
+    Returns:
+        The freshly probed status code.
+    """
+    state = _llm_state(app)
+    state["status"] = check_connection()
+    return state["status"]
 
 
 def _start_agent_job(  # noqa: PLR0913, PLR0917
