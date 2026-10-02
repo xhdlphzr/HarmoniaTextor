@@ -140,9 +140,10 @@ def _ensure_ffmpeg(vendor: Path, bin_dir: Path) -> None:
         bin_dir: ``vendor/bin`` directory.
     """
     system = platform.system()
-    name = "ffmpeg.exe" if system == "Windows" else "ffmpeg"
     build = FFMPEG_BUILDS.get(system)
-    if build is None or _has_binary(bin_dir, name):
+    if build is None:
+        return
+    if _has_binary(bin_dir, "ffmpeg") or _has_binary(bin_dir, "ffmpeg.exe"):
         return
     url, filename, member = build
     archive = vendor / filename
