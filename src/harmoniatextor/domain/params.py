@@ -17,9 +17,13 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 __all__ = [
     "AddMovementParams",
     "AddPartParams",
+    "AlbertiBassParams",
     "AnnotateParams",
     "AugmentationParams",
+    "BrokenChordParams",
     "ChromaticHarmonyParams",
+    "ChromaticModulationParams",
+    "ColorChordParams",
     "CounterRhythmParams",
     "DeleteMeasureParams",
     "DevelopmentParams",
@@ -28,6 +32,8 @@ __all__ = [
     "DominantSeventhParams",
     "EditParams",
     "ExpositionParams",
+    "ExtendedHarmonyParams",
+    "FreeVoiceLeadingParams",
     "FunctionalCycleParams",
     "HarmonicSequenceParams",
     "ImitationParams",
@@ -35,14 +41,18 @@ __all__ = [
     "InversionParams",
     "MeasurePosition",
     "MeasureRange",
+    "ModalHarmonyParams",
     "ModulationBridgeParams",
+    "ParallelChordsParams",
     "PedalPointParams",
     "PedalToneParams",
+    "PlaningParams",
     "RecapitulationParams",
     "RemovePartParams",
     "RetrogradeParams",
     "RhythmicIndependenceParams",
     "RondoParams",
+    "RubatoParams",
     "SequenceParams",
     "SetMovementPromptParams",
     "SetTempoParams",
@@ -53,6 +63,7 @@ __all__ = [
     "TranspositionParams",
     "VoiceExchangeParams",
     "VoiceMotionParams",
+    "WholeToneParams",
     "parse_measure_position",
 ]
 
@@ -361,6 +372,218 @@ class VoiceMotionParams(_Params):
         default="contrary", description="Required motion type."
     )
     measure_range: MeasureRange = Field(description="Measures to affect.")
+
+
+class AlbertiBassParams(_Params):
+    """Parameters for the Alberti-bass accompaniment technique.
+
+    Attributes:
+        voice: Voice slot that receives the Alberti figure.
+        measure_range: Measures to fill.
+        key: Key used to realise the chords.
+        chord_sequence: Roman-numeral chord per measure, cycled when shorter
+            than the range.
+    """
+
+    voice: str = Field(min_length=1, description="Voice slot receiving the Alberti figure.")
+    measure_range: MeasureRange = Field(description="Measures to fill.")
+    key: str = Field(min_length=1, description="Key used to realise the chords.")
+    chord_sequence: list[str] = Field(
+        default_factory=lambda: ["I", "V", "vi", "IV"],
+        description="Roman-numeral chord per measure, cycled when shorter than the range.",
+    )
+
+
+class BrokenChordParams(_Params):
+    """Parameters for the broken-chord (arpeggio) technique.
+
+    Attributes:
+        voice: Voice slot that receives the arpeggio.
+        measure_range: Measures to fill.
+        key: Key used to realise the chord.
+        chord: Roman-numeral chord to arpeggiate.
+        note_value: Note value name such as ``"eighth"``.
+        direction: Arpeggio direction.
+    """
+
+    voice: str = Field(min_length=1, description="Voice slot receiving the arpeggio.")
+    measure_range: MeasureRange = Field(description="Measures to fill.")
+    key: str = Field(min_length=1, description="Key used to realise the chord.")
+    chord: str = Field(default="I", description="Roman-numeral chord to arpeggiate.")
+    note_value: str = Field(default="eighth", description="Note value name, e.g. 'eighth'.")
+    direction: Literal["up", "down", "updown"] = Field(
+        default="up", description="Arpeggio direction."
+    )
+
+
+class ParallelChordsParams(_Params):
+    """Parameters for the parallel-chords technique.
+
+    Attributes:
+        voice: Voice slot that receives the chords.
+        measure_range: Measures the chords occupy.
+        key: Key used to realise the source chord.
+        chord: Source Roman-numeral chord.
+        step_interval: Diatonic interval moved per repetition.
+        repetitions: Number of chord statements.
+    """
+
+    voice: str = Field(min_length=1, description="Voice slot receiving the chords.")
+    measure_range: MeasureRange = Field(description="Measures the chords occupy.")
+    key: str = Field(min_length=1, description="Key used to realise the source chord.")
+    chord: str = Field(default="I", description="Source Roman-numeral chord.")
+    step_interval: int = Field(default=2, description="Diatonic interval moved per repetition.")
+    repetitions: int = Field(default=4, ge=1, le=16, description="Number of chord statements.")
+
+
+class PlaningParams(_Params):
+    """Parameters for the parallel planing technique.
+
+    Attributes:
+        voice: Voice slot that receives the stacked chords.
+        measure_range: Measures the chords occupy.
+        key: Key used to realise the source chord.
+        chord_size: Whether to stack a triad or a seventh chord.
+        step: Diatonic step moved per measure.
+    """
+
+    voice: str = Field(min_length=1, description="Voice slot receiving the stacked chords.")
+    measure_range: MeasureRange = Field(description="Measures the chords occupy.")
+    key: str = Field(min_length=1, description="Key used to realise the source chord.")
+    chord_size: Literal["triad", "seventh"] = Field(default="triad", description="Chord size.")
+    step: int = Field(default=1, description="Diatonic step moved per measure.")
+
+
+class ChromaticModulationParams(_Params):
+    """Parameters for the chromatic modulation technique.
+
+    Attributes:
+        start_key: Key to leave.
+        target_key: Key to reach.
+        measure_range: Measures the modulation occupies.
+    """
+
+    start_key: str = Field(min_length=1, description="Key to leave.")
+    target_key: str = Field(min_length=1, description="Key to reach.")
+    measure_range: MeasureRange = Field(description="Measures the modulation occupies.")
+
+
+def _default_extensions() -> list[Literal["7", "9", "11", "13"]]:
+    """Return the default chord extensions.
+
+    Returns:
+        The seventh and ninth degrees.
+    """
+    return ["7", "9"]
+
+
+class ExtendedHarmonyParams(_Params):
+    """Parameters for the extended-harmony technique.
+
+    Attributes:
+        voice: Voice slot that receives the extension chord.
+        measure_range: Measures to extend.
+        key: Key used to resolve the chord root.
+        extensions: Extension degrees to stack (``"7"``, ``"9"``, ``"11"``, ``"13"``).
+    """
+
+    voice: str = Field(min_length=1, description="Voice slot receiving the extension chord.")
+    measure_range: MeasureRange = Field(description="Measures to extend.")
+    key: str = Field(min_length=1, description="Key used to resolve the chord root.")
+    extensions: list[Literal["7", "9", "11", "13"]] = Field(
+        default_factory=_default_extensions,
+        min_length=1,
+        description="Extension degrees stacked above the root.",
+    )
+
+
+class ColorChordParams(_Params):
+    """Parameters for the colour-chord technique.
+
+    Attributes:
+        voice: Voice slot that receives the colour tone.
+        measure_range: Measures to colour.
+        key: Key used to resolve the chord root.
+        color: Colour degree such as ``"6"``, ``"9"``, ``"#11"`` or ``"b13"``.
+    """
+
+    voice: str = Field(min_length=1, description="Voice slot receiving the colour tone.")
+    measure_range: MeasureRange = Field(description="Measures to colour.")
+    key: str = Field(min_length=1, description="Key used to resolve the chord root.")
+    color: str = Field(default="9", description="Colour degree such as '6', '9', '#11', 'b13'.")
+
+
+class ModalHarmonyParams(_Params):
+    """Parameters for the modal-harmony technique.
+
+    Attributes:
+        key: Home key.
+        mode: Church mode name.
+        measure_range: Measures to harmonise.
+        chord_sequence: Optional chord figures; a mode default is used when empty.
+    """
+
+    key: str = Field(min_length=1, description="Home key.")
+    mode: Literal["ionian", "dorian", "phrygian", "lydian", "mixolydian", "aeolian"] = Field(
+        default="ionian", description="Church mode."
+    )
+    measure_range: MeasureRange = Field(description="Measures to harmonise.")
+    chord_sequence: list[str] = Field(
+        default_factory=list,
+        description="Optional chord figures; a mode default is used when empty.",
+    )
+
+
+class WholeToneParams(_Params):
+    """Parameters for the whole-tone technique.
+
+    Attributes:
+        voice: Voice slot that receives the scale.
+        measure_range: Measures to fill.
+        root: Root pitch of the whole-tone scale.
+        direction: Scale direction.
+        note_value: Note value name.
+    """
+
+    voice: str = Field(min_length=1, description="Voice slot receiving the scale.")
+    measure_range: MeasureRange = Field(description="Measures to fill.")
+    root: str = Field(default="C4", description='Root pitch such as "C4".')
+    direction: Literal["up", "down"] = Field(default="up", description="Scale direction.")
+    note_value: str = Field(default="eighth", description="Note value name, e.g. 'eighth'.")
+
+
+class RubatoParams(_Params):
+    """Parameters for the rubato technique.
+
+    Attributes:
+        measure_range: Measures to breathe.
+        amount: Agogic amount (0-0.9); the downbeat is stretched and the rest compressed.
+    """
+
+    measure_range: MeasureRange = Field(description="Measures to breathe.")
+    amount: float = Field(
+        default=0.2, gt=0, lt=0.9, description="Agogic amount; the downbeat is stretched."
+    )
+
+
+class FreeVoiceLeadingParams(_Params):
+    """Parameters for the free-voice-leading rule exemption.
+
+    Attributes:
+        voice: Voice whose measures are exempted.
+        measure_range: Measures where the exemption applies.
+        reason: Musical justification; required to discourage lazy use.
+    """
+
+    voice: str = Field(min_length=1, description="Voice whose measures are exempted.")
+    measure_range: MeasureRange = Field(description="Measures where the exemption applies.")
+    reason: str = Field(
+        min_length=4,
+        description=(
+            "Musical justification for waiving the voice-leading rules here. Only request "
+            "this when free voice leading genuinely improves the music."
+        ),
+    )
 
 
 class SubmitThemeParams(_Params):

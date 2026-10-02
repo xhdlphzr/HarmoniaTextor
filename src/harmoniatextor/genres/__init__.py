@@ -5,13 +5,7 @@
 
 from __future__ import annotations
 
-from harmoniatextor.genres.base import (
-    ALL_TECHNIQUES,
-    Genre,
-    MovementSpec,
-    default_profile,
-    relaxed_profile,
-)
+from harmoniatextor.genres.base import Genre, MovementSpec
 from harmoniatextor.genres.builtin import (
     ConcertoGenre,
     PlainGenre,
@@ -21,7 +15,6 @@ from harmoniatextor.genres.builtin import (
 from harmoniatextor.genres.registry import GenreRegistry, build_default_registry
 
 __all__ = [
-    "ALL_TECHNIQUES",
     "ConcertoGenre",
     "Genre",
     "GenreRegistry",
@@ -30,6 +23,4 @@ __all__ = [
     "SonataGenre",
     "SymphonyGenre",
     "build_default_registry",
-    "default_profile",
-    "relaxed_profile",
 ]

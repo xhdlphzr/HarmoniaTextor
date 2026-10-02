@@ -6,14 +6,7 @@
 from __future__ import annotations
 
 from harmoniatextor.checker.context import CheckerContext
-from harmoniatextor.checker.profile import ValidationProfile
-from harmoniatextor.genres.base import (
-    ALL_TECHNIQUES,
-    Genre,
-    MovementSpec,
-    default_profile,
-    relaxed_profile,
-)
+from harmoniatextor.genres.base import Genre, MovementSpec
 
 __all__ = [
     "ConcertoGenre",
@@ -29,8 +22,6 @@ class PlainGenre(Genre):
     id = "plain"
     display_name = "单曲/赋格"
     movement_specs = (MovementSpec(name="第一乐章 · 乐曲", tempo=84),)
-    allowed_techniques = ALL_TECHNIQUES
-    profile: ValidationProfile = default_profile()
 
     def checker_context(
         self, tonic: str, measure_count: int, *, complete: bool = False
@@ -49,8 +40,6 @@ class SonataGenre(Genre):
         MovementSpec(name="第二乐章 · 慢板", time_signature="3/4", tempo=60),
         MovementSpec(name="第三乐章 · 快板", tempo=132),
     )
-    allowed_techniques = ALL_TECHNIQUES
-    profile: ValidationProfile = relaxed_profile()
 
     def checker_context(
         self, tonic: str, measure_count: int, *, complete: bool = False
@@ -71,8 +60,6 @@ class ConcertoGenre(Genre):
         ),
         MovementSpec(name="第三乐章 · 急板", tempo=144, voice_profile="solo_tutti"),
     )
-    allowed_techniques = ALL_TECHNIQUES
-    profile: ValidationProfile = relaxed_profile()
 
     def checker_context(
         self, tonic: str, measure_count: int, *, complete: bool = False
@@ -96,8 +83,6 @@ class SymphonyGenre(Genre):
         ),
         MovementSpec(name="第四乐章 · 快板", tempo=132, voice_profile="orchestra"),
     )
-    allowed_techniques = ALL_TECHNIQUES
-    profile: ValidationProfile = relaxed_profile()
 
     def checker_context(
         self, tonic: str, measure_count: int, *, complete: bool = False

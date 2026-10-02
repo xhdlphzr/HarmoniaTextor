@@ -8,12 +8,12 @@ build-backend = "hatchling.build"
 [project]
 name = "harmoniatextor"
 version = "0.1.0"
-description = "Neuro-symbolic Bach-style music generation with symbolic validation."
+description = "Neuro-symbolic classical music generation with symbolic validation."
 readme = "README.md"
 requires-python = ">=3.14"
 license = "MIT"
 authors = [{ name = "xhdlphzr" }]
-keywords = ["music", "bach", "neuro-symbolic", "musicxml", "counterpoint"]
+keywords = ["music", "classical", "neuro-symbolic", "musicxml", "counterpoint"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: End Users/Desktop",

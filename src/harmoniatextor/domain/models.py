@@ -17,6 +17,7 @@ __all__ = [
     "CheckViolation",
     "Movement",
     "Revision",
+    "StyleSelection",
     "Theme",
     "ThemeNote",
     "Work",
@@ -204,6 +205,57 @@ class Movement:
     prompt: str = ""
 
 
+@dataclass(frozen=True, slots=True)
+class StyleSelection:
+    """A frozen snapshot of the style kit chosen for a work.
+
+    Attributes:
+        id: Kit identifier the snapshot came from.
+        name: Display name at creation time.
+        brief: Style description captured at creation time.
+        rules: Enabled rule identifiers.
+        techniques: Available technique identifiers.
+    """
+
+    id: str
+    name: str
+    brief: str = ""
+    rules: frozenset[str] = field(default_factory=frozenset)
+    techniques: frozenset[str] = field(default_factory=frozenset)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialise the selection.
+
+        Returns:
+            A JSON-friendly dictionary with sorted lists.
+        """
+        return {
+            "id": self.id,
+            "name": self.name,
+            "brief": self.brief,
+            "rules": sorted(self.rules),
+            "techniques": sorted(self.techniques),
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> StyleSelection:
+        """Rebuild a selection from stored primitives.
+
+        Args:
+            data: A mapping produced by :meth:`to_dict`.
+
+        Returns:
+            The reconstructed selection.
+        """
+        return cls(
+            id=str(data["id"]),
+            name=str(data["name"]),
+            brief=str(data.get("brief", "")),
+            rules=frozenset(str(item) for item in data.get("rules", [])),
+            techniques=frozenset(str(item) for item in data.get("techniques", [])),
+        )
+
+
 @dataclass(slots=True)
 class Work:
     """A composition session containing one or more movements.
@@ -215,6 +267,7 @@ class Work:
         tonic: Home key.
         movements: Ordered movements.
         status: Lifecycle status.
+        style: Frozen style-kit snapshot chosen at creation.
         created_at: ISO timestamp.
         updated_at: ISO timestamp.
     """
@@ -225,5 +278,6 @@ class Work:
     tonic: KeySpec
     movements: list[Movement] = field(default_factory=list)
     status: WorkStatus = WorkStatus.DRAFT
+    style: StyleSelection | None = None
     created_at: str = ""
     updated_at: str = ""

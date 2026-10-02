@@ -19,9 +19,19 @@ from pydantic import ValidationError
 
 from harmoniatextor.checker.context import CheckerContext
 from harmoniatextor.checker.engine import CheckEngine, format_feedback
+from harmoniatextor.checker.profile import profile_for_rules
 from harmoniatextor.domain.enums import ToolKind, WorkStatus
 from harmoniatextor.domain.key import parse_key
-from harmoniatextor.domain.models import CheckReport, Movement, Revision, Theme, ThemeNote, Work
+from harmoniatextor.domain.models import (
+    CheckReport,
+    CheckViolation,
+    Movement,
+    Revision,
+    StyleSelection,
+    Theme,
+    ThemeNote,
+    Work,
+)
 from harmoniatextor.genres.registry import GenreRegistry
 from harmoniatextor.genres.registry import build_default_registry as build_genres
 from harmoniatextor.score.analysis import first_melody, measure_count
@@ -29,7 +39,9 @@ from harmoniatextor.score.io import from_musicxml, new_score, to_musicxml
 from harmoniatextor.score.merge import merge_scores
 from harmoniatextor.score.streamops import ScoreEditor
 from harmoniatextor.storage.project_store import ProjectStore
+from harmoniatextor.styles import StyleKit, StyleRegistry
 from harmoniatextor.techniques.base import TechniqueContext, TechniqueError
+from harmoniatextor.techniques.exemption import FREE_VOICE_LEADING_EXEMPT
 from harmoniatextor.techniques.registry import (
     TechniqueRegistry,
 )
@@ -57,6 +69,49 @@ _GENERATION_EVENTS = frozenset(
     }
 )
 _GENERATION_COMPLETED = "generation_finished"
+
+#: Technique id whose revision marks a scoped voice-leading exemption.
+_FREE_VOICE_LEADING = "free_voice_leading"
+
+
+def _in_exempt_scope(violation: CheckViolation, scopes: list[tuple[str, int, int]]) -> bool:
+    """Return whether a violation falls inside an exemption scope.
+
+    Args:
+        violation: The violation to test.
+        scopes: ``(voice, start, end)`` scopes.
+
+    Returns:
+        ``True`` when the violation is waived.
+    """
+    for voice, start, end in scopes:
+        if start <= violation.measure <= end and voice in {violation.voice_a, violation.voice_b}:
+            return True
+    return False
+
+
+def _filter_exemptions(report: CheckReport, scopes: list[tuple[str, int, int]]) -> CheckReport:
+    """Drop violations waived by free-voice-leading exemptions.
+
+    Args:
+        report: The raw check report.
+        scopes: ``(voice, start, end)`` scopes.
+
+    Returns:
+        The report without waived violations.
+    """
+    if not scopes:
+        return report
+    kept = [
+        violation
+        for violation in report.violations
+        if not (
+            violation.rule_id in FREE_VOICE_LEADING_EXEMPT and _in_exempt_scope(violation, scopes)
+        )
+    ]
+    if len(kept) == len(report.violations):
+        return report
+    return CheckReport(violations=kept)
 
 
 @dataclass(slots=True)
@@ -120,22 +175,81 @@ class CompositionService:
         techniques: TechniqueRegistry | None = None,
         genres: GenreRegistry | None = None,
         engine: CheckEngine | None = None,
+        styles: StyleRegistry | None = None,
     ) -> None:
         """Initialise the service.
 
         Args:
             store: Project storage.
-            techniques: Technique registry; defaults to the 25 built-ins.
+            techniques: Technique registry; defaults to the 36 built-ins.
             genres: Genre registry; defaults to the four built-ins.
             engine: Checker engine; defaults to a fresh engine.
+            styles: Style registry; defaults to the built-in plus stored kits.
         """
         self.store = store
         self.techniques = techniques if techniques is not None else build_techniques()
         self.genres = genres if genres is not None else build_genres()
         self.engine = engine if engine is not None else CheckEngine()
+        self.styles = styles if styles is not None else StyleRegistry()
+
+    def style_for(self, work: Work) -> StyleKit:
+        """Return the effective style kit of a work.
+
+        Args:
+            work: The work.
+
+        Returns:
+            The work's frozen snapshot, or the default built-in kit for legacy
+            works created before styles existed.
+        """
+        snapshot = work.style
+        if snapshot is None:
+            return self.styles.resolve(None)
+        return StyleKit(
+            id=snapshot.id,
+            name=snapshot.name,
+            brief=snapshot.brief,
+            rules=snapshot.rules,
+            techniques=snapshot.techniques,
+        )
+
+    def effective_rules(self, work: Work) -> frozenset[str]:
+        """Return the rule identifiers enabled for a work.
+
+        Args:
+            work: The work.
+
+        Returns:
+            The style's enabled rule identifiers.  Free-voice-leading
+            exemptions do not disable rules; they filter violations at check
+            time (see :meth:`_check`).
+        """
+        return self.style_for(work).rules
+
+    def techniques_for(self, work: Work) -> TechniqueRegistry:
+        """Return a technique registry limited to the work's style.
+
+        Args:
+            work: The work.
+
+        Returns:
+            A registry holding only the style's techniques, in canonical order.
+        """
+        allowed = self.style_for(work).techniques
+        registry = TechniqueRegistry()
+        for technique in self.techniques.all():
+            if technique.id in allowed:
+                registry.register(technique)
+        return registry
 
     def create_work(
-        self, title: str, genre: str, tonic: str = "C", *, with_movements: bool = True
+        self,
+        title: str,
+        genre: str,
+        tonic: str = "C",
+        *,
+        style: str | None = None,
+        with_movements: bool = True,
     ) -> Work:
         """Create a new work with a movement skeleton.
 
@@ -144,6 +258,7 @@ class CompositionService:
             genre: Genre identifier.
             tonic: Initial tonic key; the composer agent replaces it when it
                 submits the first theme with a chosen key.
+            style: Style kit identifier; defaults to the built-in default kit.
             with_movements: Whether to pre-populate the genre's movement
                 skeleton.  The architect adds movements itself.
 
@@ -151,6 +266,7 @@ class CompositionService:
             The created work.
         """
         genre_obj = self.genres.get(genre)
+        kit = self.styles.resolve(style)
         work_id = f"w-{uuid.uuid4().hex[:8]}"
         timestamp = _now()
         work = Work(
@@ -160,11 +276,21 @@ class CompositionService:
             tonic=parse_key(tonic),
             movements=genre_obj.initialize_work(work_id, tonic) if with_movements else [],
             status=WorkStatus.DRAFT,
+            style=StyleSelection(
+                id=kit.id,
+                name=kit.name,
+                brief=kit.brief,
+                rules=kit.rules,
+                techniques=kit.techniques,
+            ),
             created_at=timestamp,
             updated_at=timestamp,
         )
         self.store.save_work(work)
-        self.store.append_journal(work_id, {"event": "genre_init", "genre": genre, "tonic": tonic})
+        self.store.append_journal(
+            work_id,
+            {"event": "genre_init", "genre": genre, "tonic": tonic, "style": kit.id},
+        )
         return work
 
     def get_work(self, work_id: str) -> Work:
@@ -829,7 +955,13 @@ class CompositionService:
             outcome = technique.apply(ctx, parsed)
         except TechniqueError as exc:
             return ToolResult(False, error_code=exc.code, message=exc.message)
-        report = self._check(work, movement, outcome.score) if check else None
+        report: CheckReport | None = None
+        if check:
+            scopes = self._exempt_scopes(work, movement)
+            if technique.exempts:
+                measure_range = parsed.measure_range
+                scopes = [*scopes, (str(parsed.voice), measure_range.start, measure_range.end)]
+            report = self._check(work, movement, outcome.score, scopes=scopes)
         revision = self._save_revision(
             work,
             movement,
@@ -1187,6 +1319,28 @@ class CompositionService:
                 marked += 1
         return marked
 
+    def _exempt_scopes(self, work: Work, movement: Movement) -> list[tuple[str, int, int]]:
+        """Return the free-voice-leading exemption scopes of a movement.
+
+        Args:
+            work: Owning work.
+            movement: Movement under check.
+
+        Returns:
+            ``(voice, start, end)`` tuples collected from the movement's
+            revisions.
+        """
+        scopes: list[tuple[str, int, int]] = []
+        for meta in self.store.load_revision_meta(work.id, movement.id):
+            if meta.get("technique") != _FREE_VOICE_LEADING:
+                continue
+            params = meta.get("params") or {}
+            voice = params.get("voice")
+            measure_range = params.get("measure_range") or {}
+            if voice and "start" in measure_range and "end" in measure_range:
+                scopes.append((str(voice), int(measure_range["start"]), int(measure_range["end"])))
+        return scopes
+
     def _check(
         self,
         work: Work,
@@ -1194,25 +1348,32 @@ class CompositionService:
         score: stream.Score,
         *,
         complete: bool = False,
+        scopes: list[tuple[str, int, int]] | None = None,
     ) -> CheckReport:
-        """Run the checker with the movement's genre profile.
+        """Run the checker with the work's style rules.
 
         Args:
             work: Owning work.
             movement: Movement under check.
             score: Score to check.
             complete: Whether to apply structural-end expectations.
+            scopes: Free-voice-leading exemption scopes; computed from history
+                when omitted.
 
         Returns:
             The check report.
         """
         genre = self.genres.get(work.genre)
+        rules = self.effective_rules(work)
         context: CheckerContext = genre.checker_context(
             movement.key.raw,
             measure_count(score),
             complete=complete,
         )
-        return self.engine.run(score, context)
+        context.enforce_voice_count = "voices" in rules
+        report = self.engine.run(score, context, profile=profile_for_rules(rules))
+        active = scopes if scopes is not None else self._exempt_scopes(work, movement)
+        return _filter_exemptions(report, active)
 
     def _save_revision(  # noqa: PLR0913, PLR0917
         self,

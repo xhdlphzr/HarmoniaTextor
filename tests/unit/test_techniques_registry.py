@@ -11,7 +11,7 @@ from harmoniatextor.techniques import build_default_registry
 REGISTRY = build_default_registry()
 
 
-_TECHNIQUE_COUNT = 25
+_TECHNIQUE_COUNT = 36
 
 
 class TestRegistry:

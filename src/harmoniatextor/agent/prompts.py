@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from harmoniatextor.checker.rules import BUILTIN_RULES, RULE_CONSTRAINTS
 from harmoniatextor.genres.base import Genre
+from harmoniatextor.styles.base import StyleKit
 from harmoniatextor.techniques.registry import TechniqueRegistry
 
 __all__ = [
@@ -14,6 +15,8 @@ __all__ = [
     "ARCHITECT_SYSTEM",
     "STEP1_INSTRUCTION",
     "STEP2_INSTRUCTION",
+    "architect_instruction",
+    "architect_system",
     "system_prompt",
 ]
 
@@ -41,7 +44,7 @@ ARCHITECT_INSTRUCTION = (
     "   (a) 调性与调式、拍号、速度与节拍性格;\n"
     "   (b) 本乐章结构与各段小节数(如呈示/展开/再现、A/B/A 等);\n"
     "   (c) 主要主题与动机的具体轮廓(音名/音程/节奏型)及其发展方式;\n"
-    "   (d) 对位与技法安排(模仿、模进、倒影、扩缩、密接和应、增值减值、移调等)及位置;\n"
+    "   (d) 对位与技法安排(使用所选风格可用的技法)及位置;\n"
     "   (e) 声部数量、乐器与音域,声部交换与主奏轮换的位置;\n"
     "   (f) 力度、情绪走向与段落衔接。\n"
     "5. 每个乐章的 prompt 必须**独立、自足**:不要用“引用第一乐章的主题”“延续上一乐章材料”"
@@ -53,7 +56,7 @@ ARCHITECT_INSTRUCTION = (
 )
 
 _ROLE = (
-    "你是 HarmoniaTextor 的作曲家智能体,专门创作巴赫风格的复调音乐。"
+    "你是 HarmoniaTextor 的作曲家智能体,专门创作{style}风格的音乐。"
     "你通过工具把每一个音乐决定落地为 MusicXML;系统会在你完成时统一做符号层校验。"
     "你一次只负责**一个乐章**,并且是在独立的会话中工作:你只会拿到本乐章自己的"
     "创作要求(要求里已把需要沿用的素材完整写出),看不到其他乐章的文字,"
@@ -75,8 +78,8 @@ _PROTOCOL = (
     "(如 violin1 与 violin2 都是 Violin)。**声部数量与编制严格以本乐章 prompt 为准**;"
     "需要调整整个乐章速度时用 set_tempo(bpm,四分音符/分钟)。\n"
     "3. 用 technique_* 工具引用主题编号并给出参数,逐步构建乐曲;"
-    "要尽量多用技法来发展旋律(模仿、模进、倒影、扩缩、密接和应、增值减值等),"
-    "不要只把主题写一遍;需要转调或改变调式时,使用技法包中的移调/调性转换技法。"
+    "要尽量多用**本风格可用技法**(见上方技法列表)来发展旋律,不要只把主题写一遍;"
+    "需要转调或改变调式时,使用可用的移调/调性转换技法。"
     "节奏不要过于单调,要有层次感:长短音结合、强弱拍错落、声部间节奏对比与疏密变化。\n"
     "4. 除结构工具 insert/delete 外,修改类工具(submit_theme / add_part / technique_* / "
     "edit)**只返回 OK 状态、主题编号与违规列表,不返回完整乐谱**,以免上下文爆炸;"
@@ -142,12 +145,57 @@ STEP2_INSTRUCTION = (
 )
 
 
-def system_prompt(genre: Genre, techniques: TechniqueRegistry) -> str:
+def _style_line(style: StyleKit) -> str:
+    """Render the active style as a prompt line.
+
+    Args:
+        style: The active style kit.
+
+    Returns:
+        A one-line description with the style brief.
+    """
+    return f"当前风格:{style.name}。{style.brief}".rstrip("。")
+
+
+def architect_system(style: StyleKit) -> str:
+    """Build the architect system prompt for a style.
+
+    Args:
+        style: Active style kit.
+
+    Returns:
+        The system prompt text.
+    """
+    return f"{ARCHITECT_SYSTEM}\n\n{_style_line(style)}"
+
+
+def architect_instruction(style: StyleKit) -> str:
+    """Build the architect instruction for a style.
+
+    Args:
+        style: Active style kit.
+
+    Returns:
+        The instruction text.
+    """
+    return f"{ARCHITECT_INSTRUCTION}\n\n{_style_line(style)}"
+
+
+def system_prompt(
+    genre: Genre,
+    style: StyleKit,
+    techniques: TechniqueRegistry,
+    rules: frozenset[str],
+) -> str:
     """Build the system prompt for a composition session.
+
+    The technique list and hard rule list are limited to the active style.
 
     Args:
         genre: Active genre.
+        style: Active style kit.
         techniques: Technique registry used to enumerate available tools.
+        rules: Rule identifiers enforced for this work.
 
     Returns:
         The system prompt text.
@@ -159,11 +207,13 @@ def system_prompt(genre: Genre, techniques: TechniqueRegistry) -> str:
     rule_lines = [
         f"- {rule.rule_id}({rule.name}):{RULE_CONSTRAINTS.get(rule.rule_id, '')}"
         for rule in BUILTIN_RULES
+        if rule.rule_id in rules
     ]
     return "\n".join(
         [
-            _ROLE,
+            _ROLE.replace("{style}", style.name),
             "",
+            _style_line(style),
             f"当前体裁:{genre.display_name}({genre.id})。",
             "",
             "可用技法:",

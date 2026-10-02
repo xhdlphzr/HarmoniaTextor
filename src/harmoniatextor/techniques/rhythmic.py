@@ -9,6 +9,7 @@ from harmoniatextor.domain.models import ThemeNote
 from harmoniatextor.domain.params import (
     CounterRhythmParams,
     RhythmicIndependenceParams,
+    RubatoParams,
     SyncopationParams,
     VoiceMotionParams,
 )
@@ -30,6 +31,7 @@ from harmoniatextor.techniques.helpers import (
 __all__ = [
     "CounterRhythmTechnique",
     "RhythmicIndependenceTechnique",
+    "RubatoTechnique",
     "SyncopationTechnique",
     "VoiceMotionTechnique",
 ]
@@ -198,4 +200,41 @@ class VoiceMotionTechnique(Technique[VoiceMotionParams]):
                 new_line = invert_notes(line_second, axis)
             editor.clear_measure_range(second, params.measure_range.start, params.measure_range.end)
             editor.write_line(second, params.measure_range.start, new_line)
+        return TechniqueResult(ctx.score, warnings)
+
+
+_MIN_TAIL = 0.05
+_MIN_NOTES = 2
+
+
+class RubatoTechnique(Technique[RubatoParams]):
+    """Elasticise the downbeat of each measure while preserving the bar length."""
+
+    id = "rubato"
+    name = "自由速度"
+    category = TechniqueCategory.RHYTHMIC
+    summary = "Stretch each measure's downbeat and compress the rest, preserving the bar length."
+    params_model = RubatoParams
+
+    def apply(self, ctx: TechniqueContext, params: RubatoParams) -> TechniqueResult:
+        """Apply the agogic redistribution measure by measure."""
+        editor = ScoreEditor(ctx.score)
+        warnings: list[str] = []
+        for voice in editor.voice_names():
+            for measure in range(params.measure_range.start, params.measure_range.end + 1):
+                line = editor.read_line(voice, measure, measure)
+                if len(line) < _MIN_NOTES:
+                    continue
+                total = sum(item.quarter_length for item in line)
+                rest_total = total - line[0].quarter_length
+                if rest_total <= 0:  # pragma: no cover - defensive; needs 2+ positive notes
+                    continue
+                first = min(total * (1 + params.amount), total - (len(line) - 1) * _MIN_TAIL)
+                factor = (total - first) / rest_total
+                shaped = [ThemeNote(line[0].pitch, first)]
+                shaped.extend(
+                    ThemeNote(item.pitch, item.quarter_length * factor) for item in line[1:]
+                )
+                editor.clear_measure_range(voice, measure, measure)
+                editor.write_line(voice, measure, shaped)
         return TechniqueResult(ctx.score, warnings)

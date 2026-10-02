@@ -15,11 +15,13 @@ from langchain_core.messages import (
 from langchain_core.messages.tool import invalid_tool_call
 
 from harmoniatextor.agent.reviewer import (
-    _SYSTEM,
     ReviewerAI,
     _extract,
     _submit_review,
+    _system_text,
 )
+
+_RULES = frozenset({"pf5th", "empty", "voices"})
 
 
 def tool_call(name: str, args: dict[str, Any], call_id: str = "c1") -> AIMessage:
@@ -102,7 +104,12 @@ class TestReviewer:
         """A passing verdict is returned."""
         model = _ReviewModel([tool_call("submit_review", {"passed": True, "suggestions": ""})])
         result = ReviewerAI(cast("BaseChatModel", model)).review(
-            goal="g", genre_name="赋格", score_xml="<xml/>", check_summary="通过"
+            goal="g",
+            genre_name="赋格",
+            style_name="巴洛克",
+            rules=_RULES,
+            score_xml="<xml/>",
+            check_summary="通过",
         )
         assert result.passed
 
@@ -110,7 +117,12 @@ class TestReviewer:
         """A rejection carries its suggestions."""
         model = _ReviewModel([tool_call("submit_review", {"passed": False, "suggestions": "问题"})])
         result = ReviewerAI(cast("BaseChatModel", model)).review(
-            goal="g", genre_name="赋格", score_xml="<xml/>", check_summary="通过"
+            goal="g",
+            genre_name="赋格",
+            style_name="巴洛克",
+            rules=_RULES,
+            score_xml="<xml/>",
+            check_summary="通过",
         )
         assert not result.passed
         assert result.suggestions == "问题"
@@ -119,7 +131,12 @@ class TestReviewer:
         """A model that never submits yields a rejection."""
         model = _ReviewModel([AIMessage(content="再看看")])
         result = ReviewerAI(cast("BaseChatModel", model)).review(
-            goal="g", genre_name="赋格", score_xml="<xml/>", check_summary="通过"
+            goal="g",
+            genre_name="赋格",
+            style_name="巴洛克",
+            rules=_RULES,
+            score_xml="<xml/>",
+            check_summary="通过",
         )
         assert not result.passed
         assert result.suggestions
@@ -137,7 +154,12 @@ class TestReviewer:
             ]
         )
         result = ReviewerAI(cast("BaseChatModel", model)).review(
-            goal="g", genre_name="赋格", score_xml="<xml/>", check_summary="通过"
+            goal="g",
+            genre_name="赋格",
+            style_name="巴洛克",
+            rules=_RULES,
+            score_xml="<xml/>",
+            check_summary="通过",
         )
         assert result.passed
 
@@ -150,7 +172,12 @@ class TestReviewer:
             ]
         )
         result = ReviewerAI(cast("BaseChatModel", model)).review(
-            goal="g", genre_name="赋格", score_xml="<xml/>", check_summary="通过"
+            goal="g",
+            genre_name="赋格",
+            style_name="巴洛克",
+            rules=_RULES,
+            score_xml="<xml/>",
+            check_summary="通过",
         )
         assert result.passed
 
@@ -160,10 +187,11 @@ class TestReviewer:
 
     def test_system_checks_movement_division(self) -> None:
         """The reviewer is told to check movement division."""
-        assert "乐章划分" in _SYSTEM
+        assert "乐章划分" in _system_text("巴洛克", _RULES)
 
     def test_system_excludes_symbolic_rules(self) -> None:
         """The reviewer is told not to re-check symbolic-layer rules."""
-        assert "平行五度" in _SYSTEM
-        assert "以这些规则为由打回" in _SYSTEM
-        assert "符号层" in _SYSTEM
+        text = _system_text("巴洛克", _RULES)
+        assert "平行五度" in text
+        assert "以这些规则为由打回" in text
+        assert "符号层" in text

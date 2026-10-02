@@ -14,6 +14,8 @@ from harmoniatextor.domain.models import Theme, ThemeNote
 from harmoniatextor.score.io import new_score
 from harmoniatextor.service.service import CompositionService
 from harmoniatextor.storage.project_store import ProjectStore
+from harmoniatextor.styles.registry import StyleRegistry
+from harmoniatextor.styles.store import StyleKitStore
 
 
 @pytest.fixture
@@ -23,9 +25,10 @@ def store(tmp_path: Path) -> ProjectStore:
 
 
 @pytest.fixture
-def service(store: ProjectStore) -> CompositionService:
-    """Return a composition service backed by a temporary store."""
-    return CompositionService(store)
+def service(store: ProjectStore, tmp_path: Path) -> CompositionService:
+    """Return a composition service with isolated storage and style kits."""
+    styles = StyleRegistry(StyleKitStore(tmp_path / "config"))
+    return CompositionService(store, styles=styles)
 
 
 @pytest.fixture

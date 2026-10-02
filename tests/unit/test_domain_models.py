@@ -8,6 +8,7 @@ from harmoniatextor.domain.enums import Severity, VoiceSlot
 from harmoniatextor.domain.models import (
     CheckReport,
     CheckViolation,
+    StyleSelection,
     ThemeNote,
     theme_fingerprint,
 )
@@ -40,3 +41,21 @@ class TestModels:
     def test_voice_slot_values(self) -> None:
         """Voice slots have the expected canonical values."""
         assert VoiceSlot.SOPRANO.value == "soprano"
+
+    def test_style_selection_roundtrip(self) -> None:
+        """A style selection survives a dictionary round trip."""
+        selection = StyleSelection(
+            id="s-1",
+            name="Mine",
+            rules=frozenset({"empty", "voices"}),
+            techniques=frozenset({"imitation"}),
+        )
+        data = selection.to_dict()
+        assert data["rules"] == ["empty", "voices"]
+        assert StyleSelection.from_dict(data) == selection
+
+    def test_style_selection_defaults(self) -> None:
+        """Missing lists default to empty sets."""
+        selection = StyleSelection.from_dict({"id": "x", "name": "X"})
+        assert selection.rules == frozenset()
+        assert selection.techniques == frozenset()

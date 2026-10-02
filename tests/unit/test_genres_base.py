@@ -5,11 +5,11 @@
 
 from __future__ import annotations
 
-from harmoniatextor.domain.enums import Severity
-from harmoniatextor.genres.base import MovementSpec, default_profile, relaxed_profile
+from harmoniatextor.genres.base import MovementSpec
 from harmoniatextor.genres.builtin import PlainGenre
 
 _DEFAULT_TEMPO = 96
+_MEASURES = 12
 
 
 class TestGenresBase:
@@ -28,7 +28,8 @@ class TestGenresBase:
         assert movements
         assert movements[0].work_id == "w-1"
 
-    def test_profiles(self) -> None:
-        """The strict and relaxed profiles set the expected rules."""
-        assert default_profile().setting_for("pf5th").enabled
-        assert relaxed_profile().setting_for("leading").severity is Severity.WARNING
+    def test_complete_context(self) -> None:
+        """A completed movement expects a final cadence at its last measure."""
+        context = PlainGenre().checker_context("C", _MEASURES, complete=True)
+        assert context.expectations[0].measure == _MEASURES
+        assert context.expectations[0].cadence

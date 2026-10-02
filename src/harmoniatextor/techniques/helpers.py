@@ -27,6 +27,7 @@ __all__ = [
     "invert_notes",
     "midi_to_name",
     "name_to_midi",
+    "note_value",
     "realize_chord",
     "transpose_note",
     "transpose_notes",
@@ -35,6 +36,35 @@ __all__ = [
 
 _SEMITONES_PER_OCTAVE = 12
 _MAX_DIRECTION_SEMITONES = 6
+
+_NOTE_VALUES: dict[str, float] = {
+    "whole": 4.0,
+    "half": 2.0,
+    "quarter": 1.0,
+    "eighth": 0.5,
+    "sixteenth": 0.25,
+    "dotted-half": 3.0,
+    "dotted-quarter": 1.5,
+    "dotted-eighth": 0.75,
+}
+
+
+def note_value(name: str) -> float:
+    """Return the duration of a note-value name in quarter notes.
+
+    Args:
+        name: A note value such as ``"eighth"`` or ``"dotted-quarter"``.
+
+    Returns:
+        The duration in quarter notes.
+
+    Raises:
+        TechniqueError: When the name is unknown.
+    """
+    value = _NOTE_VALUES.get(name)
+    if value is None:
+        raise TechniqueError("BAD_PARAM", f"unknown note value {name!r}")
+    return value
 
 
 def get_theme(ctx: TechniqueContext, theme_id: int) -> Theme:

@@ -5,11 +5,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 
+from harmoniatextor.checker.rules import BUILTIN_RULES
 from harmoniatextor.domain.enums import Severity
 
-__all__ = ["RuleSetting", "ValidationProfile"]
+__all__ = ["RuleSetting", "ValidationProfile", "profile_for_rules"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,3 +47,19 @@ class ValidationProfile:
             The explicit setting, or a default enabled setting.
         """
         return self.settings.get(rule_id, RuleSetting())
+
+
+def profile_for_rules(enabled: Iterable[str]) -> ValidationProfile:
+    """Build a profile that runs only the given rules.
+
+    Args:
+        enabled: Rule identifiers to keep enabled; every other built-in rule is
+            explicitly disabled.
+
+    Returns:
+        A validation profile with per-rule enablement.
+    """
+    keep = set(enabled)
+    return ValidationProfile(
+        settings={rule.rule_id: RuleSetting(enabled=rule.rule_id in keep) for rule in BUILTIN_RULES}
+    )

@@ -41,7 +41,7 @@ from harmoniatextor.score.streamops import ScoreEditor
 from harmoniatextor.service.service import CompositionService, ToolResult
 from harmoniatextor.techniques import build_default_registry
 
-_EXPECTED_TOOL_COUNT = 34
+_EXPECTED_TOOL_COUNT = 45
 _AUTO_CONTINUE_CALLS = 2
 _EXPECTED_MESSAGES = 2
 _COMPRESSED_MESSAGES = 1

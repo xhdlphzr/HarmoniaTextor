@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 xhdlphzr
 # SPDX-License-Identifier: MIT
 
-"""HarmoniaTextor: neuro-symbolic Bach-style music generation.
+"""HarmoniaTextor: neuro-symbolic classical music generation.
 
 The package is split into a deterministic symbolic core (``domain``, ``score``,
 ``techniques``, ``checker``, ``genres``), an application layer (``service``,

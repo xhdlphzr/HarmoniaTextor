@@ -27,7 +27,40 @@ SPDX-License-Identifier: MIT
         {% endfor %}
       </select>
     </label>
+    <label class="field">
+      <span>{{ t('style.label') }}</span>
+      <select id="style">
+        {% for kit in style_kits %}
+        <option value="{{ kit.id }}" {% if kit.id == default_style %}selected{% endif %}>{{ t('stylekit.' + kit.id) if kit.builtin else kit.name }}</option>
+        {% endfor %}
+        <option value="__custom__">{{ t('style.custom') }}</option>
+      </select>
+    </label>
     <button type="button" class="btn primary big" id="generate-btn">{{ t('composer.generate') }}</button>
+  </div>
+
+  <div class="style-custom hidden" id="style-custom">
+    <div class="style-tabs">
+      <button type="button" class="style-tab active" data-tab="rules">{{ t('style.rules_tab') }}</button>
+      <button type="button" class="style-tab" data-tab="techniques">{{ t('style.techniques_tab') }}</button>
+    </div>
+    <div class="style-pane" id="style-rules-pane">
+      {% for rule in rule_options %}
+      <label class="style-option"><input type="checkbox" class="style-rule" value="{{ rule.id }}" checked /> {{ rule.name }}</label>
+      {% endfor %}
+    </div>
+    <div class="style-pane hidden" id="style-techniques-pane">
+      {% for technique in technique_options %}
+      <label class="style-option"><input type="checkbox" class="style-technique" value="{{ technique.id }}" checked /> {{ technique.name }}</label>
+      {% endfor %}
+    </div>
+    <div class="style-custom-row">
+      <label class="field">
+        <span>{{ t('style.name') }}</span>
+        <input type="text" id="style-name" />
+      </label>
+      <button type="button" class="btn primary" id="style-confirm">{{ t('style.confirm') }}</button>
+    </div>
   </div>
 </section>
 

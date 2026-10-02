@@ -12,13 +12,19 @@ from __future__ import annotations
 from typing import Any
 
 from harmoniatextor.techniques.base import Technique
+from harmoniatextor.techniques.exemption import FreeVoiceLeadingTechnique
 from harmoniatextor.techniques.harmonic import (
     ChromaticHarmonyTechnique,
+    ChromaticModulationTechnique,
+    ColorChordTechnique,
     DiminishedSeventhTechnique,
     DominantSeventhTechnique,
+    ExtendedHarmonyTechnique,
     FunctionalCycleTechnique,
     HarmonicSequenceTechnique,
+    ModalHarmonyTechnique,
     ModulationBridgeTechnique,
+    WholeToneTechnique,
 )
 from harmoniatextor.techniques.melodic import (
     AugmentationTechnique,
@@ -33,6 +39,7 @@ from harmoniatextor.techniques.melodic import (
 from harmoniatextor.techniques.rhythmic import (
     CounterRhythmTechnique,
     RhythmicIndependenceTechnique,
+    RubatoTechnique,
     SyncopationTechnique,
     VoiceMotionTechnique,
 )
@@ -44,6 +51,12 @@ from harmoniatextor.techniques.structural import (
     RecapitulationTechnique,
     RondoTechnique,
     StrettoTechnique,
+)
+from harmoniatextor.techniques.texture import (
+    AlbertiBassTechnique,
+    BrokenChordTechnique,
+    ParallelChordsTechnique,
+    PlaningTechnique,
 )
 
 __all__ = ["TechniqueRegistry", "build_default_registry"]
@@ -74,6 +87,17 @@ _DEFAULT_TECHNIQUES: tuple[type[Technique[Any]], ...] = (
     RhythmicIndependenceTechnique,
     CounterRhythmTechnique,
     VoiceMotionTechnique,
+    AlbertiBassTechnique,
+    BrokenChordTechnique,
+    ParallelChordsTechnique,
+    PlaningTechnique,
+    ChromaticModulationTechnique,
+    ExtendedHarmonyTechnique,
+    ModalHarmonyTechnique,
+    ColorChordTechnique,
+    WholeToneTechnique,
+    RubatoTechnique,
+    FreeVoiceLeadingTechnique,
 )
 
 
@@ -143,7 +167,7 @@ class TechniqueRegistry:
 
 
 def build_default_registry() -> TechniqueRegistry:
-    """Build a registry containing all 25 built-in techniques.
+    """Build a registry containing all 36 built-in techniques.
 
     Returns:
         A populated :class:`TechniqueRegistry`.

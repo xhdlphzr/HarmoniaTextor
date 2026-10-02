@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from harmoniatextor.checker.profile import RuleSetting, ValidationProfile
+from harmoniatextor.checker.profile import RuleSetting, ValidationProfile, profile_for_rules
 from harmoniatextor.domain.enums import Severity
 
 
@@ -24,3 +24,10 @@ class TestValidationProfile:
         setting = profile.setting_for("pf5th")
         assert not setting.enabled
         assert setting.severity is Severity.WARNING
+
+    def test_profile_for_rules(self) -> None:
+        """Only the requested rules stay enabled."""
+        profile = profile_for_rules({"empty", "voices"})
+        assert profile.setting_for("empty").enabled
+        assert profile.setting_for("voices").enabled
+        assert not profile.setting_for("pf5th").enabled

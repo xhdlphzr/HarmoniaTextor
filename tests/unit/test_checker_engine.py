@@ -72,3 +72,11 @@ class TestEngine:
     def test_profile_default(self) -> None:
         """Unknown rules default to enabled."""
         assert ValidationProfile().setting_for("unknown").enabled
+
+    def test_run_with_profile_argument(self, score4: stream.Score) -> None:
+        """A profile passed to run() overrides the engine profile."""
+        place(score4, "soprano", 0.0, "C5")
+        place(score4, "alto", 0.0, "C3")
+        engine = CheckEngine()
+        report = engine.run(score4, CheckerContext(), profile=ValidationProfile())
+        assert any(item.rule_id == "spacing" for item in report.violations)

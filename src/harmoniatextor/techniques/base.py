@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 xhdlphzr
 # SPDX-License-Identifier: MIT
 
-"""Technique abstraction shared by all Bach composition technique packs."""
+"""Technique abstraction shared by all classical composition technique packs."""
 
 from __future__ import annotations
 
@@ -32,6 +32,7 @@ class TechniqueCategory(StrEnum):
     STRUCTURAL = "structural"
     HARMONIC = "harmonic"
     RHYTHMIC = "rhythmic"
+    TEXTURE = "texture"
 
 
 class TechniqueError(Exception):
@@ -100,6 +101,9 @@ class Technique[P: BaseModel](ABC):
     category: TechniqueCategory
     summary: str
     params_model: type[P]
+    #: Rules this technique waives (for ``free_voice_leading``).  Empty for
+    #: ordinary techniques that only transform the score.
+    exempts: frozenset[str] = frozenset()
 
     @abstractmethod
     def apply(self, ctx: TechniqueContext, params: P) -> TechniqueResult:

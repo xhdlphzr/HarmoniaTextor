@@ -17,7 +17,7 @@ SPDX-License-Identifier: MIT
 [![English](https://img.shields.io/badge/English-README-007EC6)](https://github.com/xhdlphzr/HarmoniaTextor/blob/main/README.md)
 [![汉语](https://img.shields.io/badge/汉语-README-007EC6)](https://github.com/xhdlphzr/HarmoniaTextor/blob/main/docs/README.zh.md)
 
-Neuro-symbolic Bach-style music generation. A large language model acts as the composer while a deterministic symbolic layer (technique packs, counterpoint checkers and a pluggable genre framework) validates and materialises every decision as MusicXML.
+Neuro-symbolic classical music generation. A large language model acts as the composer while a deterministic symbolic layer (technique packs, counterpoint checkers and a pluggable genre framework) validates and materialises every decision as MusicXML.
 
 ## Architecture
 
@@ -72,9 +72,10 @@ flowchart TD
 - Two-step composer session: Step 1 plans every instrument and its emotional arc, Step 2 composes in the *same* session; the plan is shown live and stored per work.
 - Independent reviewer AI ("check AI"): after the symbolic layer passes, a brand-new review session inspects the score; on rejection its suggestions go back into the *same* creator session and work continues. The verdict and suggestions are shown live in the UI and stored per work.
 - Automatic context compression at 90% of the model window keeps long sessions running without losing the goal or the current score.
-- 25 Bach composition techniques (imitation, inversion, sequence, stretto, rondo, ...).
-- 14 symbolic counterpoint checks with genre-aware rule profiles.
+- 36 classical composition techniques (imitation, inversion, sequence, stretto, rondo, ...).
+- 15 symbolic counterpoint checks selected per style kit.
 - Pluggable genres: plain, sonata, concerto, symphony.
+- Pluggable style kits: built-in Baroque, Classical, Romantic and Impressionist, plus custom rule/technique selections; the composer prompt, available techniques and enforced rules all follow the chosen style.
 - Instrument-aware parts: the agent chooses a voice slot and an instrument and may add several parts for the same instrument (e.g. `violin1`, `violin2`).
 - Single-page web desk: live progress, live staff-notation rendering (OpenSheetMusicDisplay) that refreshes as the score grows (all instruments on their own staves), auto-played audio, finalize/feedback and export.
 - Full-score revision model with rollback and audit journal.

@@ -19,7 +19,7 @@ from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 
 from harmoniatextor.agent.loop import run_tool_calls
 from harmoniatextor.agent.planning_tools import build_planning_tools
-from harmoniatextor.agent.prompts import ARCHITECT_INSTRUCTION, ARCHITECT_SYSTEM
+from harmoniatextor.agent.prompts import architect_instruction, architect_system
 from harmoniatextor.service.service import CompositionService
 
 __all__ = ["Architect", "PlanResult", "plan_tree", "render_plan"]
@@ -157,9 +157,10 @@ class Architect:
         tools = build_planning_tools(self.service, work_id)
         mapping = {tool.name: tool for tool in tools}
         bound = self.chat_model.bind_tools(tools)
+        style = self.service.style_for(self.service.get_work(work_id))
         messages: list[BaseMessage] = [
-            SystemMessage(ARCHITECT_SYSTEM),
-            HumanMessage(f"{goal}\n\n{ARCHITECT_INSTRUCTION}"),
+            SystemMessage(architect_system(style)),
+            HumanMessage(f"{goal}\n\n{architect_instruction(style)}"),
         ]
         _emit(on_event, {"kind": "plan_start"})
         steps = 0

@@ -119,7 +119,7 @@ class AgentLoop:
         self.max_steps = max_steps
         self.max_reviews = max_reviews
         self.context_window = context_window
-        self.techniques = techniques if techniques is not None else service.techniques
+        self.techniques = techniques
 
     def run(  # noqa: PLR0913
         self,
@@ -159,10 +159,15 @@ class AgentLoop:
         """
         work = self.service.get_work(work_id)
         genre = self.service.genres.get(work.genre)
-        tools = build_tools(self.service, work_id, movement_id, self.techniques)
+        style = self.service.style_for(work)
+        rules = self.service.effective_rules(work)
+        techniques = (
+            self.techniques if self.techniques is not None else (self.service.techniques_for(work))
+        )
+        tools = build_tools(self.service, work_id, movement_id, techniques)
         mapping = {tool.name: tool for tool in tools}
         bound = self.chat_model.bind_tools(tools)
-        prompt = system_prompt(genre, self.techniques)
+        prompt = system_prompt(genre, style, techniques, rules)
         messages: list[BaseMessage] = [SystemMessage(content=prompt)]
         instruction = goal if not feedback else f"{goal}\n\n人工品鉴意见:{feedback}"
         messages.append(HumanMessage(content=instruction))
@@ -318,10 +323,15 @@ class AgentLoop:
         """
         assert self.reviewer is not None
         _emit(on_event, {"kind": "review_start"})
+        work = self.service.get_work(work_id)
+        style = self.service.style_for(work)
+        rules = self.service.effective_rules(work)
         report = self.service.check(work_id, movement_id)
         result = self.reviewer.review(
             goal=goal,
             genre_name=genre_name,
+            style_name=style.name,
+            rules=rules,
             score_xml=self.service.current_musicxml(work_id, movement_id),
             check_summary=format_feedback(report),
         )

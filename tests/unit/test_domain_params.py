@@ -8,6 +8,8 @@ import pytest
 from pydantic import ValidationError
 
 from harmoniatextor.domain.params import (
+    ExtendedHarmonyParams,
+    FreeVoiceLeadingParams,
     MeasurePosition,
     MeasureRange,
     VoiceExchangeParams,
@@ -57,3 +59,19 @@ class TestParams:
             measure_range=MeasureRange(start=1, end=2),
         )
         assert params.voice_1 == "soprano"
+
+    def test_extended_harmony_defaults(self) -> None:
+        """Extension degrees default to the seventh and ninth."""
+        params = ExtendedHarmonyParams(
+            voice="piano", key="C", measure_range=MeasureRange(start=1, end=1)
+        )
+        assert params.extensions == ["7", "9"]
+
+    def test_free_voice_leading_requires_reason(self) -> None:
+        """A blank exemption reason is rejected."""
+        with pytest.raises(ValidationError):
+            FreeVoiceLeadingParams(
+                voice="soprano",
+                measure_range=MeasureRange(start=1, end=1),
+                reason="no",
+            )

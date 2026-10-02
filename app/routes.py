@@ -22,6 +22,7 @@ from harmoniatextor.agent.llm_factory import create_chat_model
 from harmoniatextor.agent.loop import AgentLoop
 from harmoniatextor.agent.movements import MovementComposer
 from harmoniatextor.agent.reviewer import ReviewerAI
+from harmoniatextor.checker.rules import BUILTIN_RULES
 from harmoniatextor.config import context_window_tokens, current_config, save_config
 from harmoniatextor.domain.enums import (
     TOOL_KIND_LABELS,
@@ -45,6 +46,7 @@ def register_routes(app: Flask) -> None:
     app.extensions["harmonia_llm_status"] = {"status": UNKNOWN}
     _register_pages(app)
     _register_config(app)
+    _register_kits(app)
     _register_jobs(app)
     _register_api(app)
     _register_export(app)
@@ -74,6 +76,13 @@ def _register_pages(app: Flask) -> None:
             generation_states=generation_states,
             genre_labels={genre.id: f"genre.{genre.id}" for genre in genres},
             status_labels=WORK_STATUS_LABELS,
+            style_kits=service.styles.all(),
+            default_style=service.styles.resolve(None).id,
+            rule_options=[{"id": rule.rule_id, "name": rule.name} for rule in BUILTIN_RULES],
+            technique_options=[
+                {"id": technique.id, "name": technique.name, "category": technique.category.value}
+                for technique in service.techniques.all()
+            ],
         )
 
     @app.get("/favicon.ico")
@@ -90,7 +99,8 @@ def _register_pages(app: Flask) -> None:
         service = get_service(app)
         title = request.form.get("title") or DEFAULT_TITLE
         genre = request.form.get("genre") or "plain"
-        work = service.create_work(title, genre)
+        style = request.form.get("style") or None
+        work = service.create_work(title, genre, style=style)
         return redirect(url_for("work", work_id=work.id))
 
     @app.get("/works/<work_id>")
@@ -157,6 +167,70 @@ def _register_config(app: Flask) -> None:
         return jsonify({"status": refresh_llm_status(app)})
 
 
+def _as_list(value: Any) -> list[str]:
+    """Coerce a JSON value into a list of strings.
+
+    Args:
+        value: Raw JSON value.
+
+    Returns:
+        A list of strings; empty when the value is not a list.
+    """
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value]
+
+
+def _register_kits(app: Flask) -> None:
+    """Register the style-kit management API.
+
+    Args:
+        app: Flask application.
+    """
+
+    @app.get("/api/kits")
+    def list_kits() -> Response:
+        """Return every style kit."""
+        return jsonify({"kits": [kit.to_dict() for kit in get_service(app).styles.all()]})
+
+    @app.post("/api/kits")
+    def create_kit() -> Any:
+        """Create a custom style kit."""
+        payload = request.get_json(silent=True) or {}
+        try:
+            kit = get_service(app).styles.create(
+                str(payload.get("name", "")),
+                _as_list(payload.get("rules")),
+                _as_list(payload.get("techniques")),
+            )
+        except ValueError as exc:
+            return jsonify({"ok": False, "error": str(exc)}), 400
+        return jsonify({"ok": True, "kit": kit.to_dict()})
+
+    @app.put("/api/kits/<kit_id>")
+    def rename_kit(kit_id: str) -> Any:
+        """Rename a custom style kit."""
+        payload = request.get_json(silent=True) or {}
+        try:
+            kit = get_service(app).styles.rename(kit_id, str(payload.get("name", "")))
+        except ValueError as exc:
+            return jsonify({"ok": False, "error": str(exc)}), 400
+        except KeyError:
+            return jsonify({"ok": False, "error": "unknown kit"}), 404
+        return jsonify({"ok": True, "kit": kit.to_dict()})
+
+    @app.delete("/api/kits/<kit_id>")
+    def delete_kit(kit_id: str) -> Any:
+        """Delete a custom style kit."""
+        try:
+            get_service(app).styles.delete(kit_id)
+        except ValueError as exc:
+            return jsonify({"ok": False, "error": str(exc)}), 400
+        except KeyError:
+            return jsonify({"ok": False, "error": "unknown kit"}), 404
+        return jsonify({"ok": True})
+
+
 def _register_jobs(app: Flask) -> None:
     """Register the background generation and progress routes.
 
@@ -173,8 +247,9 @@ def _register_jobs(app: Flask) -> None:
             return jsonify({"ok": False, "error": "提示词不能为空。"}), 400
         genre = str(payload.get("genre") or "plain")
         title = str(payload.get("title") or DEFAULT_TITLE)
+        style = str(payload.get("style") or "") or None
         service = get_service(app)
-        work = service.create_work(title, genre, with_movements=False)
+        work = service.create_work(title, genre, style=style, with_movements=False)
         job = _start_architecture_job(app, service, work.id, prompt)
         return jsonify({"ok": True, "job_id": job.id, "work_id": work.id, "movement_id": "m01"})
 
@@ -455,7 +530,7 @@ def _register_api(app: Flask) -> None:
     def run_agent(work_id: str, movement_id: str) -> Response:
         """Run one composer-agent session."""
         payload: dict[str, Any] = request.get_json(silent=True) or {}
-        goal = str(payload.get("goal", "创作一首巴赫风格的乐曲。"))
+        goal = str(payload.get("goal", "创作一首古典音乐作品。"))
         feedback = payload.get("feedback")
         service = get_service(app)
         window = context_window_tokens()
