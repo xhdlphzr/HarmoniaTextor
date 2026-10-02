@@ -176,6 +176,21 @@ class TestPages:
         assert response.status_code == _HTTP_OK
         assert work.title in response.get_data(as_text=True)
 
+    def test_index_shows_style_chip(self, app: Flask, client: FlaskClient) -> None:
+        """The history list shows the work's style."""
+        get_service(app).create_work("Demo", "plain", "C", style="impressionist")
+        page = client.get("/").get_data(as_text=True)
+        assert 'chip soft">Impressionist</span>' in page
+
+    def test_index_legacy_work_defaults_to_baroque(self, app: Flask, client: FlaskClient) -> None:
+        """A work without a stored style is labelled Baroque."""
+        service = get_service(app)
+        work = service.create_work("Legacy", "plain", "C")
+        work.style = None
+        service.store.save_work(work)
+        page = client.get("/").get_data(as_text=True)
+        assert 'chip soft">Baroque</span>' in page
+
     def test_index_marks_interrupted_generation(self, app: Flask, client: FlaskClient) -> None:
         """An interrupted generation is marked in the index."""
         service = get_service(app)

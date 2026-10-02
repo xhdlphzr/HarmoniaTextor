@@ -129,6 +129,8 @@ SPDX-License-Identifier: MIT
       <a href="#" class="history-link">
         <strong>{{ work.title }}</strong>
         <span class="chip">{{ t(genre_labels.get(work.genre, work.genre)) }}</span>
+        {% set style_id = work.style.id if work.style else default_style %}
+        <span class="chip soft">{{ t('stylekit.' + style_id) if style_id in builtin_style_ids else (work.style.name if work.style else style_id) }}</span>
         <span class="chip soft">{{ work.tonic.raw }}</span>
         <span class="chip state">{{ t(status_labels.get(work.status.value, work.status.value)) }}</span>
         {% set generation = generation_states.get(work.id) %}

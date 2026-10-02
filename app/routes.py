@@ -78,6 +78,7 @@ def _register_pages(app: Flask) -> None:
             status_labels=WORK_STATUS_LABELS,
             style_kits=service.styles.all(),
             default_style=service.styles.resolve(None).id,
+            builtin_style_ids={kit.id for kit in service.styles.builtins.values()},
             rule_options=[{"id": rule.rule_id, "name": rule.name} for rule in BUILTIN_RULES],
             technique_options=[
                 {"id": technique.id, "name": technique.name, "category": technique.category.value}
