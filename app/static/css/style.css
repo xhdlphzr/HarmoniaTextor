@@ -95,6 +95,12 @@ body {
   background: rgba(138, 106, 59, 0.12);
 }
 
+.topnav {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
 .lang-select {
   border: 1px solid rgba(138, 106, 59, 0.35);
   background: #fffdf8;
@@ -103,6 +109,50 @@ body {
   padding: 0.35rem 0.5rem;
   font: inherit;
   cursor: pointer;
+}
+
+.llm-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.llm-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+}
+
+.llm-dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: #cfc4b0;
+  flex-shrink: 0;
+  transition: background 300ms var(--ease), box-shadow 300ms var(--ease);
+}
+
+.llm-dot-ok {
+  background: var(--success);
+  box-shadow: 0 0 0 3px rgba(47, 107, 63, 0.16);
+  animation: llm-breathe 1.6s ease-in-out infinite;
+}
+
+.llm-dot-error {
+  background: var(--error);
+  box-shadow: 0 0 0 3px rgba(176, 58, 46, 0.16);
+}
+
+.llm-dot-checking {
+  background: var(--gold-bright);
+  animation: llm-breathe 1.2s ease-in-out infinite;
+}
+
+.llm-status-text {
+  font-size: 0.75rem;
+  color: var(--error);
+  white-space: nowrap;
 }
 
 .page {
@@ -588,6 +638,16 @@ audio {
   }
   to {
     transform: translate3d(2%, 3%, 0);
+  }
+}
+
+@keyframes llm-breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
   }
 }
 

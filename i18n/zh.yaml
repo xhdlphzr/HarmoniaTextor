@@ -20,6 +20,9 @@
 "common.period": "。"
 "common.unknown_error": "未知错误"
 
+"llm.ping": "检查连接"
+"llm.failed": "连接失败"
+
 "composer.intro": "描述你想要的巴赫风格作品，作曲家智能体会自动完成作曲、符号层校验、乐谱与音频。"
 "composer.prompt_label": "创作提示词"
 "composer.prompt_placeholder": "例如：写一首三声部的巴赫风格赋格，主题活泼，使用密接和应。"
