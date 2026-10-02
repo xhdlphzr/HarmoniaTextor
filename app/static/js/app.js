@@ -6,6 +6,16 @@ SPDX-License-Identifier: MIT
 (function () {
   "use strict";
 
+  function t(text, vars) {
+    let out = (window.I18N && window.I18N[text]) || text;
+    if (vars) {
+      Object.keys(vars).forEach((key) => {
+        out = out.replace("{" + key + "}", String(vars[key]));
+      });
+    }
+    return out;
+  }
+
   function byId(id) {
     return document.getElementById(id);
   }
@@ -47,19 +57,19 @@ SPDX-License-Identifier: MIT
       .then((response) => response.text())
       .then((xml) => {
         if (!xml || !xml.trim()) {
-          showToast("尚无乐谱可复制。", "bad");
+          showToast(t("js.no_score_copy"), "bad");
           return;
         }
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(xml).then(
-            () => showToast("已复制 MusicXML。", "ok"),
-            () => showToast("复制失败，请手动选择文字复制。", "bad")
+            () => showToast(t("js.copied_musicxml"), "ok"),
+            () => showToast(t("js.copy_failed"), "bad")
           );
         } else {
-          showToast("复制失败，请手动选择文字复制。", "bad");
+          showToast(t("js.copy_failed"), "bad");
         }
       })
-      .catch(() => showToast("读取乐谱失败。", "bad"));
+      .catch(() => showToast(t("js.read_score_failed"), "bad"));
   }
 
   document.addEventListener("click", (event) => {
@@ -70,17 +80,17 @@ SPDX-License-Identifier: MIT
     }
     event.preventDefault();
     const base = link.href.split("?")[0];
-    showToast("正在导出…", "ok");
+    showToast(t("js.exporting"), "ok");
     fetch(`${base}?save=1`)
       .then((response) => response.json())
       .then((data) => {
         if (data.ok) {
-          showToast(`导出成功：${data.path || ""}`, "ok");
+          showToast(t("js.exported", { path: data.path || "" }), "ok");
         } else {
-          showToast(data.error || "导出失败。", "bad");
+          showToast(data.error || t("js.export_failed"), "bad");
         }
       })
-      .catch(() => showToast("导出失败。", "bad"));
+      .catch(() => showToast(t("js.export_failed"), "bad"));
   });
 
   function autoGrow(textarea) {
@@ -115,18 +125,18 @@ SPDX-License-Identifier: MIT
     container.classList.remove("hidden");
     const text = xml ? xml.replace(/^\uFEFF/, "").trim() : "";
     if (!text) {
-      container.textContent = "尚无乐谱。";
+      container.textContent = t("js.no_score");
       return Promise.resolve();
     }
     if (text.indexOf("<?xml") !== 0) {
-      container.textContent = "乐谱数据异常，请刷新后重试。";
+      container.textContent = t("js.invalid_score");
       if (window.console) {
         window.console.error("Invalid MusicXML payload:", text.slice(0, 160));
       }
       return Promise.resolve();
     }
     if (typeof opensheetmusicdisplay === "undefined") {
-      container.textContent = "未加载乐谱渲染组件（请强制刷新 Ctrl+F5）。";
+      container.textContent = t("js.renderer_missing");
       return Promise.resolve();
     }
     const state = osmdState.get(container) || { token: 0 };
@@ -149,7 +159,7 @@ SPDX-License-Identifier: MIT
       })
       .catch((error) => {
         if (osmdState.get(container) === state && state.token === token) {
-          container.textContent = "乐谱渲染失败，请强制刷新（Ctrl+F5）后重试。";
+          container.textContent = t("js.render_failed");
         }
         if (window.console) {
           window.console.error("OSMD render failed:", error);
@@ -178,7 +188,7 @@ SPDX-License-Identifier: MIT
   function downloadScorePng(container, filename) {
     const svg = container.querySelector("svg");
     if (!svg) {
-      window.alert("请先显示五线谱。");
+      window.alert(t("js.show_score_first"));
       return;
     }
     const clone = svg.cloneNode(true);
@@ -207,9 +217,9 @@ SPDX-License-Identifier: MIT
       link.href = canvas.toDataURL("image/png");
       link.download = filename;
       link.click();
-      showToast(`导出成功：${filename}`, "ok");
+      showToast(t("js.exported", { path: filename }), "ok");
     };
-    image.onerror = () => showToast("导出 PNG 失败。", "bad");
+    image.onerror = () => showToast(t("js.png_failed"), "bad");
     image.src = url;
   }
 
@@ -235,12 +245,13 @@ SPDX-License-Identifier: MIT
         setFieldValue("cfg-api-key", config.api_key);
         setFieldValue("cfg-model", config.model);
         setFieldValue("cfg-context-window", config.context_window);
+        setFieldValue("cfg-language", config.language || "en");
         const modal = byId("config-modal");
         if (modal) {
           modal.classList.remove("hidden");
         }
       })
-      .catch(() => window.alert("读取配置失败。"));
+      .catch(() => window.alert(t("js.config_read_failed")));
   }
 
   function closeConfig() {
@@ -257,6 +268,7 @@ SPDX-License-Identifier: MIT
       api_key: fieldValue("cfg-api-key"),
       model: fieldValue("cfg-model"),
       context_window: windowValue > 0 ? windowValue : 200,
+      language: fieldValue("cfg-language") || "en",
     };
     fetch("/api/config", {
       method: "POST",
@@ -267,16 +279,31 @@ SPDX-License-Identifier: MIT
       .then((data) => {
         if (data.ok) {
           closeConfig();
+          window.location.reload();
         } else {
-          window.alert(data.error || "保存失败。");
+          window.alert(data.error || t("js.save_failed"));
         }
       })
-      .catch(() => window.alert("保存失败。"));
+      .catch(() => window.alert(t("js.save_failed")));
+  }
+
+  function setLanguage(language) {
+    fetch("/api/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ language }),
+    })
+      .then(() => window.location.reload())
+      .catch(() => window.location.reload());
   }
 
   const configBtn = byId("config-btn");
   if (configBtn) {
     configBtn.addEventListener("click", openConfig);
+  }
+  const langSelect = byId("lang-select");
+  if (langSelect) {
+    langSelect.addEventListener("change", () => setLanguage(langSelect.value));
   }
   const configSave = byId("config-save");
   if (configSave) {
@@ -382,104 +409,136 @@ SPDX-License-Identifier: MIT
 
     function toolLabel(name) {
       const labels = {
-        submit_theme: "提交主题",
-        add_part: "新增声部",
-        edit: "编辑小节",
+        submit_theme: t("tool.submit"),
+        add_part: t("tool.add_part"),
+        edit: t("tool.edit"),
       };
       if (labels[name]) {
         return labels[name];
       }
       if (name && name.indexOf("technique_") === 0) {
-        return `技法 · ${name.slice("technique_".length)}`;
+        return t("tool.technique_name", { name: name.slice("technique_".length) });
       }
-      return name || "工具";
+      return name || t("tool.unknown");
     }
 
     function renderEvent(event) {
       if (event.kind === "start") {
-        addProgress("智能体开始工作…", "running");
+        addProgress(t("progress.start"), "running");
       } else if (event.kind === "thinking") {
-        addProgress(`第 ${event.step} 轮思考…`, "running");
+        addProgress(t("progress.thinking", { step: event.step }), "running");
       } else if (event.kind === "tool_call") {
-        addProgress(`调用 ${toolLabel(event.tool)}`, "running");
+        addProgress(t("progress.tool_call", { tool: toolLabel(event.tool) }), "running");
       } else if (event.kind === "tool_result") {
         if (event.ok === false && Array.isArray(event.violations) && event.violations.length) {
           event.violations.forEach((item) => {
             const who = item.voice_b
-              ? `${item.voice_a} 与 ${item.voice_b}`
-              : item.voice_a || "全体声部";
+              ? t("progress.and", { a: item.voice_a, b: item.voice_b })
+              : item.voice_a || t("progress.all_voices");
             addProgress(
-              `${toolLabel(event.tool)} · 小节 ${item.measure} · ${who}：${item.message_zh}`,
+              t("progress.violation_tool", {
+                tool: toolLabel(event.tool),
+                measure: item.measure,
+                who,
+                message: item.message_zh,
+              }),
               "bad"
             );
           });
         } else if (event.ok === false) {
-          addProgress(`${toolLabel(event.tool)} 失败：${(event.message || "").slice(0, 80)}`, "bad");
+          addProgress(
+            t("progress.tool_failed", {
+              tool: toolLabel(event.tool),
+              message: (event.message || "").slice(0, 80),
+            }),
+            "bad"
+          );
         } else {
-          addProgress(`${toolLabel(event.tool)} 完成：${(event.message || "").slice(0, 80)}`, "ok");
+          addProgress(
+            t("progress.tool_done", {
+              tool: toolLabel(event.tool),
+              message: (event.message || "").slice(0, 80),
+            }),
+            "ok"
+          );
         }
         refreshScore();
       } else if (event.kind === "plan_start") {
-        addProgress("创作AI 规划全部乐器与情感走向…", "running");
+        addProgress(t("progress.plan_start"), "running");
         renderPlanPending();
       } else if (event.kind === "plan") {
-        addProgress("创作规划完成。", "ok");
+        addProgress(t("progress.plan_done"), "ok");
         renderPlan(event.text, event.tree);
       } else if (event.kind === "movement_start") {
         const label = event.name ? `（${event.name}）` : "";
-        addProgress(`开始创作乐章 ${event.movement}${label}…`, "running");
+        addProgress(t("progress.movement_start", { movement: event.movement, label }), "running");
       } else if (event.kind === "instruction") {
-        const prefix = event.movement ? `乐章 ${event.movement} · ` : "";
-        addDetail(`${prefix}发给创作AI 的提示：`, event.text, "prompt");
+        const prefix = event.movement ? t("progress.movement_prefix", { movement: event.movement }) : "";
+        addDetail(`${prefix}${t("progress.prompt_sent")}`, event.text, "prompt");
       } else if (event.kind === "feedback") {
-        const who = event.layer === "reviewer" ? "检查AI" : "符号层";
-        const prefix = event.movement ? `乐章 ${event.movement} · ` : "";
+        const who = event.layer === "reviewer" ? t("layer.reviewer") : t("layer.symbolic");
+        const prefix = event.movement ? t("progress.movement_prefix", { movement: event.movement }) : "";
         addDetail(
-          `${prefix}${who}反馈：`,
+          `${prefix}${t("feedback.layer", { who })}`,
           event.text,
           event.layer === "reviewer" ? "running" : "bad"
         );
       } else if (event.kind === "movement_done") {
-        addProgress(`乐章 ${event.movement} 创作完成。`, "ok");
+        addProgress(t("progress.movement_done", { movement: event.movement }), "ok");
         refreshScore();
       } else if (event.kind === "movement_fix") {
-        addProgress(`乐章 ${event.movement} 未通过检查，正在返工…`, "bad");
+        addProgress(t("progress.movement_fix", { movement: event.movement }), "bad");
       } else if (event.kind === "review_start") {
-        const label = event.movement ? `乐章 ${event.movement}` : "作品";
-        addProgress(`检查AI开始评审${label}…`, "running");
+        const label = event.movement
+          ? t("progress.movement", { movement: event.movement })
+          : t("result.work");
+        addProgress(t("progress.review_start", { label }), "running");
         renderCheckerPending();
       } else if (event.kind === "review") {
-        const verdict = event.passed ? "通过" : "打回";
+        const verdict = event.passed ? t("verdict.passed") : t("verdict.rejected");
         const detail = (event.suggestions || "").slice(0, 160);
-        const label = event.movement ? `乐章 ${event.movement}：` : "";
+        const label = event.movement
+          ? t("progress.movement_colon", { movement: event.movement })
+          : "";
         addProgress(
-          `${label}检查AI ${verdict}${detail ? "：" + detail : ""}`,
+          t("progress.review", {
+            label,
+            verdict,
+            detail: detail ? "：" + detail : "",
+          }),
           event.passed ? "ok" : "bad"
         );
         renderChecker(event.passed, event.suggestions);
       } else if (event.kind === "compress") {
-        addProgress("会话接近上下文上限，已自动压缩后继续。", "running");
+        addProgress(t("progress.compressed"), "running");
       } else if (event.kind === "assistant") {
         const text = String(event.text || "").trim();
         if (text) {
-          const item = addProgress("创作AI 反馈：", "assistant");
+          const item = addProgress(t("progress.assistant"), "assistant");
           const body = document.createElement("div");
           body.className = "assistant-text";
           body.textContent = text;
           item.appendChild(body);
         }
         if (event.ok === false && Array.isArray(event.violations) && event.violations.length) {
-          addProgress("符号层未通过。", "bad");
+          addProgress(t("progress.symbolic_failed"), "bad");
           event.violations.forEach((item) => {
             const who = item.voice_b
-              ? `${item.voice_a} 与 ${item.voice_b}`
-              : item.voice_a || "全体声部";
-            addProgress(`小节 ${item.measure} · ${who}：${item.message_zh}`, "bad");
+              ? t("progress.and", { a: item.voice_a, b: item.voice_b })
+              : item.voice_a || t("progress.all_voices");
+            addProgress(
+              t("progress.violation", {
+                measure: item.measure,
+                who,
+                message: item.message_zh,
+              }),
+              "bad"
+            );
           });
         }
         refreshScore();
       } else if (event.kind === "error") {
-        addProgress(`出错：${event.message}`, "bad");
+        addProgress(t("progress.error", { message: event.message }), "bad");
       }
     }
 
@@ -493,7 +552,7 @@ SPDX-License-Identifier: MIT
       box.innerHTML = "";
       const head = document.createElement("div");
       head.className = "plan-pending";
-      head.textContent = "创作AI 规划中…";
+      head.textContent = t("plan.pending");
       box.appendChild(head);
     }
 
@@ -503,13 +562,16 @@ SPDX-License-Identifier: MIT
       tree.forEach((movement) => {
         const head = document.createElement("div");
         head.className = "plan-movement";
-        head.textContent = `乐章 ${movement.index} · ${movement.name}`;
+        head.textContent = t("plan.movement", {
+          index: movement.index,
+          name: movement.name,
+        });
         list.appendChild(head);
         const item = document.createElement("div");
         item.className = "plan-section";
         const prompt = document.createElement("div");
         prompt.className = "plan-section-prompt";
-        prompt.textContent = movement.prompt || "(未填写)";
+        prompt.textContent = movement.prompt || t("plan.empty_cell");
         item.appendChild(prompt);
         list.appendChild(item);
       });
@@ -527,20 +589,20 @@ SPDX-License-Identifier: MIT
       const head = document.createElement("div");
       head.className = "plan-title";
       const label = document.createElement("span");
-      label.textContent = "创作规划";
+      label.textContent = t("plan.title");
       head.appendChild(label);
       const copy = document.createElement("button");
       copy.type = "button";
       copy.className = "btn tiny";
-      copy.textContent = "复制规划";
+      copy.textContent = t("plan.copy");
       copy.addEventListener("click", () => {
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(text || "").then(
-            () => showToast("已复制创作规划。", "ok"),
-            () => showToast("复制失败，请手动选择文字复制。", "bad")
+            () => showToast(t("plan.copied"), "ok"),
+            () => showToast(t("js.copy_failed"), "bad")
           );
         } else {
-          showToast("复制失败，请手动选择文字复制。", "bad");
+          showToast(t("js.copy_failed"), "bad");
         }
       });
       head.appendChild(copy);
@@ -565,7 +627,7 @@ SPDX-License-Identifier: MIT
       box.innerHTML = "";
       const head = document.createElement("div");
       head.className = "checker-pending";
-      head.textContent = "检查AI 评审中…";
+      head.textContent = t("checker.pending");
       box.appendChild(head);
     }
 
@@ -581,21 +643,21 @@ SPDX-License-Identifier: MIT
       head.className = "checker-head";
       const verdict = document.createElement("span");
       verdict.className = passed ? "checker-pass" : "checker-fail";
-      verdict.textContent = passed ? "✔ 检查AI 通过" : "✘ 检查AI 打回";
+      verdict.textContent = passed ? t("checker.passed") : t("checker.rejected");
       head.appendChild(verdict);
       if (suggestions) {
         const copy = document.createElement("button");
         copy.type = "button";
         copy.className = "btn tiny";
-        copy.textContent = "复制评审";
+        copy.textContent = t("checker.copy");
         copy.addEventListener("click", () => {
           if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(suggestions).then(
-              () => showToast("已复制评审内容。", "ok"),
-              () => showToast("复制失败，请手动选择文字复制。", "bad")
+              () => showToast(t("checker.copied"), "ok"),
+              () => showToast(t("js.copy_failed"), "bad")
             );
           } else {
-            showToast("复制失败，请手动选择文字复制。", "bad");
+            showToast(t("js.copy_failed"), "bad");
           }
         });
         head.appendChild(copy);
@@ -622,9 +684,13 @@ SPDX-License-Identifier: MIT
         const li = document.createElement("li");
         li.className = "bad";
         const who = item.voice_b
-          ? `${item.voice_a} 与 ${item.voice_b}`
-          : item.voice_a || "全体声部";
-        li.textContent = `小节 ${item.measure} · ${who}：${item.message_zh}`;
+          ? t("progress.and", { a: item.voice_a, b: item.voice_b })
+          : item.voice_a || t("progress.all_voices");
+        li.textContent = t("progress.violation", {
+          measure: item.measure,
+          who,
+          message: item.message_zh,
+        });
         list.appendChild(li);
       });
     }
@@ -668,7 +734,7 @@ SPDX-License-Identifier: MIT
         .catch(() => {
           if (hint) {
             hint.textContent =
-              "无法自动播放（可能缺少音频合成组件），请点击播放器手动播放或导出 M4A/MP3。";
+              t("js.autoplay_failed");
           }
         });
     }
@@ -686,7 +752,7 @@ SPDX-License-Identifier: MIT
         .then((response) => response.text())
         .then((xml) => renderScoreInto(container, xml))
         .catch(() => {
-          container.textContent = "乐谱加载失败。";
+          container.textContent = t("js.score_load_failed");
         });
     }
 
@@ -727,14 +793,17 @@ SPDX-License-Identifier: MIT
         const button = byId("generate-btn");
         if (button) {
           button.disabled = false;
-          button.textContent = "生成";
+          button.textContent = t("composer.generate");
         }
         if (result.status === "error") {
-          addProgress(`任务失败：${result.message || "未知错误"}`, "bad");
+          addProgress(
+            t("js.job_failed", { message: result.message || t("common.unknown_error") }),
+            "bad"
+          );
           return;
         }
         addProgress(
-          result.ok ? "符号层校验通过。" : "符号层仍有违规，可提意见继续修改。",
+          result.ok ? t("progress.check_passed") : t("progress.check_violations"),
           result.ok ? "ok" : "bad"
         );
         const summary = byId("agent-summary");
@@ -751,7 +820,7 @@ SPDX-License-Identifier: MIT
           result.work_id,
           result.movement_id,
           null,
-          result.ok ? "已校验" : "草稿",
+          result.ok ? t("status.checked") : t("status.draft"),
           result.violations
         );
         loadScore(result.work_id, result.movement_id);
@@ -769,7 +838,7 @@ SPDX-License-Identifier: MIT
         return;
       }
       button.disabled = busy;
-      button.textContent = busy ? "生成中…" : "生成";
+      button.textContent = busy ? t("js.generating") : t("composer.generate");
     }
 
     function startJob(url, body, button) {
@@ -796,7 +865,7 @@ SPDX-License-Identifier: MIT
         .then((response) => response.json())
         .then((data) => {
           if (!data.ok) {
-            addProgress(data.error || "无法开始生成。", "bad");
+            addProgress(data.error || t("js.cannot_start"), "bad");
             setButtonBusy(button, false);
             return;
           }
@@ -804,7 +873,7 @@ SPDX-License-Identifier: MIT
           streamJob(data.job_id);
         })
         .catch(() => {
-          addProgress("请求失败。", "bad");
+          addProgress(t("js.request_failed"), "bad");
           setButtonBusy(button, false);
         });
     }
@@ -813,7 +882,7 @@ SPDX-License-Identifier: MIT
       const promptNode = byId("prompt");
       const prompt = promptNode ? promptNode.value.trim() : "";
       if (!prompt) {
-        window.alert("请先输入创作提示词。");
+        window.alert(t("js.enter_prompt"));
         return;
       }
       const genreNode = byId("genre");
@@ -832,7 +901,7 @@ SPDX-License-Identifier: MIT
 
     on("copy-score-btn", "click", () => {
       if (!current) {
-        showToast("尚无乐谱可复制。", "bad");
+        showToast(t("js.no_score_copy"), "bad");
         return;
       }
       copyScore(api(current.workId, current.movementId, "score"));
@@ -853,9 +922,9 @@ SPDX-License-Identifier: MIT
         .then((data) => {
           const statusNode = byId("result-status");
           if (data.ok && statusNode) {
-            statusNode.textContent = "已定稿";
+            statusNode.textContent = t("status.final");
           }
-          window.alert(data.message || "已处理。");
+          window.alert(data.message || t("js.done"));
         });
     });
 
@@ -873,7 +942,7 @@ SPDX-License-Identifier: MIT
       const feedbackNode = byId("feedback-text");
       const feedback = feedbackNode ? feedbackNode.value.trim() : "";
       if (!feedback) {
-        window.alert("请先输入修改意见。");
+        window.alert(t("js.enter_feedback"));
         return;
       }
       startJob(
@@ -931,7 +1000,7 @@ SPDX-License-Identifier: MIT
         .then((response) => response.text())
         .then((xml) => renderScoreInto(scoreView, xml))
         .catch(() => {
-          scoreView.textContent = "乐谱加载失败。";
+          scoreView.textContent = t("js.score_load_failed");
         });
     }
 
@@ -965,16 +1034,20 @@ SPDX-License-Identifier: MIT
       if (!items.length) {
         const li = document.createElement("li");
         li.className = "ok";
-        li.textContent = "检查通过，未发现违规。";
+        li.textContent = t("js.check_clean");
         list.appendChild(li);
         return;
       }
       items.forEach((item) => {
         const li = document.createElement("li");
         const who = item.voice_b
-          ? `${item.voice_a} 与 ${item.voice_b}`
-          : item.voice_a || "全体声部";
-        li.textContent = `小节 ${item.measure} · ${who}：${item.message_zh}`;
+          ? t("progress.and", { a: item.voice_a, b: item.voice_b })
+          : item.voice_a || t("progress.all_voices");
+        li.textContent = t("progress.violation", {
+          measure: item.measure,
+          who,
+          message: item.message_zh,
+        });
         list.appendChild(li);
       });
     }
@@ -1003,9 +1076,9 @@ SPDX-License-Identifier: MIT
           .then((data) => {
             const chip = byId("status-chip");
             if (data.ok && chip) {
-              chip.textContent = "已定稿";
+              chip.textContent = t("status.final");
             }
-            window.alert(data.message || "已处理。");
+            window.alert(data.message || t("js.done"));
           });
       });
     }
@@ -1022,7 +1095,7 @@ SPDX-License-Identifier: MIT
             if (data.ok) {
               window.location.reload();
             } else {
-              window.alert(data.message || "回退失败。");
+              window.alert(data.message || t("js.revert_failed"));
             }
           });
       });
@@ -1036,8 +1109,8 @@ SPDX-License-Identifier: MIT
           .then((response) => response.json())
           .then((data) => {
             byId("audit-status").textContent = data.ok
-              ? "已记录，可运行智能体继续修改。"
-              : "提交失败。";
+              ? t("js.recorded")
+              : t("js.submit_failed");
           });
       });
     }

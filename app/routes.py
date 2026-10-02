@@ -70,7 +70,7 @@ def _register_pages(app: Flask) -> None:
             works=works,
             genres=genres,
             generation_states=generation_states,
-            genre_labels={genre.id: genre.display_name for genre in genres},
+            genre_labels={genre.id: f"genre.{genre.id}" for genre in genres},
             status_labels=WORK_STATUS_LABELS,
         )
 
@@ -111,7 +111,7 @@ def _register_pages(app: Flask) -> None:
             themes=themes,
             review=service.latest_review(work_id),
             plan=service.latest_plan(work_id),
-            genre_labels={genre.id: genre.display_name for genre in genres},
+            genre_labels={genre.id: f"genre.{genre.id}" for genre in genres},
             status_labels=WORK_STATUS_LABELS,
             voice_labels=VOICE_LABELS,
             tool_labels=TOOL_KIND_LABELS,

@@ -3,89 +3,89 @@
 SPDX-FileCopyrightText: 2026 xhdlphzr
 SPDX-License-Identifier: MIT
 -->
-{% block title %}创作 · HarmoniaTextor{% endblock %}
+{% block title %}{{ t('nav.create') }} · HarmoniaTextor{% endblock %}
 {% block content %}
 <section class="panel reveal composer" id="composer">
-  <h1 class="display">创作</h1>
-  <p class="muted">描述你想要的巴赫风格作品，作曲家智能体会自动完成作曲、符号层校验、乐谱与音频。</p>
+  <h1 class="display">{{ t('nav.create') }}</h1>
+  <p class="muted">{{ t('composer.intro') }}</p>
   <label class="field">
-    <span>创作提示词</span>
+    <span>{{ t('composer.prompt_label') }}</span>
     <textarea
       id="prompt"
       class="autogrow"
       rows="3"
       data-max-lines="13"
-      placeholder="例如：写一首三声部的巴赫风格赋格，主题活泼，使用密接和应。"
+      placeholder="{{ t('composer.prompt_placeholder') }}"
     ></textarea>
   </label>
   <div class="composer-row">
     <label class="field">
-      <span>体裁</span>
+      <span>{{ t('composer.genre') }}</span>
       <select id="genre">
         {% for genre in genres %}
-        <option value="{{ genre.id }}">{{ genre.display_name }}</option>
+        <option value="{{ genre.id }}">{{ t(genre_labels[genre.id]) }}</option>
         {% endfor %}
       </select>
     </label>
-    <button type="button" class="btn primary big" id="generate-btn">生成</button>
+    <button type="button" class="btn primary big" id="generate-btn">{{ t('composer.generate') }}</button>
   </div>
 </section>
 
 <section class="panel reveal hidden" id="progress-panel">
-  <h2>创作进度</h2>
+  <h2>{{ t('composer.progress') }}</h2>
   <ol class="progress-list" id="progress-list"></ol>
 </section>
 
 <section class="panel reveal hidden" id="score-panel">
   <div class="panel-head">
-    <h2>实时五线谱</h2>
-    <button type="button" class="btn tiny" id="copy-score-btn">复制乐谱</button>
+    <h2>{{ t('score.live') }}</h2>
+    <button type="button" class="btn tiny" id="copy-score-btn">{{ t('score.copy') }}</button>
   </div>
-  <p class="muted small">创作过程中随 MusicXML 实时刷新，无需等到定稿。</p>
+  <p class="muted small">{{ t('score.live_hint') }}</p>
   <div class="score-view" id="score-view"></div>
 </section>
 
 <section class="panel reveal hidden" id="plan-panel">
-  <h2>创作规划</h2>
+  <h2>{{ t('plan.title') }}</h2>
   <div class="plan-inline hidden" id="plan-inline"></div>
 </section>
 
 <section class="panel reveal hidden" id="checker-panel">
-  <h2>检查AI评审</h2>
+  <h2>{{ t('checker.title') }}</h2>
   <div class="checker-inline hidden" id="checker-inline"></div>
 </section>
 
 <section class="panel reveal hidden" id="result-panel">
   <div class="result-head">
-    <h2 id="result-title">作品</h2>
+    <h2 id="result-title">{{ t('result.work') }}</h2>
     <span class="chip state" id="result-status"></span>
   </div>
   <div class="actions">
-    <button type="button" class="btn" id="score-btn">显示五线谱</button>
-    <button type="button" class="btn" id="export-png">导出五线谱 PNG</button>
-    <a class="btn export-download" id="export-musicxml" href="#">导出 MusicXML</a>
-    <a class="btn export-download" id="export-m4a" href="#">导出 M4A</a>
-    <a class="btn export-download" id="export-mp3" href="#">导出 MP3</a>
+    <button type="button" class="btn" id="score-btn">{{ t('result.show_score') }}</button>
+    <button type="button" class="btn" id="export-png">{{ t('export.png') }}</button>
+    <a class="btn export-download" id="export-musicxml" href="#">{{ t('export.musicxml') }}</a>
+    <a class="btn export-download" id="export-m4a" href="#">{{ t('export.m4a') }}</a>
+    <a class="btn export-download" id="export-mp3" href="#">{{ t('export.mp3') }}</a>
   </div>
   <audio id="audition" controls></audio>
   <p class="muted small" id="audio-hint"></p>
   <ul class="violations" id="violation-list"></ul>
   <div class="finalize-row">
-    <button type="button" class="btn primary" id="finalize-btn">定稿</button>
-    <button type="button" class="btn" id="revise-btn">不定稿，提意见</button>
+    <button type="button" class="btn primary" id="finalize-btn">{{ t('result.finalize') }}</button>
+    <button type="button" class="btn" id="revise-btn">{{ t('result.revise') }}</button>
   </div>
   <div class="hidden" id="feedback-area">
     <label class="field">
-      <span>修改意见</span>
-      <textarea id="feedback-text" rows="3" placeholder="例如：第二乐句的低声部太平，请增加对位变化。"></textarea>
+      <span>{{ t('result.feedback_label') }}</span>
+      <textarea id="feedback-text" rows="3" placeholder="{{ t('result.feedback_placeholder') }}"></textarea>
     </label>
-    <button type="button" class="btn primary" id="feedback-btn">提交意见并继续</button>
+    <button type="button" class="btn primary" id="feedback-btn">{{ t('result.feedback_submit') }}</button>
   </div>
   <pre class="output" id="agent-summary"></pre>
 </section>
 
 <section class="panel reveal" id="history-panel">
-  <h2>作品历史</h2>
+  <h2>{{ t('history.title') }}</h2>
   <ul class="work-list" id="history-list">
     {% for work in works %}
     <li
@@ -95,18 +95,18 @@ SPDX-License-Identifier: MIT
     >
       <a href="#" class="history-link">
         <strong>{{ work.title }}</strong>
-        <span class="chip">{{ genre_labels.get(work.genre, work.genre) }}</span>
+        <span class="chip">{{ t(genre_labels.get(work.genre, work.genre)) }}</span>
         <span class="chip soft">{{ work.tonic.raw }}</span>
-        <span class="chip state">{{ status_labels.get(work.status.value, work.status.value) }}</span>
+        <span class="chip state">{{ t(status_labels.get(work.status.value, work.status.value)) }}</span>
         {% set generation = generation_states.get(work.id) %}
-        {% if generation == 'generation_interrupted' %}<span class="chip warn">生成中断</span>
-        {% elif generation == 'generation_failed' %}<span class="chip warn">生成失败</span>
-        {% elif generation == 'generation_started' %}<span class="chip soft">生成中</span>{% endif %}
+        {% if generation == 'generation_interrupted' %}<span class="chip warn">{{ t('generation.interrupted') }}</span>
+        {% elif generation == 'generation_failed' %}<span class="chip warn">{{ t('generation.failed') }}</span>
+        {% elif generation == 'generation_started' %}<span class="chip soft">{{ t('generation.running') }}</span>{% endif %}
         <span class="muted small">{{ work.created_at | localtime }}</span>
       </a>
     </li>
     {% else %}
-    <li class="muted">还没有作品。</li>
+    <li class="muted">{{ t('history.empty') }}</li>
     {% endfor %}
   </ul>
 </section>

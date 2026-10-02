@@ -29,6 +29,7 @@ dependencies = [
   "langchain>=1.0",
   "langchain-openai>=1.0",
   "pywebview>=5.0",
+  "pyyaml>=6.0.3",
 ]
 
 [project.optional-dependencies]
@@ -59,6 +60,7 @@ dev = [
   "reuse>=5.0",
   "vulture>=2.11",
   "pyinstaller>=6.6",
+  "types-pyyaml>=6.0.12.20260906",
 ]
 
 [tool.hatch.build.targets.wheel]

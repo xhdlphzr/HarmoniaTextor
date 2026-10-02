@@ -31,13 +31,14 @@ __all__ = [
 CONFIG_DIR_NAME = ".harmonia_textor"
 _CONFIG_FILE_NAME = "config.json"
 
-ALLOWED_KEYS = ("base_url", "api_key", "model", "context_window")
+ALLOWED_KEYS = ("base_url", "api_key", "model", "context_window", "language")
 
 _DEFAULT_ENDPOINT: dict[str, Any] = {
     "base_url": "https://api.openai.com/v1",
     "api_key": "",
     "model": "gpt-4o-mini",
     "context_window": 200,
+    "language": "en",
 }
 
 _TOKENS_PER_K = 1000

@@ -3,7 +3,7 @@
 SPDX-FileCopyrightText: 2026 xhdlphzr
 SPDX-License-Identifier: MIT
 -->
-<html lang="zh-CN">
+<html lang="{{ 'zh-CN' if lang == 'zh' else 'en' }}">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -20,24 +20,27 @@ SPDX-License-Identifier: MIT
     <header class="topbar reveal">
       <a class="brand" href="{{ url_for('index') }}">
         <span class="brand-mark">HarmoniaTextor</span>
-        <span class="brand-sub">神经符号巴赫风格音乐生成</span>
+        <span class="brand-sub">{{ t('brand.tagline') }}</span>
       </a>
       <nav class="topnav">
-        <a href="{{ url_for('index') }}">创作</a>
-        <button type="button" class="btn-icon" id="config-btn" title="设置 API">&#9881;</button>
+        <select class="lang-select" id="lang-select" title="{{ t('common.language') }}">
+          <option value="en" {% if lang == 'en' %}selected{% endif %}>English</option>
+          <option value="zh" {% if lang == 'zh' %}selected{% endif %}>中文</option>
+        </select>
+        <button type="button" class="btn-icon" id="config-btn" title="{{ t('config.open') }}">&#9881;</button>
       </nav>
     </header>
     <main class="page">{% block content %}{% endblock %}</main>
     <footer class="footer">
-      <span>HarmoniaTextor · MIT License · 离线自足</span>
+      <span>{{ t('footer.license') }}</span>
     </footer>
 
     <div class="modal hidden" id="config-modal">
       <div class="modal-content">
-        <h2>API 设置</h2>
-        <p class="muted small">配置保存在 <code>~/.harmonia_textor/config.json</code>。</p>
+        <h2>{{ t('config.title') }}</h2>
+        <p class="muted small">{{ t('config.saved_to') }} <code>~/.harmonia_textor/config.json</code>{{ t('common.period') }}</p>
         <label>
-          <span>接口地址</span>
+          <span>{{ t('config.base_url') }}</span>
           <input type="text" id="cfg-base-url" placeholder="https://api.openai.com/v1" />
         </label>
         <label>
@@ -45,22 +48,33 @@ SPDX-License-Identifier: MIT
           <input type="password" id="cfg-api-key" placeholder="sk-..." />
         </label>
         <label>
-          <span>模型</span>
+          <span>{{ t('config.model') }}</span>
           <input type="text" id="cfg-model" placeholder="gpt-4o-mini" />
         </label>
         <label>
-          <span>上下文上限（k token）</span>
+          <span>{{ t('config.context_limit') }}</span>
           <input type="number" id="cfg-context-window" min="1" step="1" placeholder="200" />
         </label>
+        <label>
+          <span>{{ t('common.language') }}</span>
+          <select id="cfg-language">
+            <option value="en">English</option>
+            <option value="zh">中文</option>
+          </select>
+        </label>
         <div class="modal-actions">
-          <button type="button" class="btn" id="config-cancel">取消</button>
-          <button type="button" class="btn primary" id="config-save">保存</button>
+          <button type="button" class="btn" id="config-cancel">{{ t('common.cancel') }}</button>
+          <button type="button" class="btn primary" id="config-save">{{ t('common.save') }}</button>
         </div>
       </div>
     </div>
 
     <div class="toast-container" id="toast-container"></div>
 
+    <script>
+      window.I18N = {{ i18n_json | safe }};
+      window.LANG = "{{ lang }}";
+    </script>
     <script src="{{ url_for('static', filename='vendor/opensheetmusicdisplay.min.js') }}?v={{ asset_version }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}?v={{ asset_version }}"></script>
   </body>

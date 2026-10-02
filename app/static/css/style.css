@@ -95,6 +95,16 @@ body {
   background: rgba(138, 106, 59, 0.12);
 }
 
+.lang-select {
+  border: 1px solid rgba(138, 106, 59, 0.35);
+  background: #fffdf8;
+  color: var(--gold);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.5rem;
+  font: inherit;
+  cursor: pointer;
+}
+
 .page {
   max-width: 1100px;
   margin: 0 auto;
