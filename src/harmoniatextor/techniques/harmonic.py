@@ -7,13 +7,19 @@ from __future__ import annotations
 
 from harmoniatextor.domain.interval import DiatonicInterval, parse_interval
 from harmoniatextor.domain.key import parse_key
+from harmoniatextor.domain.models import ThemeNote
 from harmoniatextor.domain.params import (
     ChromaticHarmonyParams,
+    ChromaticModulationParams,
+    ColorChordParams,
     DiminishedSeventhParams,
     DominantSeventhParams,
+    ExtendedHarmonyParams,
     FunctionalCycleParams,
     HarmonicSequenceParams,
+    ModalHarmonyParams,
     ModulationBridgeParams,
+    WholeToneParams,
     parse_measure_position,
 )
 from harmoniatextor.score.streamops import ScoreEditor
@@ -29,18 +35,46 @@ from harmoniatextor.techniques.helpers import (
     functional_figure,
     midi_to_name,
     name_to_midi,
+    note_value,
     realize_chord,
     transpose_note,
 )
 
 __all__ = [
     "ChromaticHarmonyTechnique",
+    "ChromaticModulationTechnique",
+    "ColorChordTechnique",
     "DiminishedSeventhTechnique",
     "DominantSeventhTechnique",
+    "ExtendedHarmonyTechnique",
     "FunctionalCycleTechnique",
     "HarmonicSequenceTechnique",
+    "ModalHarmonyTechnique",
     "ModulationBridgeTechnique",
+    "WholeToneTechnique",
 ]
+
+_EXTENSION_SEMITONES: dict[str, int] = {"7": 10, "9": 14, "11": 17, "13": 21}
+_COLOR_SEMITONES: dict[str, int] = {
+    "6": 9,
+    "b9": 13,
+    "9": 14,
+    "#9": 15,
+    "11": 17,
+    "#11": 18,
+    "b13": 20,
+    "13": 21,
+}
+_MODE_PROGRESSIONS: dict[str, list[str]] = {
+    "ionian": ["I", "IV", "V", "I"],
+    "dorian": ["i", "IV", "VII", "i"],
+    "phrygian": ["i", "bII", "bVII", "i"],
+    "lydian": ["I", "II", "V", "I"],
+    "mixolydian": ["I", "bVII", "IV", "I"],
+    "aeolian": ["i", "iv", "v", "i"],
+}
+_WHOLE_TONE_SEMITONES = 2
+_WHOLE_TONE_SIZE = 6
 
 
 def _transpose_key(key: str, interval: DiatonicInterval) -> str:
@@ -221,3 +255,152 @@ class ModulationBridgeTechnique(Technique[ModulationBridgeParams]):
             current_key = params.start_key if index == 0 else params.target_key
             realize_chord(editor, current_key, figure, Placement(start + index, 0.0, bar))
         return TechniqueResult(ctx.score, warnings)
+
+
+class ChromaticModulationTechnique(Technique[ChromaticModulationParams]):
+    """Bridge two keys with a chromatic (Neapolitan) pivot and a cadence."""
+
+    id = "chromatic_modulation"
+    name = "半音化转调"
+    category = TechniqueCategory.HARMONIC
+    summary = "Bridge two keys with a chromatic Neapolitan pivot and a target cadence."
+    params_model = ChromaticModulationParams
+
+    def apply(self, ctx: TechniqueContext, params: ChromaticModulationParams) -> TechniqueResult:
+        """Realise the chromatic modulation."""
+        editor = ScoreEditor(ctx.score)
+        bar = editor.bar_length()
+        start = params.measure_range.start
+        span = params.measure_range.end - start + 1
+        warnings: list[str] = []
+        plan = [
+            (params.start_key, "I"),
+            (params.target_key, "bII"),
+            (params.target_key, "V"),
+            (params.target_key, "I"),
+        ]
+        if len(plan) > span:
+            warnings.append("chromatic modulation ran out of measures; extra chords were dropped")
+            plan = plan[:span]
+        for index, (key, figure) in enumerate(plan):
+            realize_chord(editor, key, figure, Placement(start + index, 0.0, bar))
+        return TechniqueResult(ctx.score, warnings)
+
+
+def _sounding_root(editor: ScoreEditor, measure: int, key: str) -> int:
+    """Return the MIDI root of a measure, preferring the lowest sounding pitch.
+
+    Args:
+        editor: Score editor.
+        measure: One-based measure number.
+        key: Fallback key whose tonic is used when the measure is silent.
+
+    Returns:
+        A MIDI pitch number.
+    """
+    midis = [
+        name_to_midi(note.pitch)
+        for voice in editor.voice_names()
+        for note in editor.read_line(voice, measure, measure)
+    ]
+    if midis:
+        return min(midis)
+    return name_to_midi(chord_pitches(key, "I")[0])
+
+
+class ExtendedHarmonyTechnique(Technique[ExtendedHarmonyParams]):
+    """Stack 7/9/11/13 extensions above each measure's sounding root."""
+
+    id = "extended_harmony"
+    name = "扩展和声"
+    category = TechniqueCategory.HARMONIC
+    summary = "Stack 7/9/11/13 extensions above the sounding root of each measure."
+    params_model = ExtendedHarmonyParams
+
+    def apply(self, ctx: TechniqueContext, params: ExtendedHarmonyParams) -> TechniqueResult:
+        """Write the extension chords."""
+        editor = ScoreEditor(ctx.score)
+        bar = editor.bar_length()
+        for measure in range(params.measure_range.start, params.measure_range.end + 1):
+            root = _sounding_root(editor, measure, params.key)
+            tones = [
+                midi_to_name(root + _EXTENSION_SEMITONES[extension])
+                for extension in params.extensions
+            ]
+            editor.place_chord(params.voice, measure, 0.0, tones, bar)
+        return TechniqueResult(ctx.score)
+
+
+class ColorChordTechnique(Technique[ColorChordParams]):
+    """Add a single colour tone above each measure's sounding root."""
+
+    id = "color_chord"
+    name = "色彩和弦"
+    category = TechniqueCategory.HARMONIC
+    summary = "Add a single colour tone (6/9/#11/b13) above the sounding root."
+    params_model = ColorChordParams
+
+    def apply(self, ctx: TechniqueContext, params: ColorChordParams) -> TechniqueResult:
+        """Write the colour tones."""
+        editor = ScoreEditor(ctx.score)
+        bar = editor.bar_length()
+        offset = _COLOR_SEMITONES.get(params.color, _COLOR_SEMITONES["9"])
+        for measure in range(params.measure_range.start, params.measure_range.end + 1):
+            root = _sounding_root(editor, measure, params.key)
+            editor.place_note(params.voice, measure, 0.0, midi_to_name(root + offset), bar)
+        return TechniqueResult(ctx.score)
+
+
+class ModalHarmonyTechnique(Technique[ModalHarmonyParams]):
+    """Realise a modal chord progression derived from a church mode."""
+
+    id = "modal_harmony"
+    name = "调式和声"
+    category = TechniqueCategory.HARMONIC
+    summary = "Realise a modal chord progression derived from the chosen church mode."
+    params_model = ModalHarmonyParams
+
+    def apply(self, ctx: TechniqueContext, params: ModalHarmonyParams) -> TechniqueResult:
+        """Realise the modal progression."""
+        editor = ScoreEditor(ctx.score)
+        bar = editor.bar_length()
+        figures = list(params.chord_sequence) or list(_MODE_PROGRESSIONS[params.mode])
+        start = params.measure_range.start
+        span = params.measure_range.end - start + 1
+        warnings: list[str] = []
+        if len(figures) > span:
+            warnings.append("modal progression ran out of measures; extra chords were dropped")
+            figures = figures[:span]
+        for index, figure in enumerate(figures):
+            realize_chord(editor, params.key, figure, Placement(start + index, 0.0, bar))
+        return TechniqueResult(ctx.score, warnings)
+
+
+class WholeToneTechnique(Technique[WholeToneParams]):
+    """Fill a voice with a whole-tone scale run."""
+
+    id = "whole_tone"
+    name = "全音阶"
+    category = TechniqueCategory.HARMONIC
+    summary = "Fill a voice with a whole-tone scale run."
+    params_model = WholeToneParams
+
+    def apply(self, ctx: TechniqueContext, params: WholeToneParams) -> TechniqueResult:
+        """Write the whole-tone run."""
+        editor = ScoreEditor(ctx.score)
+        bar = editor.bar_length()
+        length = note_value(params.note_value)
+        root = name_to_midi(params.root)
+        sign = -1 if params.direction == "down" else 1
+        scale = [
+            midi_to_name(root + sign * _WHOLE_TONE_SEMITONES * index)
+            for index in range(_WHOLE_TONE_SIZE)
+        ]
+        span = params.measure_range.end - params.measure_range.start + 1
+        count = max(1, round(span * bar / length))
+        notes = [
+            ThemeNote(pitch=scale[index % len(scale)], quarter_length=length)
+            for index in range(count)
+        ]
+        editor.write_line(params.voice, params.measure_range.start, notes)
+        return TechniqueResult(ctx.score)

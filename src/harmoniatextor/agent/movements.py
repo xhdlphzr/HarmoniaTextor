@@ -162,15 +162,18 @@ class MovementComposer:
             on_event: Optional progress callback.
             sessions: Per-movement conversations, keyed by movement identifier.
         """
-        tools = build_tools(self.service, work_id, movement.id, self.service.techniques)
+        work = self.service.get_work(work_id)
+        style = self.service.style_for(work)
+        rules = self.service.effective_rules(work)
+        techniques = self.service.techniques_for(work)
+        tools = build_tools(self.service, work_id, movement.id, techniques)
         mapping = {tool.name: tool for tool in tools}
         bound = self.chat_model.bind_tools(tools)
         messages = sessions.get(movement.id)
         if messages is None:
-            work = self.service.get_work(work_id)
             genre = self.service.genres.get(work.genre)
             instruction = self._instruction(work_id, movement, goal)
-            messages = [SystemMessage(system_prompt(genre, self.service.techniques))]
+            messages = [SystemMessage(system_prompt(genre, style, techniques, rules))]
             messages.append(HumanMessage(instruction))
             _emit(
                 on_event,
@@ -362,9 +365,13 @@ class MovementComposer:
             score = self.service.current_musicxml(work_id, movement.id)
             report = self.service.check_score(work_id, movement.id, from_musicxml(score))
             _emit(on_event, {"kind": "review_start", "movement": movement.id})
+            style = self.service.style_for(work)
+            rules = self.service.effective_rules(work)
             result = self.reviewer.review(
                 goal=movement.prompt,
                 genre_name=genre.display_name,
+                style_name=style.name,
+                rules=rules,
                 score_xml=score,
                 check_summary=format_feedback(report),
             )

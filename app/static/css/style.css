@@ -716,6 +716,74 @@ audio {
   flex-wrap: wrap;
 }
 
+.style-custom {
+  margin-top: 1rem;
+  padding: 0.9rem 1rem;
+  border-radius: var(--radius-md);
+  background: var(--paper-2);
+}
+
+.style-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.7rem;
+}
+
+.style-tab {
+  border: 1px solid rgba(138, 106, 59, 0.3);
+  background: #fffdf8;
+  color: var(--gold);
+  border-radius: var(--radius-sm);
+  padding: 0.3rem 0.8rem;
+  cursor: pointer;
+  font: inherit;
+}
+
+.style-tab.active {
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+  color: #fffaf0;
+  border-color: transparent;
+}
+
+.style-pane {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 0.3rem 0.8rem;
+  max-height: 16rem;
+  overflow: auto;
+}
+
+.style-option {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--ink);
+}
+
+.style-custom-row {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-end;
+  margin-top: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.kit-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.4rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.kit-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 /* -------------------------------------------------------------- progress */
 
 .progress-list {

@@ -32,7 +32,7 @@ class TestFeatureDetector:
         (vendor / "soundfonts").mkdir(parents=True)
         (vendor / "bin" / "ffmpeg.exe").write_text("x")
         (vendor / "bin" / "fluidsynth.exe").write_text("x")
-        (vendor / "soundfonts" / "bach.sf2").write_text("x")
+        (vendor / "soundfonts" / "default.sf2").write_text("x")
         features = FeatureDetector(vendor).detect()
         assert features.audio_available
         assert features.playback_available

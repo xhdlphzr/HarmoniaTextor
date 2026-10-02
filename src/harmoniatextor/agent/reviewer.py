@@ -29,16 +29,15 @@ __all__ = ["ReviewResult", "ReviewerAI"]
 
 _REVIEW_TURNS = 3
 
-_SYMBOLIC_RULES = "、".join(rule.name for rule in BUILTIN_RULES)
-
-_SYSTEM = (
-    "你是一位严格、独立的巴赫风格复调评审专家。你只负责评审,不修改乐谱。\n"
-    f"重要:{_SYMBOLIC_RULES} 等机械乐理规则已由程序化符号层严格校验并保证通过,"
+_SYSTEM_TEMPLATE = (
+    "你是一位严格、独立的{style}音乐评审专家。你只负责评审,不修改乐谱。\n"
+    "重要:{rules} 等机械乐理规则已由程序化符号层严格校验并保证通过,"
     "你**不要**再重复检查,也**不要**以这些规则为由打回;你只做艺术、风格与表达层面的判断。\n"
     "请从以下维度审阅作品:\n"
     "1. 人类要求:对照【人类创作要求】逐条核对是否满足;不满足必须打回,"
     "并指出缺了哪一条、应当怎样补。\n"
-    "2. 巴赫风格:主题发展、模仿与模进、复调织体与语气是否地道、生动,而非机械拼凑。\n"
+    "2. {style}风格:是否符合该风格的主题发展、织体、和声与语气特征,"
+    "而非机械拼凑或混入不相称的风格。\n"
     "3. 结构完整:主题是否得到充分发展,整体是否成形而非片段堆砌。\n"
     "4. 意境与情感:作品是否表达出统一、真挚的意境与情感,而非机械拼凑。\n"
     "5. 节奏与旋律:左右手(或各声部)的节奏不要过于一致;整体节奏不要过于整齐,"
@@ -51,6 +50,20 @@ _SYSTEM = (
     "suggestions 在打回时必须逐条写明小节号、涉及声部(谁和谁)以及具体修改办法,"
     "不要只给笼统结论。"
 )
+
+
+def _system_text(style_name: str, rules: frozenset[str]) -> str:
+    """Render the reviewer system prompt for a style.
+
+    Args:
+        style_name: Active style display name.
+        rules: Rule identifiers enforced for the work.
+
+    Returns:
+        The system prompt text.
+    """
+    names = "、".join(rule.name for rule in BUILTIN_RULES if rule.rule_id in rules)
+    return _SYSTEM_TEMPLATE.format(style=style_name, rules=names)
 
 
 class _ReviewParams(BaseModel):
@@ -127,11 +140,13 @@ class ReviewerAI:
         self.chat_model = chat_model
         self.context_window = context_window
 
-    def review(
+    def review(  # noqa: PLR0913
         self,
         *,
         goal: str,
         genre_name: str,
+        style_name: str,
+        rules: frozenset[str],
         score_xml: str,
         check_summary: str,
     ) -> ReviewResult:
@@ -140,6 +155,8 @@ class ReviewerAI:
         Args:
             goal: The original composition goal.
             genre_name: Display name of the active genre.
+            style_name: Display name of the active style.
+            rules: Rule identifiers enforced for the work.
             score_xml: The complete current MusicXML.
             check_summary: Human-readable symbolic check summary.
 
@@ -147,7 +164,7 @@ class ReviewerAI:
             The review verdict.
         """
         messages: list[BaseMessage] = [
-            SystemMessage(content=f"{_SYSTEM}\n当前体裁:{genre_name}。"),
+            SystemMessage(content=f"{_system_text(style_name, rules)}\n当前体裁:{genre_name}。"),
             HumanMessage(
                 content=(
                     f"【人类创作要求】\n{goal}\n\n"

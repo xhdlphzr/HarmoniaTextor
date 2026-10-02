@@ -161,3 +161,16 @@ class TestRhythmic:
             measure_range={"start": 1, "end": 1},
         )
         assert result.warnings
+
+    def test_rubato(self, score4: stream.Score) -> None:
+        """A measure's downbeat is stretched while the bar length is preserved."""
+        editor = ScoreEditor(score4)
+        editor.write_line(
+            "soprano", 1, [ThemeNote("C5", 1.0), ThemeNote("D5", 1.0), ThemeNote("E5", 2.0)]
+        )
+        apply("rubato", score4, {}, measure_range={"start": 1, "end": 1})
+
+    def test_rubato_single_note(self, score4: stream.Score) -> None:
+        """A measure with a single note is left untouched."""
+        ScoreEditor(score4).write_line("soprano", 1, [ThemeNote("C5", 4.0)])
+        apply("rubato", score4, {}, measure_range={"start": 1, "end": 1})

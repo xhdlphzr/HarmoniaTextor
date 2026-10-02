@@ -20,7 +20,14 @@ from typing import Any
 
 from harmoniatextor.domain.enums import WorkStatus
 from harmoniatextor.domain.key import parse_key
-from harmoniatextor.domain.models import Movement, Revision, Theme, ThemeNote, Work
+from harmoniatextor.domain.models import (
+    Movement,
+    Revision,
+    StyleSelection,
+    Theme,
+    ThemeNote,
+    Work,
+)
 
 __all__ = ["ProjectStore"]
 
@@ -31,6 +38,7 @@ CREATE TABLE IF NOT EXISTS works (
     genre TEXT NOT NULL,
     tonic TEXT NOT NULL,
     status TEXT NOT NULL,
+    style TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
@@ -115,6 +123,7 @@ class ProjectStore:
         with self._connect() as conn:
             conn.executescript(_SCHEMA)
             _ensure_column(conn, "movements", "prompt", "TEXT NOT NULL DEFAULT ''")
+            _ensure_column(conn, "works", "style", "TEXT")
 
     @contextmanager
     def _connect(self) -> Iterator[sqlite3.Connection]:
@@ -140,13 +149,14 @@ class ProjectStore:
         with self._connect() as conn:
             conn.execute(
                 """
-                INSERT INTO works (id, title, genre, tonic, status, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO works (id, title, genre, tonic, status, style, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT (id) DO UPDATE SET
                     title = excluded.title,
                     genre = excluded.genre,
                     tonic = excluded.tonic,
                     status = excluded.status,
+                    style = excluded.style,
                     created_at = excluded.created_at,
                     updated_at = excluded.updated_at
                 """,
@@ -156,6 +166,9 @@ class ProjectStore:
                     work.genre,
                     work.tonic.raw,
                     work.status.value,
+                    json.dumps(work.style.to_dict(), ensure_ascii=False)
+                    if work.style is not None
+                    else None,
                     work.created_at,
                     work.updated_at,
                 ),
@@ -200,7 +213,7 @@ class ProjectStore:
         with self._connect() as conn:
             row = conn.execute(
                 """
-                SELECT id, title, genre, tonic, status, created_at, updated_at
+                SELECT id, title, genre, tonic, status, style, created_at, updated_at
                 FROM works WHERE id = ?
                 """,
                 (work_id,),
@@ -236,8 +249,9 @@ class ProjectStore:
             tonic=parse_key(row[3]),
             movements=movements,
             status=WorkStatus(row[4]),
-            created_at=row[5],
-            updated_at=row[6],
+            style=StyleSelection.from_dict(json.loads(row[5])) if row[5] else None,
+            created_at=row[6],
+            updated_at=row[7],
         )
 
     def list_works(self) -> list[str]:

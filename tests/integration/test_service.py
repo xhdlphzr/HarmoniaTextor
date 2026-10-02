@@ -11,7 +11,12 @@ from harmoniatextor.domain.enums import Severity, WorkStatus
 from harmoniatextor.domain.models import CheckReport, CheckViolation, ThemeNote
 from harmoniatextor.score.io import new_score, to_musicxml
 from harmoniatextor.score.streamops import ScoreEditor
-from harmoniatextor.service.service import DEFAULT_TITLE, CompositionService
+from harmoniatextor.service.service import (
+    DEFAULT_TITLE,
+    CompositionService,
+    _filter_exemptions,
+    _in_exempt_scope,
+)
 
 _SYMPHONY_MOVEMENTS = 4
 _FAST_TEMPO = 100
@@ -799,3 +804,63 @@ class TestArchitecture:
         assert service.latest_generation_state(crashed.id) == "generation_interrupted"
         assert service.latest_generation_state(done.id) == "generation_finished"
         assert service.interrupt_stale_generations() == 0
+
+
+class TestStyleAndExemption:
+    """Style kits and the free-voice-leading exemption."""
+
+    def test_style_snapshot(self, service: CompositionService) -> None:
+        """A created work stores a style snapshot."""
+        work = service.create_work("Demo", "plain", "C", style="impressionist")
+        assert work.style is not None
+        assert work.style.id == "impressionist"
+        assert work.style.brief
+
+    def test_legacy_style_defaults(self, service: CompositionService) -> None:
+        """A work without a snapshot falls back to the default kit."""
+        work = service.create_work("Demo", "plain", "C")
+        work.style = None
+        assert service.style_for(work).id == "baroque"
+
+    def test_effective_rules(self, service: CompositionService) -> None:
+        """The effective rules come from the style."""
+        work = service.create_work("Demo", "plain", "C", style="impressionist")
+        assert service.effective_rules(work) == frozenset({"empty", "voices"})
+
+    def test_techniques_for(self, service: CompositionService) -> None:
+        """The technique registry is limited to the style."""
+        work = service.create_work("Demo", "plain", "C", style="impressionist")
+        ids = service.techniques_for(work).ids()
+        assert "planing" in ids
+        assert "functional_cycle" not in ids
+
+    def test_free_voice_leading_scope(self, service: CompositionService) -> None:
+        """Invoking the exemption records its scope."""
+        work = service.create_work("Demo", "plain", "C", style="full")
+        movement = work.movements[0]
+        service.set_tempo(work.id, movement.id, 100, check=False)
+        service.apply_technique(
+            work.id,
+            movement.id,
+            "free_voice_leading",
+            {
+                "voice": "soprano",
+                "measure_range": {"start": 1, "end": 2},
+                "reason": "为了音乐表现需要自由进行",
+            },
+        )
+        loaded = service.get_work(work.id)
+        assert service._exempt_scopes(loaded, loaded.movements[0]) == [("soprano", 1, 2)]
+
+    def test_filter_exemptions(self) -> None:
+        """Waived violations are dropped from a report."""
+        violation = CheckViolation("crossing", Severity.ERROR, 1, "soprano", "alto", "k", "m", "s")
+        report = CheckReport(violations=[violation])
+        assert _filter_exemptions(report, [("soprano", 1, 1)]).violations == []
+        assert _filter_exemptions(report, []).violations == [violation]
+        assert _filter_exemptions(report, [("bass", 1, 1)]).violations == [violation]
+
+    def test_exempt_scope_bounds(self) -> None:
+        """A violation outside the scope is not waived."""
+        violation = CheckViolation("crossing", Severity.ERROR, 5, "soprano", None, "k", "m", "s")
+        assert not _in_exempt_scope(violation, [("soprano", 1, 2)])

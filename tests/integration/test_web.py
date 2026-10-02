@@ -486,6 +486,79 @@ class TestConfigApi:
         assert client.post("/api/llm-ping").get_json() == {"status": "error"}
 
 
+class TestKitsApi:
+    """Style-kit management endpoints."""
+
+    def test_list_kits(self, client: FlaskClient) -> None:
+        """Built-in kits are listed."""
+        data = client.get("/api/kits").get_json()
+        assert any(kit["id"] == "baroque" for kit in data["kits"])
+
+    def test_create_kit(self, client: FlaskClient) -> None:
+        """A custom kit can be created."""
+        data = client.post(
+            "/api/kits",
+            json={"name": "Mine", "rules": ["empty"], "techniques": ["imitation"]},
+        ).get_json()
+        assert data["ok"] is True
+        assert data["kit"]["id"].startswith("s-")
+
+    def test_create_kit_invalid(self, client: FlaskClient) -> None:
+        """An unknown rule is rejected."""
+        response = client.post(
+            "/api/kits",
+            json={"name": "Mine", "rules": ["nope"], "techniques": ["imitation"]},
+        )
+        assert response.status_code == _HTTP_BAD_REQUEST
+
+    def test_create_kit_non_list(self, client: FlaskClient) -> None:
+        """A non-list selection is treated as empty."""
+        data = client.post(
+            "/api/kits",
+            json={"name": "Mine", "rules": "nope", "techniques": "nope"},
+        ).get_json()
+        assert data["ok"] is True
+        assert data["kit"]["rules"] == []
+
+    def test_rename_kit(self, client: FlaskClient) -> None:
+        """A custom kit can be renamed."""
+        created = client.post(
+            "/api/kits",
+            json={"name": "Mine", "rules": ["empty"], "techniques": ["imitation"]},
+        ).get_json()
+        kit_id = created["kit"]["id"]
+        data = client.put(f"/api/kits/{kit_id}", json={"name": "Yours"}).get_json()
+        assert data["ok"] is True
+        assert data["kit"]["name"] == "Yours"
+
+    def test_rename_builtin(self, client: FlaskClient) -> None:
+        """A built-in kit cannot be renamed."""
+        response = client.put("/api/kits/baroque", json={"name": "X"})
+        assert response.status_code == _HTTP_BAD_REQUEST
+
+    def test_rename_unknown(self, client: FlaskClient) -> None:
+        """Renaming a missing kit is a 404."""
+        response = client.put("/api/kits/s-missing", json={"name": "X"})
+        assert response.status_code == _HTTP_NOT_FOUND
+
+    def test_delete_kit(self, client: FlaskClient) -> None:
+        """A custom kit can be deleted."""
+        created = client.post(
+            "/api/kits",
+            json={"name": "Mine", "rules": ["empty"], "techniques": ["imitation"]},
+        ).get_json()
+        kit_id = created["kit"]["id"]
+        assert client.delete(f"/api/kits/{kit_id}").get_json()["ok"] is True
+
+    def test_delete_builtin(self, client: FlaskClient) -> None:
+        """A built-in kit cannot be deleted."""
+        assert client.delete("/api/kits/baroque").status_code == _HTTP_BAD_REQUEST
+
+    def test_delete_unknown(self, client: FlaskClient) -> None:
+        """Deleting a missing kit is a 404."""
+        assert client.delete("/api/kits/s-missing").status_code == _HTTP_NOT_FOUND
+
+
 class TestJobs:
     """Background generation and progress streaming."""
 

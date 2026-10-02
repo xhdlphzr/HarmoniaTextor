@@ -237,7 +237,77 @@ SPDX-License-Identifier: MIT
     }
   }
 
+  function loadCustomKits() {
+    const list = byId("custom-kit-list");
+    if (!list) {
+      return;
+    }
+    fetch("/api/kits")
+      .then((response) => response.json())
+      .then((data) => {
+        list.innerHTML = "";
+        const custom = (data.kits || []).filter((kit) => !kit.builtin);
+        if (!custom.length) {
+          const empty = document.createElement("li");
+          empty.className = "muted small";
+          empty.textContent = t("style.no_custom");
+          list.appendChild(empty);
+          return;
+        }
+        custom.forEach((kit) => {
+          const item = document.createElement("li");
+          const label = document.createElement("span");
+          label.textContent = kit.name;
+          const rename = document.createElement("button");
+          rename.type = "button";
+          rename.className = "btn tiny";
+          rename.textContent = t("style.rename");
+          rename.addEventListener("click", () => renameKit(kit));
+          const remove = document.createElement("button");
+          remove.type = "button";
+          remove.className = "btn tiny";
+          remove.textContent = t("style.delete");
+          remove.addEventListener("click", () => deleteKit(kit));
+          item.append(label, rename, remove);
+          list.appendChild(item);
+        });
+      })
+      .catch(() => {});
+  }
+
+  function renameKit(kit) {
+    const name = window.prompt(t("style.rename"), kit.name);
+    if (!name || !name.trim()) {
+      return;
+    }
+    fetch(`/api/kits/${kit.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: name.trim() }),
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.ok) {
+          window.location.reload();
+        }
+      });
+  }
+
+  function deleteKit(kit) {
+    if (!window.confirm(t("style.delete_confirm"))) {
+      return;
+    }
+    fetch(`/api/kits/${kit.id}`, { method: "DELETE" })
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.ok) {
+          window.location.reload();
+        }
+      });
+  }
+
   function openConfig() {
+    loadCustomKits();
     fetch("/api/config")
       .then((response) => response.json())
       .then((config) => {
@@ -929,6 +999,65 @@ SPDX-License-Identifier: MIT
         });
     }
 
+    const styleSelect = byId("style");
+    const styleCustom = byId("style-custom");
+    if (styleSelect && styleCustom) {
+      styleSelect.addEventListener("change", () => {
+        styleCustom.classList.toggle("hidden", styleSelect.value !== "__custom__");
+      });
+      document.querySelectorAll(".style-tab").forEach((tab) => {
+        tab.addEventListener("click", () => {
+          document.querySelectorAll(".style-tab").forEach((item) => {
+            item.classList.remove("active");
+          });
+          tab.classList.add("active");
+          const target = tab.dataset.tab;
+          const rulesPane = byId("style-rules-pane");
+          const techniquesPane = byId("style-techniques-pane");
+          if (rulesPane) {
+            rulesPane.classList.toggle("hidden", target !== "rules");
+          }
+          if (techniquesPane) {
+            techniquesPane.classList.toggle("hidden", target !== "techniques");
+          }
+        });
+      });
+      on("style-confirm", "click", () => {
+        const nameNode = byId("style-name");
+        const name = nameNode ? nameNode.value.trim() : "";
+        if (!name) {
+          window.alert(t("style.need_name"));
+          return;
+        }
+        const rules = Array.from(document.querySelectorAll(".style-rule:checked")).map(
+          (node) => node.value
+        );
+        const techniques = Array.from(
+          document.querySelectorAll(".style-technique:checked")
+        ).map((node) => node.value);
+        fetch("/api/kits", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, rules, techniques }),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            if (!data.ok) {
+              window.alert(data.error || t("style.need_name"));
+              return;
+            }
+            const option = document.createElement("option");
+            option.value = data.kit.id;
+            option.textContent = data.kit.name;
+            styleSelect.insertBefore(option, styleSelect.lastElementChild);
+            styleSelect.value = data.kit.id;
+            styleCustom.classList.add("hidden");
+            showToast(t("style.created"), "ok");
+          })
+          .catch(() => window.alert(t("style.need_name")));
+      });
+    }
+
     on("generate-btn", "click", () => {
       const promptNode = byId("prompt");
       const prompt = promptNode ? promptNode.value.trim() : "";
@@ -937,9 +1066,14 @@ SPDX-License-Identifier: MIT
         return;
       }
       const genreNode = byId("genre");
+      const style = styleSelect ? styleSelect.value : "";
+      if (style === "__custom__") {
+        window.alert(t("style.confirm_first"));
+        return;
+      }
       startJob(
         "/api/generate",
-        { prompt, genre: genreNode ? genreNode.value : "plain" },
+        { prompt, genre: genreNode ? genreNode.value : "plain", style },
         byId("generate-btn")
       );
     });

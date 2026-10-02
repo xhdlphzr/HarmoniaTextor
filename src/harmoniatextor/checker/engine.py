@@ -40,19 +40,27 @@ class CheckEngine:
         )
         self.profile = profile if profile is not None else ValidationProfile()
 
-    def run(self, score: stream.Score, ctx: CheckerContext) -> CheckReport:
+    def run(
+        self,
+        score: stream.Score,
+        ctx: CheckerContext,
+        profile: ValidationProfile | None = None,
+    ) -> CheckReport:
         """Run all enabled rules over a score.
 
         Args:
             score: The score to validate.
             ctx: Checker context.
+            profile: Profile overriding the engine's own; defaults to the
+                engine profile.
 
         Returns:
             The aggregated report, sorted by measure.
         """
+        active = profile if profile is not None else self.profile
         violations: list[CheckViolation] = []
         for rule in self.rules:
-            setting = self.profile.setting_for(rule.rule_id)
+            setting = active.setting_for(rule.rule_id)
             if not setting.enabled:
                 continue
             for detected in rule.run(score, ctx):

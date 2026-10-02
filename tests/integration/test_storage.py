@@ -12,7 +12,14 @@ import pytest
 
 from harmoniatextor.domain.enums import ToolKind, WorkStatus
 from harmoniatextor.domain.key import parse_key
-from harmoniatextor.domain.models import Movement, Revision, Theme, ThemeNote, Work
+from harmoniatextor.domain.models import (
+    Movement,
+    Revision,
+    StyleSelection,
+    Theme,
+    ThemeNote,
+    Work,
+)
 from harmoniatextor.storage.project_store import ProjectStore
 
 
@@ -56,6 +63,41 @@ class TestProjectStore:
         """Loading a missing work raises."""
         with pytest.raises(FileNotFoundError):
             ProjectStore(tmp_path / "data").load_work("nope")
+
+    def test_style_roundtrip(self, tmp_path: Path) -> None:
+        """A work's style snapshot survives save/load."""
+        store = ProjectStore(tmp_path / "data")
+        work = make_work()
+        work.style = StyleSelection(
+            id="baroque",
+            name="巴洛克",
+            rules=frozenset({"empty"}),
+            techniques=frozenset({"imitation"}),
+        )
+        store.save_work(work)
+        loaded = store.load_work("w-1")
+        assert loaded.style is not None
+        assert loaded.style.name == "巴洛克"
+        assert loaded.style.rules == frozenset({"empty"})
+
+    def test_style_absent(self, tmp_path: Path) -> None:
+        """A work without a style loads as None."""
+        store = ProjectStore(tmp_path / "data")
+        store.save_work(make_work())
+        assert store.load_work("w-1").style is None
+
+    def test_works_style_migration(self, tmp_path: Path) -> None:
+        """A works table created before the style column is migrated."""
+        connection = sqlite3.connect(tmp_path / "history.db")
+        connection.execute(
+            "CREATE TABLE works (id TEXT PRIMARY KEY, title TEXT, genre TEXT, tonic TEXT,"
+            " status TEXT, created_at TEXT, updated_at TEXT)"
+        )
+        connection.commit()
+        connection.close()
+        store = ProjectStore(tmp_path)
+        store.save_work(make_work())
+        assert store.load_work("w-1").style is None
 
     def test_revision_roundtrip(self, tmp_path: Path) -> None:
         """Revisions store XML and metadata."""

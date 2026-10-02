@@ -12,28 +12,27 @@ from harmoniatextor.genres import (
     SymphonyGenre,
     build_default_registry,
 )
-from harmoniatextor.genres.base import ALL_TECHNIQUES, Genre, MovementSpec
-
-_TECHNIQUE_COUNT = 25
-
+from harmoniatextor.genres.base import Genre, MovementSpec
 
 _SONATA_MOVEMENTS = 3
-
-
 _CONCERTO_MOVEMENTS = 3
-
-
 _SYMPHONY_MOVEMENTS = 4
+_GENRE_COUNT = 4
 
 
 class TestGenres:
     """Genre behaviour."""
 
-    def test_all_techniques_available(self) -> None:
-        """Every genre allows all 25 techniques."""
-        assert len(ALL_TECHNIQUES) == _TECHNIQUE_COUNT
-        for genre in build_default_registry().all():
-            assert genre.allowed_techniques == ALL_TECHNIQUES
+    def test_registry(self) -> None:
+        """The registry exposes the four built-in genres."""
+        registry = build_default_registry()
+        assert len(registry.all()) == _GENRE_COUNT
+        assert {genre.id for genre in registry.all()} == {
+            "plain",
+            "sonata",
+            "concerto",
+            "symphony",
+        }
 
     def test_plain_movements(self) -> None:
         """Plain works have one movement."""
@@ -68,16 +67,13 @@ class TestGenres:
         context = PlainGenre().checker_context("C", 16, complete=True)
         assert context.expectations[0].cadence
 
-    def test_relaxed_profile(self) -> None:
-        """Multi-movement genres downgrade leading-tone and doubling rules."""
+    def test_multi_movement_context(self) -> None:
+        """Multi-movement genres skip voice-count enforcement."""
         context = SonataGenre().checker_context("C", 16)
         assert not context.enforce_voice_count
-        profile = SonataGenre().profile
-        assert profile.setting_for("leading").severity is not None
-        assert profile.setting_for("omission").severity is not None
 
     def test_concerto_context(self) -> None:
-        """Concerto contexts skip voice-count enforcement."""
+        """Concerto contexts expect a final cadence."""
         context = ConcertoGenre().checker_context("C", 20, complete=True)
         assert context.expectations[0].cadence
 
@@ -93,8 +89,6 @@ class TestGenres:
             id = "custom"
             display_name = "Custom"
             movement_specs = (MovementSpec(name="I", key="G"),)
-            allowed_techniques = ALL_TECHNIQUES
-            profile = PlainGenre().profile
 
             def checker_context(
                 self, tonic: str, measure_count: int, *, complete: bool = False
