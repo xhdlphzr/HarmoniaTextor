@@ -56,6 +56,12 @@ class FakeService:
         return 0
 
 
+class FakeExport:
+    """An export service double exposing a vendor root."""
+
+    vendor_root = "vendir"
+
+
 class FakeFlaskApp:
     """A callable WSGI app carrying Flask-style extensions."""
 
@@ -98,6 +104,19 @@ class TestDesktop:
         webview = FakeWebview()
         desktop.DesktopApp(wsgi_app, webview).run()
         assert captured.get("threaded") is True
+
+    def test_ensure_audio_backend(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The first launch kicks off the audio backend download."""
+        calls: list[object] = []
+        monkeypatch.setattr(desktop, "ensure_async", calls.append)
+        app = FakeFlaskApp(None)
+        app.extensions["harmonia_export"] = FakeExport()
+        desktop._ensure_audio_backend(app)
+        assert calls == ["vendir"]
+
+    def test_ensure_audio_backend_without_export(self) -> None:
+        """An app without the export extension is ignored."""
+        desktop._ensure_audio_backend(FakeFlaskApp(None))
 
     def test_mark_interrupted(self) -> None:
         """Closing the window marks running generations as interrupted."""

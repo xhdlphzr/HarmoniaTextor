@@ -119,13 +119,7 @@ uv run ht                     # 原生桌面窗口
 
 ## 音频后端
 
-M4A/MP3 导出依赖 [FluidSynth](https://www.fluidsynth.org/)、General MIDI 音色库与 `ffmpeg`。可用以下命令把前两者下载到被 git 忽略的 `vendor/` 目录：
-
-```console
-uv run python tools/fetch_vendor.py
-```
-
-`ffmpeg` 会先在 `vendor/bin` 查找，再到系统 `PATH` 查找。设置环境变量 `HARMONIA_SOUNDFONT` 可指定自定义 `.sf2`/`.sf3`。试听台用OpenSheetMusicDisplay 实时渲染五线谱，并可导出 PNG，无需服务端制谱器。
+M4A/MP3 导出依赖 [FluidSynth](https://www.fluidsynth.org/)、General MIDI 音色库与 `ffmpeg`。软件**首次启动时会自动在后台把这三者下载到 `~/.harmonia_textor/vendor`**，因此新机器无需手工配置即可播放与导出音频；下载失败也只是音频不可用。设置环境变量 `HARMONIA_SOUNDFONT` 可指定自定义 `.sf2`/`.sf3`。试听台用 OpenSheetMusicDisplay 实时渲染五线谱，并可导出 PNG，无需服务端制谱器。
 
 ## 质量门禁
 
@@ -166,4 +160,4 @@ uv run --no-sync pyinstaller --noconfirm --clean HarmoniaTextor.spec
 
 ## 许可证
 
-MIT，见 [`LICENSES/MIT.txt`](../LICENSES/MIT.txt)。`assets/` 下的图标使用 CC-BY-NC-ND-4.0。内嵌二进制保留各自许可证；见 `vendor/README-LICENSES.md`。
+MIT，见 [`LICENSES/MIT.txt`](../LICENSES/MIT.txt)。`assets/` 下的图标使用 CC-BY-NC-ND-4.0。首次启动下载的音频后端组件保留各自许可证（ffmpeg、FluidSynth 与 GeneralUser GS 音色库）。

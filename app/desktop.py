@@ -21,6 +21,7 @@ from typing import Any
 from werkzeug.serving import BaseWSGIServer, make_server
 
 from app.app import create_app
+from harmoniatextor.render.vendor import ensure_async
 
 __all__ = ["DesktopApp", "main"]
 
@@ -147,6 +148,22 @@ class DesktopApp:
             thread.join(timeout=5)
 
 
+def _ensure_audio_backend(flask_app: Any) -> None:
+    """Best-effort first-launch download of the audio backend.
+
+    Args:
+        flask_app: The Flask application that carries the export service.
+    """
+    extensions = getattr(flask_app, "extensions", None)
+    if not isinstance(extensions, dict):
+        return
+    export = extensions.get("harmonia_export")
+    if export is not None:
+        ensure_async(export.vendor_root)
+
+
 def main() -> None:
     """Launch the desktop application."""
-    DesktopApp(create_app(), _load_webview()).run()
+    flask_app = create_app()
+    _ensure_audio_backend(flask_app)
+    DesktopApp(flask_app, _load_webview()).run()

@@ -4,9 +4,9 @@
 """Audio backend feature detection.
 
 Audio rendering relies on FluidSynth, a soundfont and ffmpeg.  They are looked
-up first inside ``vendor/`` (see ``tools/fetch_vendor.py``) and then on the
-system ``PATH``, so the application can degrade gracefully instead of failing
-silently.
+up first inside ``vendor/`` (downloaded on first launch by
+:mod:`harmoniatextor.render.vendor`) and then on the system ``PATH``, so the
+application can degrade gracefully instead of failing silently.
 """
 
 from __future__ import annotations

@@ -117,13 +117,7 @@ The same endpoint drives both the composer and the independent reviewer. Setting
 
 ## Audio backend
 
-M4A/MP3 export needs [FluidSynth](https://www.fluidsynth.org/), a General MIDI soundfont and `ffmpeg`. Download the first two into the git-ignored `vendor/` directory with:
-
-```console
-uv run python tools/fetch_vendor.py
-```
-
-`ffmpeg` is taken from `vendor/bin` first and then from the `PATH`. Point `HARMONIA_SOUNDFONT` at a custom `.sf2`/`.sf3` file to override the soundfont. The audition desk renders staff notation live with OpenSheetMusicDisplay and can save it as a PNG without any server-side engraver.
+M4A/MP3 export needs [FluidSynth](https://www.fluidsynth.org/), a General MIDI soundfont and `ffmpeg`. On first launch the desktop app downloads all three into `~/.harmonia_textor/vendor` in the background, so a fresh machine can play and export audio without any manual setup, and a failed download simply leaves audio unavailable. Point `HARMONIA_SOUNDFONT` at a custom `.sf2`/`.sf3` file to override the soundfont. The audition desk renders staff notation live with OpenSheetMusicDisplay and can save it as a PNG without any server-side engraver.
 
 ## Quality gates
 
@@ -164,4 +158,4 @@ On release, CD builds the bundle on Windows, macOS and Ubuntu and uploads 1 GiB 
 
 ## License
 
-MIT. See [`LICENSES/MIT.txt`](LICENSES/MIT.txt). The icons under `assets/` are licensed under CC-BY-NC-ND-4.0. Vendored binaries keep their own licenses; see `vendor/README-LICENSES.md`.
+MIT. See [`LICENSES/MIT.txt`](LICENSES/MIT.txt). The icons under `assets/` are licensed under CC-BY-NC-ND-4.0. The audio backend components downloaded on first launch keep their own licenses (ffmpeg, FluidSynth and the GeneralUser GS soundfont).
