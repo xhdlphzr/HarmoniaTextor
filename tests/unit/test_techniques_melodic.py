@@ -16,14 +16,28 @@ from harmoniatextor.techniques import TechniqueContext, build_default_registry
 def apply(
     technique_id: str, score: stream.Score, themes: dict[int, Theme], **params: Any
 ) -> Any:
-    """Apply a technique by identifier."""
+    """Apply a technique by identifier.
+
+    Args:
+        technique_id: The technique id.
+        score: The score to inspect.
+        themes: The themes.
+        params: Validated parameters.
+
+    Returns:
+        The result.
+    """
     technique = REGISTRY.get(technique_id)
     context = TechniqueContext(score=score, themes=themes)
     return technique.apply(context, technique.params_model(**params))
 
 
 def big_leap_theme() -> Theme:
-    """Return a theme with a leap larger than an octave."""
+    """Return a theme with a leap larger than an octave.
+
+    Returns:
+        The big leap theme result.
+    """
     return Theme(
         id=2,
         movement_id="m01",
@@ -41,7 +55,12 @@ class TestMelodic:
     """Melodic techniques."""
 
     def test_imitation_strict(self, score4: stream.Score, theme: Theme) -> None:
-        """Strict imitation transposes literally."""
+        """Strict imitation transposes literally.
+
+        Args:
+            score4: An empty four-voice score.
+            theme: A sample theme.
+        """
         result = apply(
             "imitation",
             score4,
@@ -53,7 +72,11 @@ class TestMelodic:
         assert result.score is score4
 
     def test_imitation_non_strict(self, score4: stream.Score) -> None:
-        """Non-strict imitation smooths large leaps."""
+        """Non-strict imitation smooths large leaps.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         result = apply(
             "imitation",
             score4,
@@ -65,7 +88,12 @@ class TestMelodic:
         assert result.warnings
 
     def test_inversion_auto(self, score4: stream.Score, theme: Theme) -> None:
-        """Automatic inversion uses the average axis."""
+        """Automatic inversion uses the average axis.
+
+        Args:
+            score4: An empty four-voice score.
+            theme: A sample theme.
+        """
         assert (
             apply(
                 "inversion", score4, {1: theme}, theme_id=1, target_voice="alto"
@@ -74,7 +102,12 @@ class TestMelodic:
         )
 
     def test_inversion_explicit_axis(self, score4: stream.Score, theme: Theme) -> None:
-        """An explicit axis is honoured."""
+        """An explicit axis is honoured.
+
+        Args:
+            score4: An empty four-voice score.
+            theme: A sample theme.
+        """
         assert (
             apply(
                 "inversion",
@@ -88,7 +121,12 @@ class TestMelodic:
         )
 
     def test_retrograde_preserve(self, score4: stream.Score, theme: Theme) -> None:
-        """Retrograde preserves rhythm by default."""
+        """Retrograde preserves rhythm by default.
+
+        Args:
+            score4: An empty four-voice score.
+            theme: A sample theme.
+        """
         assert (
             apply(
                 "retrograde", score4, {1: theme}, theme_id=1, target_voice="alto"
@@ -97,7 +135,12 @@ class TestMelodic:
         )
 
     def test_retrograde_free(self, score4: stream.Score, theme: Theme) -> None:
-        """Retrograde can reverse rhythm too."""
+        """Retrograde can reverse rhythm too.
+
+        Args:
+            score4: An empty four-voice score.
+            theme: A sample theme.
+        """
         assert apply(
             "retrograde",
             score4,
@@ -108,15 +151,30 @@ class TestMelodic:
         )
 
     def test_augmentation(self, score4: stream.Score, theme: Theme) -> None:
-        """Augmentation lengthens durations."""
+        """Augmentation lengthens durations.
+
+        Args:
+            score4: An empty four-voice score.
+            theme: A sample theme.
+        """
         apply("augmentation", score4, {1: theme}, theme_id=1, target_voice="alto")
 
     def test_diminution(self, score4: stream.Score, theme: Theme) -> None:
-        """Diminution shortens durations."""
+        """Diminution shortens durations.
+
+        Args:
+            score4: An empty four-voice score.
+            theme: A sample theme.
+        """
         apply("diminution", score4, {1: theme}, theme_id=1, target_voice="alto")
 
     def test_transposition_interval(self, score4: stream.Score, theme: Theme) -> None:
-        """Transposition by interval."""
+        """Transposition by interval.
+
+        Args:
+            score4: An empty four-voice score.
+            theme: A sample theme.
+        """
         apply(
             "transposition",
             score4,
@@ -127,7 +185,12 @@ class TestMelodic:
         )
 
     def test_transposition_key(self, score4: stream.Score, theme: Theme) -> None:
-        """Transposition into an absolute key."""
+        """Transposition into an absolute key.
+
+        Args:
+            score4: An empty four-voice score.
+            theme: A sample theme.
+        """
         apply(
             "transposition",
             score4,
@@ -138,7 +201,12 @@ class TestMelodic:
         )
 
     def test_sequence(self, score4: stream.Score, theme: Theme) -> None:
-        """A melodic sequence repeats and steps."""
+        """A melodic sequence repeats and steps.
+
+        Args:
+            score4: An empty four-voice score.
+            theme: A sample theme.
+        """
         apply(
             "sequence",
             score4,
@@ -149,7 +217,12 @@ class TestMelodic:
         )
 
     def test_voice_exchange_themes(self, score4: stream.Score, theme: Theme) -> None:
-        """Voice exchange by themes."""
+        """Voice exchange by themes.
+
+        Args:
+            score4: An empty four-voice score.
+            theme: A sample theme.
+        """
         second = Theme(
             id=2,
             movement_id="m01",
@@ -173,7 +246,11 @@ class TestMelodic:
         assert result.score is score4
 
     def test_voice_exchange_voices(self, score4: stream.Score) -> None:
-        """Voice exchange by explicit voices."""
+        """Voice exchange by explicit voices.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         apply(
             "voice_exchange",
             score4,

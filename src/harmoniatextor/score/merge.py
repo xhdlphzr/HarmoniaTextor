@@ -47,21 +47,30 @@ def merge_scores(xmls: list[str]) -> str:
     """
     merged = stream.Score()
     parts: dict[str, stream.Part] = {}
+    merged_measures = 0
     for xml in xmls:
         movement = from_musicxml(xml)
-        columns = [
-            (part, list(part.getElementsByClass(stream.Measure)))
-            for part in movement.parts
-        ]
-        total = max((len(measures) for _, measures in columns), default=0)
-        for part, measures in columns:
-            voice = str(part.id or part.partName)
-            target = parts.get(voice)
-            if target is None:
-                target = new_part(voice)
-                _copy_instrument(part, target)
-                parts[voice] = target
-                merged.insert(0.0, target)
+        sources = {str(part.id or part.partName): part for part in movement.parts}
+        columns = {
+            voice: list(part.getElementsByClass(stream.Measure))
+            for voice, part in sources.items()
+        }
+        total = max((len(measures) for measures in columns.values()), default=0)
+        # Voices that first appear in a later movement are padded with empty
+        # measures so every part stays aligned across the whole piece.
+        for voice, part in sources.items():
+            if voice in parts:
+                continue
+            target = new_part(voice)
+            _copy_instrument(part, target)
+            parts[voice] = target
+            merged.insert(0.0, target)
+            for _ in range(merged_measures):
+                target.append(  # type: ignore[no-untyped-call]  # music21
+                    stream.Measure()
+                )
+        for voice, target in parts.items():
+            measures = columns.get(voice, [])
             for index in range(total):
                 if index < len(measures):
                     target.append(  # type: ignore[no-untyped-call]  # music21
@@ -69,8 +78,9 @@ def merge_scores(xmls: list[str]) -> str:
                     )
                 else:
                     target.append(  # type: ignore[no-untyped-call]  # music21
-                        stream.Measure(number=index + 1)
+                        stream.Measure()
                     )
+        merged_measures += total
     _renumber(merged)
     return to_musicxml(merged)
 

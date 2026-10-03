@@ -20,6 +20,10 @@ __all__ = ["Job", "JobManager"]
 EventCallback = Callable[[dict[str, Any]], None]
 JobTarget = Callable[[EventCallback], dict[str, Any]]
 
+#: Finished jobs kept before the oldest are pruned, bounding memory in a
+#: long-lived desktop session.
+_MAX_JOBS = 64
+
 
 class Job:
     """A single background agent run.
@@ -83,7 +87,18 @@ class JobManager:
         job = Job(uuid.uuid4().hex)
         with self._lock:
             self._jobs[job.id] = job
+            self._prune()
         return job
+
+    def _prune(self) -> None:
+        """Drop the oldest finished jobs once the registry grows too large."""
+        while len(self._jobs) > _MAX_JOBS:
+            for job_id, job in list(self._jobs.items()):
+                if job.status != "running":
+                    del self._jobs[job_id]
+                    break
+            else:
+                return
 
     def get(self, job_id: str) -> Job | None:
         """Look up a job by identifier.
@@ -121,4 +136,8 @@ class JobManager:
             job.emit({"kind": "error", "message": str(exc)})
             job.finish("error", {"message": str(exc)})
             return
-        job.finish("done", result)
+        except BaseException:  # noqa: BLE001 - KeyboardInterrupt/SystemExit must
+            # never leave a job stuck in the running state.
+            job.finish("error", {"message": "job aborted"})
+        else:
+            job.finish("done", result)

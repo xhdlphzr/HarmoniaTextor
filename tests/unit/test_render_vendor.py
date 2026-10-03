@@ -70,7 +70,12 @@ class TestDownload:
     """Raw download helper."""
 
     def test_writes_file(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """The download helper fetches into the target path."""
+        """The download helper fetches into the target path.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         recorded: dict[str, str] = {}
 
         def fake_urlretrieve(url: str, target: str) -> None:
@@ -87,27 +92,43 @@ class TestExtractExecutable:
     """Zip and tar executable extraction."""
 
     def test_zip(self, tmp_path: Path) -> None:
-        """A zip member is extracted by basename."""
+        """A zip member is extracted by basename.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         archive = tmp_path / "a.zip"
         _zip(archive, {"pkg/bin/tool.exe": b"z"})
         assert vendor._extract_executable(archive, tmp_path / "bin", "tool.exe")
         assert (tmp_path / "bin" / "tool.exe").read_bytes() == b"z"
 
     def test_tar(self, tmp_path: Path) -> None:
-        """A tar member is extracted by basename."""
+        """A tar member is extracted by basename.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         archive = tmp_path / "a.tar.xz"
         _tar_xz(archive, {"pkg/tool": b"z"})
         assert vendor._extract_executable(archive, tmp_path / "bin", "tool")
         assert (tmp_path / "bin" / "tool").read_bytes() == b"z"
 
     def test_zip_missing(self, tmp_path: Path) -> None:
-        """A zip without the member reports failure."""
+        """A zip without the member reports failure.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         archive = tmp_path / "a.zip"
         _zip(archive, {"pkg/x": b"z"})
         assert not vendor._extract_executable(archive, tmp_path / "bin", "tool")
 
     def test_tar_missing(self, tmp_path: Path) -> None:
-        """A tar without the member reports failure."""
+        """A tar without the member reports failure.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         archive = tmp_path / "a.tar.xz"
         _tar_xz(archive, {"pkg/x": b"z"})
         assert not vendor._extract_executable(archive, tmp_path / "bin", "tool")
@@ -117,7 +138,11 @@ class TestExtractSoundfont:
     """Soundfont extraction edge cases."""
 
     def test_missing_member(self, tmp_path: Path) -> None:
-        """An archive without a .sf2 leaves no soundfont."""
+        """An archive without a .sf2 leaves no soundfont.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         archive = tmp_path / "a.zip"
         _zip(archive, {"x/y.txt": b"z"})
         target = tmp_path / "out.sf2"
@@ -131,7 +156,12 @@ class TestFetch:
     def test_windows_downloads_all(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """ffmpeg, FluidSynth and the soundfont are all fetched on Windows."""
+        """ffmpeg, FluidSynth and the soundfont are all fetched on Windows.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         monkeypatch.setattr(platform, "system", lambda: "Windows")
         calls: list[str] = []
 
@@ -152,7 +182,12 @@ class TestFetch:
         assert len(calls) == _EXPECTED_DOWNLOADS
 
     def test_idempotent(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Existing binaries and soundfonts are kept."""
+        """Existing binaries and soundfonts are kept.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         _ready_vendor(tmp_path)
         calls: list[str] = []
         monkeypatch.setattr(vendor, "_download", lambda url, _target: calls.append(url))
@@ -162,7 +197,12 @@ class TestFetch:
     def test_unsupported_platform(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Only the soundfont is fetched on an unsupported platform."""
+        """Only the soundfont is fetched on an unsupported platform.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         monkeypatch.setattr(platform, "system", lambda: "Plan9")
         calls: list[str] = []
 
@@ -177,7 +217,12 @@ class TestFetch:
     def test_linux_tar_ffmpeg(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """A tar.xz ffmpeg build is extracted and made executable."""
+        """A tar.xz ffmpeg build is extracted and made executable.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         monkeypatch.setattr(platform, "system", lambda: "Linux")
 
         def fake_download(_url: str, target: Path) -> None:
@@ -193,7 +238,12 @@ class TestFetch:
     def test_ffmpeg_missing_member(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """A bad ffmpeg archive is ignored without crashing."""
+        """A bad ffmpeg archive is ignored without crashing.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         monkeypatch.setattr(platform, "system", lambda: "Windows")
 
         def fake_download(url: str, target: Path) -> None:
@@ -215,7 +265,12 @@ class TestEnsureAsync:
     def test_complete_backend_does_nothing(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """A complete backend is left untouched."""
+        """A complete backend is left untouched.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         _ready_vendor(tmp_path)
         started: list[dict[str, object]] = []
         monkeypatch.setattr(
@@ -227,7 +282,12 @@ class TestEnsureAsync:
     def test_starts_thread_once(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """The fetch runs at most once per process."""
+        """The fetch runs at most once per process.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         vendor._FETCH_STARTED.clear()
         started: list[dict[str, object]] = []
 
@@ -248,14 +308,27 @@ class TestEnsureAsync:
     def test_safe_fetch_success(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """A successful fetch is silent."""
+        """A successful fetch is silent.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         monkeypatch.setattr(vendor, "fetch", lambda _vendor: None)
         vendor._safe_fetch(tmp_path)
 
     def test_safe_fetch_swallows_errors(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """A failed fetch never raises."""
+        """A failed fetch never raises.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+            monkeypatch: The pytest monkeypatch fixture.
+
+        Raises:
+            RuntimeError: When the operation cannot proceed.
+        """
 
         def boom(_vendor: Path) -> None:
             raise RuntimeError("network")

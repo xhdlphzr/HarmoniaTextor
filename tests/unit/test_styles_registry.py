@@ -13,7 +13,14 @@ from harmoniatextor.styles.store import StyleKitStore
 
 
 def _registry(tmp_path: Path) -> StyleRegistry:
-    """Return a registry backed by a temporary store."""
+    """Return a registry backed by a temporary store.
+
+    Args:
+        tmp_path: The pytest temporary path fixture.
+
+    Returns:
+        The registry result.
+    """
     return StyleRegistry(StyleKitStore(tmp_path))
 
 
@@ -21,7 +28,11 @@ class TestStyleRegistry:
     """Built-in plus custom kit management."""
 
     def test_all(self, tmp_path: Path) -> None:
-        """Both built-in and custom kits are listed."""
+        """Both built-in and custom kits are listed.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         registry = _registry(tmp_path)
         registry.create("Mine", ["empty"], ["imitation"])
         names = [kit.name for kit in registry.all()]
@@ -29,32 +40,56 @@ class TestStyleRegistry:
         assert "Mine" in names
 
     def test_get_builtin(self, tmp_path: Path) -> None:
-        """A built-in kit is returned by id."""
+        """A built-in kit is returned by id.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         assert _registry(tmp_path).get("baroque").builtin is True
 
     def test_get_custom(self, tmp_path: Path) -> None:
-        """A custom kit is returned by id."""
+        """A custom kit is returned by id.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         registry = _registry(tmp_path)
         kit = registry.create("Mine", ["empty"], ["imitation"])
         assert registry.get(kit.id).name == "Mine"
 
     def test_get_unknown(self, tmp_path: Path) -> None:
-        """An unknown id raises a key error."""
+        """An unknown id raises a key error.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         with pytest.raises(KeyError):
             _registry(tmp_path).get("nope")
 
     def test_resolve_existing(self, tmp_path: Path) -> None:
-        """A known id resolves to itself."""
+        """A known id resolves to itself.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         assert _registry(tmp_path).resolve("classical").id == "classical"
 
     def test_resolve_defaults(self, tmp_path: Path) -> None:
-        """An empty or unknown id resolves to the default kit."""
+        """An empty or unknown id resolves to the default kit.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         registry = _registry(tmp_path)
         assert registry.resolve(None).id == "baroque"
         assert registry.resolve("nope").id == "baroque"
 
     def test_create(self, tmp_path: Path) -> None:
-        """A custom kit is created with the given selections."""
+        """A custom kit is created with the given selections.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         kit = _registry(tmp_path).create("  Mine  ", ["empty"], ["imitation"])
         assert kit.name == "Mine"
         assert kit.rules == frozenset({"empty"})
@@ -62,46 +97,78 @@ class TestStyleRegistry:
         assert kit.id.startswith("s-")
 
     def test_create_requires_name(self, tmp_path: Path) -> None:
-        """An empty name is rejected."""
+        """An empty name is rejected.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         with pytest.raises(ValueError):
             _registry(tmp_path).create("   ", ["empty"], ["imitation"])
 
     def test_create_rejects_unknown_rule(self, tmp_path: Path) -> None:
-        """An unknown rule id is rejected."""
+        """An unknown rule id is rejected.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         with pytest.raises(ValueError):
             _registry(tmp_path).create("Mine", ["nope"], ["imitation"])
 
     def test_create_rejects_unknown_technique(self, tmp_path: Path) -> None:
-        """An unknown technique id is rejected."""
+        """An unknown technique id is rejected.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         with pytest.raises(ValueError):
             _registry(tmp_path).create("Mine", ["empty"], ["nope"])
 
     def test_rename(self, tmp_path: Path) -> None:
-        """A custom kit can be renamed."""
+        """A custom kit can be renamed.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         registry = _registry(tmp_path)
         kit = registry.create("Mine", ["empty"], ["imitation"])
         assert registry.rename(kit.id, "Yours").name == "Yours"
         assert registry.get(kit.id).name == "Yours"
 
     def test_rename_builtin(self, tmp_path: Path) -> None:
-        """A built-in kit cannot be renamed."""
+        """A built-in kit cannot be renamed.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         with pytest.raises(ValueError):
             _registry(tmp_path).rename("baroque", "X")
 
     def test_rename_requires_name(self, tmp_path: Path) -> None:
-        """A blank new name is rejected."""
+        """A blank new name is rejected.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         registry = _registry(tmp_path)
         kit = registry.create("Mine", ["empty"], ["imitation"])
         with pytest.raises(ValueError):
             registry.rename(kit.id, "  ")
 
     def test_rename_unknown(self, tmp_path: Path) -> None:
-        """Renaming a missing custom kit raises a key error."""
+        """Renaming a missing custom kit raises a key error.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         with pytest.raises(KeyError):
             _registry(tmp_path).rename("s-missing", "X")
 
     def test_delete(self, tmp_path: Path) -> None:
-        """A custom kit can be deleted."""
+        """A custom kit can be deleted.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         registry = _registry(tmp_path)
         kit = registry.create("Mine", ["empty"], ["imitation"])
         registry.delete(kit.id)
@@ -109,11 +176,19 @@ class TestStyleRegistry:
             registry.get(kit.id)
 
     def test_delete_builtin(self, tmp_path: Path) -> None:
-        """A built-in kit cannot be deleted."""
+        """A built-in kit cannot be deleted.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         with pytest.raises(ValueError):
             _registry(tmp_path).delete("baroque")
 
     def test_delete_unknown(self, tmp_path: Path) -> None:
-        """Deleting a missing custom kit raises a key error."""
+        """Deleting a missing custom kit raises a key error.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         with pytest.raises(KeyError):
             _registry(tmp_path).delete("s-missing")

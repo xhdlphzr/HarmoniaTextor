@@ -19,7 +19,11 @@ class TestAudio:
     """Audio synthesis pipeline."""
 
     def test_unavailable(self, tmp_path: Path) -> None:
-        """Missing binaries raise a feature error."""
+        """Missing binaries raise a feature error.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         score = new_score(
             key="C", time_signature="4/4", tempo_bpm=80, voices=["soprano"]
         )
@@ -29,7 +33,12 @@ class TestAudio:
     def test_synthesize_m4a(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """The pipeline invokes FluidSynth then ffmpeg for M4A."""
+        """The pipeline invokes FluidSynth then ffmpeg for M4A.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         calls: list[list[str]] = []
 
         def fake_run(args: list[str], **_kwargs: object) -> None:
@@ -55,7 +64,12 @@ class TestAudio:
     def test_synthesize_mp3(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """The pipeline encodes MP3 with libmp3lame."""
+        """The pipeline encodes MP3 with libmp3lame.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         calls: list[list[str]] = []
 
         def fake_run(args: list[str], **_kwargs: object) -> None:
@@ -79,7 +93,12 @@ class TestAudio:
     def test_synthesize_serialises_same_output(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Two exports of the same file both succeed (per-output lock reuse)."""
+        """Two exports of the same file both succeed (per-output lock reuse).
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         calls: list[list[str]] = []
 
         def fake_run(args: list[str], **_kwargs: object) -> None:

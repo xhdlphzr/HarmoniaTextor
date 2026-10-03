@@ -87,7 +87,15 @@ class ExpositionTechnique(Technique[ExpositionParams]):
     params_model = ExpositionParams
 
     def apply(self, ctx: TechniqueContext, params: ExpositionParams) -> TechniqueResult:
-        """Build an exposition block."""
+        """Build an exposition block.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         main = get_theme(ctx, params.main_theme_id)
         editor = ScoreEditor(ctx.score)
         voices = editor.voice_names() or [main.voice]
@@ -144,7 +152,15 @@ class DevelopmentTechnique(Technique[DevelopmentParams]):
     def apply(
         self, ctx: TechniqueContext, params: DevelopmentParams
     ) -> TechniqueResult:
-        """Build a development block."""
+        """Build a development block.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         editor = ScoreEditor(ctx.score)
         voices = _require_voices(editor)
         bar = editor.bar_length()
@@ -198,7 +214,15 @@ class RecapitulationTechnique(Technique[RecapitulationParams]):
     def apply(
         self, ctx: TechniqueContext, params: RecapitulationParams
     ) -> TechniqueResult:
-        """Build a recapitulation block."""
+        """Build a recapitulation block.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         editor = ScoreEditor(ctx.score)
         voices = _require_voices(editor)
         bar = editor.bar_length()
@@ -221,7 +245,15 @@ class RondoTechnique(Technique[RondoParams]):
     params_model = RondoParams
 
     def apply(self, ctx: TechniqueContext, params: RondoParams) -> TechniqueResult:
-        """Build a rondo form."""
+        """Build a rondo form.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         editor = ScoreEditor(ctx.score)
         voices = _require_voices(editor)
         bar = editor.bar_length()
@@ -256,7 +288,15 @@ class StrettoTechnique(Technique[StrettoParams]):
     params_model = StrettoParams
 
     def apply(self, ctx: TechniqueContext, params: StrettoParams) -> TechniqueResult:
-        """Build a stretto."""
+        """Build a stretto.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         theme = get_theme(ctx, params.theme_id)
         editor = ScoreEditor(ctx.score)
         bar = editor.bar_length()
@@ -279,7 +319,15 @@ class PedalPointTechnique(Technique[PedalPointParams]):
     params_model = PedalPointParams
 
     def apply(self, ctx: TechniqueContext, params: PedalPointParams) -> TechniqueResult:
-        """Place a sustained pedal point."""
+        """Place a sustained pedal point.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         editor = ScoreEditor(ctx.score)
         bar = editor.bar_length()
         for measure in range(params.measure_range.start, params.measure_range.end + 1):
@@ -297,7 +345,15 @@ class PedalToneTechnique(Technique[PedalToneParams]):
     params_model = PedalToneParams
 
     def apply(self, ctx: TechniqueContext, params: PedalToneParams) -> TechniqueResult:
-        """Place a pulsed pedal tone."""
+        """Place a pulsed pedal tone.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         editor = ScoreEditor(ctx.score)
         bar = editor.bar_length()
         for measure in range(params.measure_range.start, params.measure_range.end + 1):

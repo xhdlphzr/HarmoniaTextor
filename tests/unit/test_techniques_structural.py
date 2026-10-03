@@ -22,7 +22,17 @@ from harmoniatextor.techniques.structural import _require_voices
 def apply(
     technique_id: str, score: stream.Score, themes: dict[int, Theme], **params: Any
 ) -> Any:
-    """Apply a technique by identifier."""
+    """Apply a technique by identifier.
+
+    Args:
+        technique_id: The technique id.
+        score: The score to inspect.
+        themes: The themes.
+        params: Validated parameters.
+
+    Returns:
+        The result.
+    """
     technique = REGISTRY.get(technique_id)
     context = TechniqueContext(score=score, themes=themes)
     return technique.apply(context, technique.params_model(**params))
@@ -35,7 +45,12 @@ class TestStructural:
     """Structural techniques."""
 
     def test_exposition_secondary(self, score4: stream.Score, theme: Theme) -> None:
-        """Exposition with a secondary theme."""
+        """Exposition with a secondary theme.
+
+        Args:
+            score4: An empty four-voice score.
+            theme: A sample theme.
+        """
         second = Theme(2, "m01", "alto", 1, [ThemeNote("E4", 1.0)], "r-0")
         apply(
             "exposition",
@@ -51,7 +66,12 @@ class TestStructural:
     def test_exposition_generated_secondary(
         self, score4: stream.Score, theme: Theme
     ) -> None:
-        """Exposition can generate a secondary theme from the main one."""
+        """Exposition can generate a secondary theme from the main one.
+
+        Args:
+            score4: An empty four-voice score.
+            theme: A sample theme.
+        """
         apply(
             "exposition",
             score4,
@@ -63,7 +83,12 @@ class TestStructural:
         )
 
     def test_development_overflow(self, score4: stream.Score, theme: Theme) -> None:
-        """Development warns when it runs out of measures."""
+        """Development warns when it runs out of measures.
+
+        Args:
+            score4: An empty four-voice score.
+            theme: A sample theme.
+        """
         result = apply(
             "development",
             score4,
@@ -76,7 +101,12 @@ class TestStructural:
         assert result.warnings
 
     def test_recapitulation(self, score4: stream.Score, theme: Theme) -> None:
-        """Recapitulation returns themes to the tonic."""
+        """Recapitulation returns themes to the tonic.
+
+        Args:
+            score4: An empty four-voice score.
+            theme: A sample theme.
+        """
         apply(
             "recapitulation",
             score4,
@@ -87,7 +117,12 @@ class TestStructural:
         )
 
     def test_rondo(self, score4: stream.Score, theme: Theme) -> None:
-        """Rondo alternates the refrain with episodes."""
+        """Rondo alternates the refrain with episodes.
+
+        Args:
+            score4: An empty four-voice score.
+            theme: A sample theme.
+        """
         second = Theme(2, "m01", "alto", 1, [ThemeNote("G4", 1.0)], "r-0")
         apply(
             "rondo",
@@ -100,7 +135,12 @@ class TestStructural:
         )
 
     def test_rondo_episode_keys(self, score4: stream.Score, theme: Theme) -> None:
-        """Rondo can place episodes in explicit keys."""
+        """Rondo can place episodes in explicit keys.
+
+        Args:
+            score4: An empty four-voice score.
+            theme: A sample theme.
+        """
         second = Theme(2, "m01", "alto", 1, [ThemeNote("G4", 1.0)], "r-0")
         apply(
             "rondo",
@@ -114,7 +154,12 @@ class TestStructural:
         )
 
     def test_stretto(self, score4: stream.Score, theme: Theme) -> None:
-        """Stretto stacks entries."""
+        """Stretto stacks entries.
+
+        Args:
+            score4: An empty four-voice score.
+            theme: A sample theme.
+        """
         apply(
             "stretto",
             score4,
@@ -125,7 +170,11 @@ class TestStructural:
         )
 
     def test_pedal_point(self, score4: stream.Score) -> None:
-        """Pedal points sustain a pitch."""
+        """Pedal points sustain a pitch.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         apply(
             "pedal_point",
             score4,
@@ -136,7 +185,11 @@ class TestStructural:
         )
 
     def test_pedal_tone(self, score4: stream.Score) -> None:
-        """Pedal tones pulse a pitch."""
+        """Pedal tones pulse a pitch.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         apply(
             "pedal_tone",
             score4,
@@ -147,7 +200,11 @@ class TestStructural:
         )
 
     def test_pedal_tone_snaps_above(self, score4: stream.Score) -> None:
-        """A constrained pedal snaps upper voices to its triad."""
+        """A constrained pedal snaps upper voices to its triad.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         editor = ScoreEditor(score4)
         editor.write_line("soprano", 1, [ThemeNote("C#5", 1.0)])
         editor.write_line("alto", 1, [ThemeNote("E4", 1.0)])

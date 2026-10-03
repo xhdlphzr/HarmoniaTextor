@@ -60,6 +60,27 @@ class TestMergeMovements:
         }
         assert counts == {"violin": 2, "piano": 2}
 
+    def test_merge_late_voice_is_padded(self) -> None:
+        """A voice first appearing later is padded to stay aligned."""
+        first = new_score(
+            key="C", time_signature="4/4", tempo_bpm=84, voices=["violin"]
+        )
+        ScoreEditor(first).write_line("violin", 1, [ThemeNote("C5", 1.0)] * 8)
+        second = new_score(
+            key="C", time_signature="4/4", tempo_bpm=84, voices=["violin", "piano"]
+        )
+        ScoreEditor(second).write_line("violin", 1, [ThemeNote("D5", 1.0)] * 4)
+        ScoreEditor(second).write_line("piano", 1, [ThemeNote("C3", 1.0)] * 4)
+        merged = from_musicxml(merge_scores([to_musicxml(first), to_musicxml(second)]))
+        counts = {
+            str(part.id or part.partName): len(
+                list(part.getElementsByClass(stream.Measure))
+            )
+            for part in merged.parts
+        }
+        assert counts == {"violin": 3, "piano": 3}
+        assert measure_count(merged) == 3
+
     def test_copy_instrument_without_source(self) -> None:
         """A source part without an instrument leaves the target untouched."""
         target = new_part("x")

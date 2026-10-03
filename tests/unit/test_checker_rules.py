@@ -36,14 +36,29 @@ from harmoniatextor.score.streamops import ScoreEditor
 def place(
     score: stream.Score, voice: str, offset: float, pitch: str, length: float = 1.0
 ) -> None:
-    """Place a note at a global offset (assumes 4/4)."""
+    """Place a note at a global offset (assumes 4/4).
+
+    Args:
+        score: The score to inspect.
+        voice: Voice slot name.
+        offset: The offset.
+        pitch: Scientific pitch name.
+        length: The length.
+    """
     measure = int(offset // 4) + 1
     inner = offset - (measure - 1) * 4
     ScoreEditor(score).place_note(voice, measure, inner, pitch, length)
 
 
 def rule_ids(violations: list[CheckViolation]) -> list[str]:
-    """Return the rule ids of violations."""
+    """Return the rule ids of violations.
+
+    Args:
+        violations: The violations.
+
+    Returns:
+        The list of strings.
+    """
     return [item.rule_id for item in violations]
 
 
@@ -51,7 +66,11 @@ class TestVoiceLeading:
     """Rules R1-R7."""
 
     def test_parallel_fifths(self, score4: stream.Score) -> None:
-        """Parallel fifths are detected."""
+        """Parallel fifths are detected.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         place(score4, "soprano", 0.0, "C5")
         place(score4, "soprano", 1.0, "D5")
         place(score4, "alto", 0.0, "F4")
@@ -59,7 +78,11 @@ class TestVoiceLeading:
         assert rule_ids(ParallelFifthsRule().run(score4, CheckerContext())) == ["pf5th"]
 
     def test_parallel_fifths_clean(self, score4: stream.Score) -> None:
-        """Non-parallel motion is accepted."""
+        """Non-parallel motion is accepted.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         place(score4, "soprano", 0.0, "C5")
         place(score4, "soprano", 1.0, "D5")
         place(score4, "alto", 0.0, "F4")
@@ -67,7 +90,11 @@ class TestVoiceLeading:
         assert ParallelFifthsRule().run(score4, CheckerContext()) == []
 
     def test_parallel_octaves(self, score4: stream.Score) -> None:
-        """Parallel octaves are detected."""
+        """Parallel octaves are detected.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         place(score4, "soprano", 0.0, "C5")
         place(score4, "soprano", 1.0, "D5")
         place(score4, "alto", 0.0, "C4")
@@ -77,7 +104,11 @@ class TestVoiceLeading:
         ]
 
     def test_hidden_fifths(self, score4: stream.Score) -> None:
-        """Hidden fifths are detected."""
+        """Hidden fifths are detected.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         place(score4, "soprano", 0.0, "G4")
         place(score4, "soprano", 1.0, "C5")
         place(score4, "alto", 0.0, "E4")
@@ -85,7 +116,11 @@ class TestVoiceLeading:
         assert rule_ids(HiddenFifthsRule().run(score4, CheckerContext())) == ["hf5th"]
 
     def test_hidden_octaves(self, score4: stream.Score) -> None:
-        """Hidden octaves are detected."""
+        """Hidden octaves are detected.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         place(score4, "soprano", 0.0, "C#5")
         place(score4, "soprano", 1.0, "D5")
         place(score4, "alto", 0.0, "C4")
@@ -93,7 +128,11 @@ class TestVoiceLeading:
         assert rule_ids(HiddenOctavesRule().run(score4, CheckerContext())) == ["ho8ve"]
 
     def test_voice_crossing(self, score4: stream.Score) -> None:
-        """Crossing voices are detected."""
+        """Crossing voices are detected.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         place(score4, "soprano", 0.0, "C4")
         place(score4, "alto", 0.0, "C5")
         assert rule_ids(VoiceCrossingRule().run(score4, CheckerContext())) == [
@@ -101,7 +140,11 @@ class TestVoiceLeading:
         ]
 
     def test_excessive_spacing(self, score4: stream.Score) -> None:
-        """Over-wide spacing is detected."""
+        """Over-wide spacing is detected.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         place(score4, "soprano", 0.0, "C5")
         place(score4, "alto", 0.0, "C3")
         assert rule_ids(ExcessiveSpacingRule().run(score4, CheckerContext())) == [
@@ -109,7 +152,11 @@ class TestVoiceLeading:
         ]
 
     def test_final_outer_interval(self, score4: stream.Score) -> None:
-        """A bad final outer interval is detected."""
+        """A bad final outer interval is detected.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         place(score4, "soprano", 0.0, "C5")
         place(score4, "bass", 0.0, "D4")
         assert rule_ids(FinalOuterIntervalRule().run(score4, CheckerContext())) == [
@@ -117,7 +164,11 @@ class TestVoiceLeading:
         ]
 
     def test_final_outer_interval_ok(self, score4: stream.Score) -> None:
-        """A perfect final interval passes."""
+        """A perfect final interval passes.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         place(score4, "soprano", 0.0, "C5")
         place(score4, "bass", 0.0, "C3")
         assert FinalOuterIntervalRule().run(score4, CheckerContext()) == []
@@ -132,7 +183,11 @@ class TestHarmony:
     """Rules R8-R11."""
 
     def test_dominant_resolution(self, score4: stream.Score) -> None:
-        """An unresolved dominant seventh is detected."""
+        """An unresolved dominant seventh is detected.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         for voice, pitch in zip(
             ["soprano", "alto", "tenor", "bass"], ["F4", "D4", "B3", "G3"], strict=True
         ):
@@ -146,7 +201,11 @@ class TestHarmony:
         ]
 
     def test_dominant_resolution_ok(self, score4: stream.Score) -> None:
-        """A resolved dominant seventh passes."""
+        """A resolved dominant seventh passes.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         for voice, pitch in zip(
             ["soprano", "alto", "tenor", "bass"], ["F4", "D4", "B3", "G3"], strict=True
         ):
@@ -158,7 +217,11 @@ class TestHarmony:
         assert DominantResolutionRule().run(score4, CheckerContext()) == []
 
     def test_leading_tone(self, score4: stream.Score) -> None:
-        """An unresolved leading tone is detected."""
+        """An unresolved leading tone is detected.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         place(score4, "soprano", 0.0, "B4")
         place(score4, "soprano", 1.0, "G4")
         assert rule_ids(LeadingToneRule().run(score4, CheckerContext(tonic="C"))) == [
@@ -166,13 +229,21 @@ class TestHarmony:
         ]
 
     def test_leading_tone_ok(self, score4: stream.Score) -> None:
-        """A rising leading tone passes."""
+        """A rising leading tone passes.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         place(score4, "soprano", 0.0, "B4")
         place(score4, "soprano", 1.0, "C5")
         assert LeadingToneRule().run(score4, CheckerContext(tonic="C")) == []
 
     def test_doubled_leading_tone(self, score4: stream.Score) -> None:
-        """A doubled leading tone is detected."""
+        """A doubled leading tone is detected.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         place(score4, "soprano", 0.0, "B4")
         place(score4, "alto", 0.0, "B3")
         assert rule_ids(ChordOmissionRule().run(score4, CheckerContext(tonic="C"))) == [
@@ -180,7 +251,11 @@ class TestHarmony:
         ]
 
     def test_diminished_interval(self, score4: stream.Score) -> None:
-        """An unresolved diminished leap is detected."""
+        """An unresolved diminished leap is detected.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         place(score4, "soprano", 0.0, "C5")
         place(score4, "soprano", 1.0, "F#5")
         place(score4, "soprano", 2.0, "A5")
@@ -189,7 +264,11 @@ class TestHarmony:
         ]
 
     def test_diminished_interval_ok(self, score4: stream.Score) -> None:
-        """A resolved diminished leap passes."""
+        """A resolved diminished leap passes.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         place(score4, "soprano", 0.0, "C5")
         place(score4, "soprano", 1.0, "F#5")
         place(score4, "soprano", 2.0, "F5")
@@ -200,7 +279,11 @@ class TestTonal:
     """Rules R12-R14."""
 
     def test_tonal_unity(self, score4: stream.Score) -> None:
-        """A missing tonic at an expectation is detected."""
+        """A missing tonic at an expectation is detected.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         place(score4, "soprano", 0.0, "D5")
         context = CheckerContext(
             expectations=[StructuralExpectation(measure=1, key="C")]
@@ -208,7 +291,11 @@ class TestTonal:
         assert rule_ids(TonalUnityRule().run(score4, context)) == ["tonality"]
 
     def test_tonal_unity_ok(self, score4: stream.Score) -> None:
-        """A present tonic passes."""
+        """A present tonic passes.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         place(score4, "soprano", 0.0, "C5")
         context = CheckerContext(
             expectations=[StructuralExpectation(measure=1, key="C")]
@@ -216,12 +303,20 @@ class TestTonal:
         assert TonalUnityRule().run(score4, context) == []
 
     def test_tonal_unity_no_expectations(self, score4: stream.Score) -> None:
-        """Without expectations the rule is skipped."""
+        """Without expectations the rule is skipped.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         place(score4, "soprano", 0.0, "D5")
         assert TonalUnityRule().run(score4, CheckerContext()) == []
 
     def test_cadence(self, score4: stream.Score) -> None:
-        """A missing authentic cadence is detected."""
+        """A missing authentic cadence is detected.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         place(score4, "soprano", 0.0, "D5")
         place(score4, "soprano", 4.0, "E5")
         context = CheckerContext(
@@ -230,7 +325,11 @@ class TestTonal:
         assert rule_ids(CadenceTypeRule().run(score4, context)) == ["cadence"]
 
     def test_cadence_ok(self, score4: stream.Score) -> None:
-        """An authentic cadence passes."""
+        """An authentic cadence passes.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         for voice, pitch in zip(["soprano", "bass"], ["G4", "G3"], strict=True):
             place(score4, voice, 0.0, pitch)
         for voice, pitch in zip(["soprano", "bass"], ["C5", "C3"], strict=True):
@@ -241,12 +340,20 @@ class TestTonal:
         assert CadenceTypeRule().run(score4, context) == []
 
     def test_cadence_no_points(self, score4: stream.Score) -> None:
-        """Without cadence points the rule is skipped."""
+        """Without cadence points the rule is skipped.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         place(score4, "soprano", 0.0, "C5")
         assert CadenceTypeRule().run(score4, CheckerContext()) == []
 
     def test_voice_count(self, score4: stream.Score) -> None:
-        """A changing voice count is detected."""
+        """A changing voice count is detected.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         for measure in range(20):
             place(score4, "soprano", measure * 4.0, "C5")
         for measure in range(4):
@@ -255,8 +362,25 @@ class TestTonal:
             "voices"
         ]
 
+    def test_voice_count_short(self, score4: stream.Score) -> None:
+        """A voice disappearing in a short piece is detected.
+
+        Args:
+            score4: An empty four-voice score.
+        """
+        place(score4, "soprano", 0.0, "C5")
+        place(score4, "alto", 0.0, "E4")
+        place(score4, "soprano", 4.0, "D5")
+        assert rule_ids(FixedVoiceCountRule().run(score4, CheckerContext())) == [
+            "voices"
+        ]
+
     def test_voice_count_disabled(self, score4: stream.Score) -> None:
-        """The rule can be disabled by context."""
+        """The rule can be disabled by context.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         place(score4, "soprano", 0.0, "C5")
         place(score4, "soprano", 4.0, "D5")
         assert (
@@ -265,7 +389,11 @@ class TestTonal:
         )
 
     def test_tonal_unity_skips_keyless(self, score4: stream.Score) -> None:
-        """Expectations without a key are skipped."""
+        """Expectations without a key are skipped.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         place(score4, "soprano", 0.0, "D5")
         context = CheckerContext(
             expectations=[StructuralExpectation(measure=1, key=None)]
@@ -273,7 +401,11 @@ class TestTonal:
         assert TonalUnityRule().run(score4, context) == []
 
     def test_tonal_unity_far_measure(self, score4: stream.Score) -> None:
-        """A far-away expectation falls back to the last slice."""
+        """A far-away expectation falls back to the last slice.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         place(score4, "soprano", 0.0, "D5")
         context = CheckerContext(
             expectations=[StructuralExpectation(measure=999, key="C")]
@@ -281,7 +413,11 @@ class TestTonal:
         assert rule_ids(TonalUnityRule().run(score4, context)) == ["tonality"]
 
     def test_cadence_far_measure(self, score4: stream.Score) -> None:
-        """A cadence point before the music falls back to all slices."""
+        """A cadence point before the music falls back to all slices.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         place(score4, "soprano", 0.0, "C5")
         place(score4, "soprano", 4.0, "D5")
         context = CheckerContext(
@@ -290,7 +426,11 @@ class TestTonal:
         assert rule_ids(CadenceTypeRule().run(score4, context)) == ["cadence"]
 
     def test_slice_for_fallback(self, score4: stream.Score) -> None:
-        """Locating an unknown event falls back to the first slice."""
+        """Locating an unknown event falls back to the first slice.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         place(score4, "soprano", 0.0, "C5")
         slices = build_slices(score4)
         missing = VoiceEvent(
@@ -309,7 +449,11 @@ class TestEmpty:
         ]
 
     def test_non_empty_score(self, score4: stream.Score) -> None:
-        """A score with at least one note passes."""
+        """A score with at least one note passes.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         place(score4, "soprano", 0.0, "C5")
         assert EmptyScoreRule().run(score4, CheckerContext()) == []
 

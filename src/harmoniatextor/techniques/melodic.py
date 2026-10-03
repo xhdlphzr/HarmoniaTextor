@@ -83,7 +83,15 @@ class ImitationTechnique(Technique[ImitationParams]):
     params_model = ImitationParams
 
     def apply(self, ctx: TechniqueContext, params: ImitationParams) -> TechniqueResult:
-        """Apply imitation."""
+        """Apply imitation.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         theme = get_theme(ctx, params.theme_id)
         notes = transpose_notes(theme.notes, parse_interval(params.interval))
         warnings: list[str] = []
@@ -107,7 +115,15 @@ class InversionTechnique(Technique[InversionParams]):
     params_model = InversionParams
 
     def apply(self, ctx: TechniqueContext, params: InversionParams) -> TechniqueResult:
-        """Apply inversion."""
+        """Apply inversion.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         theme = get_theme(ctx, params.theme_id)
         axis = (
             average_axis_midi(theme.notes)
@@ -131,7 +147,15 @@ class RetrogradeTechnique(Technique[RetrogradeParams]):
     params_model = RetrogradeParams
 
     def apply(self, ctx: TechniqueContext, params: RetrogradeParams) -> TechniqueResult:
-        """Apply retrograde."""
+        """Apply retrograde.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         theme = get_theme(ctx, params.theme_id)
         pitches = [item.pitch for item in theme.notes]
         durations = [item.quarter_length for item in theme.notes]
@@ -163,7 +187,15 @@ class AugmentationTechnique(Technique[AugmentationParams]):
     def apply(
         self, ctx: TechniqueContext, params: AugmentationParams
     ) -> TechniqueResult:
-        """Apply augmentation."""
+        """Apply augmentation.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         theme = get_theme(ctx, params.theme_id)
         notes = [
             ThemeNote(item.pitch, item.quarter_length * params.factor)
@@ -184,7 +216,15 @@ class DiminutionTechnique(Technique[DiminutionParams]):
     params_model = DiminutionParams
 
     def apply(self, ctx: TechniqueContext, params: DiminutionParams) -> TechniqueResult:
-        """Apply diminution."""
+        """Apply diminution.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         theme = get_theme(ctx, params.theme_id)
         notes = [
             ThemeNote(item.pitch, item.quarter_length / params.factor)
@@ -207,7 +247,15 @@ class TranspositionTechnique(Technique[TranspositionParams]):
     def apply(
         self, ctx: TechniqueContext, params: TranspositionParams
     ) -> TechniqueResult:
-        """Apply transposition."""
+        """Apply transposition.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         theme = get_theme(ctx, params.theme_id)
         if params.target_key is not None:
             notes = transpose_to_key(theme.notes, params.target_key)
@@ -228,7 +276,15 @@ class SequenceTechnique(Technique[SequenceParams]):
     params_model = SequenceParams
 
     def apply(self, ctx: TechniqueContext, params: SequenceParams) -> TechniqueResult:
-        """Apply a melodic sequence."""
+        """Apply a melodic sequence.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         theme = get_theme(ctx, params.theme_id)
         step = parse_interval(params.step_interval)
         editor = ScoreEditor(ctx.score)
@@ -257,7 +313,15 @@ class VoiceExchangeTechnique(Technique[VoiceExchangeParams]):
     def apply(
         self, ctx: TechniqueContext, params: VoiceExchangeParams
     ) -> TechniqueResult:
-        """Apply a voice exchange."""
+        """Apply a voice exchange.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         editor = ScoreEditor(ctx.score)
         if params.theme_id_1 is not None and params.theme_id_2 is not None:
             first = get_theme(ctx, params.theme_id_1).voice

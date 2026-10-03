@@ -37,7 +37,11 @@ class Features:
 
     @property
     def audio_available(self) -> bool:
-        """Whether compressed audio export (M4A/MP3) is possible."""
+        """Whether compressed audio export (M4A/MP3) is possible.
+
+        Returns:
+            Whether the condition holds.
+        """
         return (
             self.ffmpeg is not None
             and self.fluidsynth is not None
@@ -46,7 +50,11 @@ class Features:
 
     @property
     def playback_available(self) -> bool:
-        """Whether high-fidelity server-side playback is possible."""
+        """Whether high-fidelity server-side playback is possible.
+
+        Returns:
+            Whether the condition holds.
+        """
         return self.fluidsynth is not None and self.soundfont is not None
 
 

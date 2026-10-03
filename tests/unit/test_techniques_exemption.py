@@ -24,7 +24,11 @@ class TestFreeVoiceLeading:
         assert build_default_registry().get("imitation").exempts == frozenset()
 
     def test_apply(self, score4: stream.Score) -> None:
-        """Applying the exemption returns the unchanged score and a note."""
+        """Applying the exemption returns the unchanged score and a note.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         technique = build_default_registry().get("free_voice_leading")
         context = TechniqueContext(score=score4, themes={})
         params = technique.params_model(

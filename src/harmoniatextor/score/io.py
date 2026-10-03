@@ -94,7 +94,7 @@ def new_part(voice: str, instrument_name: str | None = None) -> stream.Part:
         instrument_name: Instrument name; defaults to a voice-based mapping.
 
     Returns:
-         A new :class:`music21.stream.Part`.
+        A new :class:`music21.stream.Part`.
     """
     part = stream.Part()  # type: ignore[no-untyped-call]  # music21 is unannotated
     part.partName = voice

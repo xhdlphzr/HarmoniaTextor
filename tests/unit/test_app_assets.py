@@ -17,7 +17,11 @@ class TestAssets:
     """Asset path resolution."""
 
     def test_assets_dir_repository(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """During development the assets live next to the repository root."""
+        """During development the assets live next to the repository root.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         monkeypatch.delattr(sys, "_MEIPASS", raising=False)
         directory = assets.assets_dir()
         assert directory.name == "assets"
@@ -26,7 +30,12 @@ class TestAssets:
     def test_assets_dir_frozen(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        """When frozen the assets live inside the bundle directory."""
+        """When frozen the assets live inside the bundle directory.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+            tmp_path: The pytest temporary path fixture.
+        """
         monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path), raising=False)
         assert assets.assets_dir() == tmp_path / "assets"
 
@@ -39,6 +48,11 @@ class TestAssets:
     def test_favicon_icon_missing(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        """A missing favicon returns None."""
+        """A missing favicon returns None.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+            tmp_path: The pytest temporary path fixture.
+        """
         monkeypatch.setattr(assets, "assets_dir", lambda: tmp_path)
         assert assets.favicon_icon() is None

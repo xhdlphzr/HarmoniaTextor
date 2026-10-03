@@ -19,7 +19,16 @@ REGISTRY = build_default_registry()
 
 
 def apply(technique_id: str, score: stream.Score, **params: Any) -> Any:
-    """Apply a technique by identifier to a score."""
+    """Apply a technique by identifier to a score.
+
+    Args:
+        technique_id: The technique id.
+        score: The score to inspect.
+        params: Validated parameters.
+
+    Returns:
+        The result.
+    """
     technique = REGISTRY.get(technique_id)
     context = TechniqueContext(score=score, themes={})
     return technique.apply(context, technique.params_model(**params))
@@ -29,7 +38,11 @@ class TestTexture:
     """Texture techniques."""
 
     def test_alberti_bass(self, score4: stream.Score) -> None:
-        """An Alberti figure fills the voice."""
+        """An Alberti figure fills the voice.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         apply(
             "alberti_bass",
             score4,
@@ -40,7 +53,11 @@ class TestTexture:
         assert list(score4.recurse().notes)
 
     def test_broken_chord_up(self, score4: stream.Score) -> None:
-        """An ascending arpeggio is written."""
+        """An ascending arpeggio is written.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         apply(
             "broken_chord",
             score4,
@@ -51,7 +68,11 @@ class TestTexture:
         )
 
     def test_broken_chord_down(self, score4: stream.Score) -> None:
-        """A descending arpeggio is written."""
+        """A descending arpeggio is written.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         apply(
             "broken_chord",
             score4,
@@ -62,7 +83,11 @@ class TestTexture:
         )
 
     def test_broken_chord_updown(self, score4: stream.Score) -> None:
-        """An up-down arpeggio is written."""
+        """An up-down arpeggio is written.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         apply(
             "broken_chord",
             score4,
@@ -73,7 +98,11 @@ class TestTexture:
         )
 
     def test_broken_chord_bad_value(self, score4: stream.Score) -> None:
-        """An unknown note value raises a technique error."""
+        """An unknown note value raises a technique error.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         with pytest.raises(TechniqueError):
             apply(
                 "broken_chord",
@@ -85,7 +114,11 @@ class TestTexture:
             )
 
     def test_parallel_chords(self, score4: stream.Score) -> None:
-        """Parallel chords step by an interval."""
+        """Parallel chords step by an interval.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         apply(
             "parallel_chords",
             score4,
@@ -96,7 +129,11 @@ class TestTexture:
         )
 
     def test_parallel_chords_overflow(self, score4: stream.Score) -> None:
-        """Too many repetitions yields a warning."""
+        """Too many repetitions yields a warning.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         result = apply(
             "parallel_chords",
             score4,
@@ -108,7 +145,11 @@ class TestTexture:
         assert result.warnings
 
     def test_planing_triad(self, score4: stream.Score) -> None:
-        """A planing triad slides up the scale."""
+        """A planing triad slides up the scale.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         apply(
             "planing",
             score4,
@@ -118,7 +159,11 @@ class TestTexture:
         )
 
     def test_planing_seventh(self, score4: stream.Score) -> None:
-        """A planing seventh chord slides up the scale."""
+        """A planing seventh chord slides up the scale.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         apply(
             "planing",
             score4,

@@ -75,7 +75,7 @@ class CheckEngine:
                         voice_a=detected.voice_a,
                         voice_b=detected.voice_b,
                         kind=detected.kind,
-                        message_zh=detected.message_zh,
+                        message=detected.message,
                         snippet=detected.snippet,
                     )
                 )
@@ -107,7 +107,7 @@ def format_feedback(report: CheckReport) -> str:
         suffix = f" 修改建议:{fix}" if fix else ""
         lines.append(
             f"{index}) 小节 {item.measure} · 声部 {voices} · 规则 {item.rule_id}:"
-            f"{item.message_zh} 具体位置:{item.snippet}{suffix}"
+            f"{item.message} 具体位置:{item.snippet}{suffix}"
         )
     lines.append(
         "请针对上面每一处,按修改建议用 edit(measure, voice, musicxml) 改对应小节与声部。"

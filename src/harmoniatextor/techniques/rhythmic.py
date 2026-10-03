@@ -85,7 +85,15 @@ class SyncopationTechnique(Technique[SyncopationParams]):
     def apply(
         self, ctx: TechniqueContext, params: SyncopationParams
     ) -> TechniqueResult:
-        """Apply syncopation."""
+        """Apply syncopation.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         theme = get_theme(ctx, params.theme_id)
         durations = _parse_pattern(params.sync_pattern)
         pitches = [item.pitch for item in theme.notes]
@@ -113,7 +121,15 @@ class RhythmicIndependenceTechnique(Technique[RhythmicIndependenceParams]):
     def apply(
         self, ctx: TechniqueContext, params: RhythmicIndependenceParams
     ) -> TechniqueResult:
-        """Apply rhythmic independence."""
+        """Apply rhythmic independence.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         editor = ScoreEditor(ctx.score)
         warnings: list[str] = []
         for pair in params.voice_pairs:
@@ -145,7 +161,18 @@ class CounterRhythmTechnique(Technique[CounterRhythmParams]):
     def apply(
         self, ctx: TechniqueContext, params: CounterRhythmParams
     ) -> TechniqueResult:
-        """Apply counter-rhythm."""
+        """Apply counter-rhythm.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+
+        Raises:
+            TechniqueError: When the operation cannot proceed.
+        """
         parts = params.rhythm_ratio.split(":")
         if len(parts) != _RATIO_PARTS:
             raise TechniqueError("BAD_PARAM", f"invalid ratio {params.rhythm_ratio!r}")
@@ -190,7 +217,15 @@ class VoiceMotionTechnique(Technique[VoiceMotionParams]):
     def apply(
         self, ctx: TechniqueContext, params: VoiceMotionParams
     ) -> TechniqueResult:
-        """Apply the requested motion type."""
+        """Apply the requested motion type.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         editor = ScoreEditor(ctx.score)
         warnings: list[str] = []
         for pair in params.voice_pairs:
@@ -244,7 +279,15 @@ class RubatoTechnique(Technique[RubatoParams]):
     params_model = RubatoParams
 
     def apply(self, ctx: TechniqueContext, params: RubatoParams) -> TechniqueResult:
-        """Apply the agogic redistribution measure by measure."""
+        """Apply the agogic redistribution measure by measure.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         editor = ScoreEditor(ctx.score)
         warnings: list[str] = []
         for voice in editor.voice_names():

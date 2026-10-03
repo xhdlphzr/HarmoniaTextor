@@ -76,14 +76,28 @@ def build_tools(
     """
 
     def read() -> str:
-        """Return the complete current MusicXML score of the movement."""
+        """Return the complete current MusicXML score of the movement.
+
+        Returns:
+            The resulting text.
+        """
         xml = service.current_musicxml(work_id, movement_id)
         return xml or "空谱:本乐章还没有任何声部。请先用 add_part 建立声部。"
 
     def submit_theme(
         musicxml: str, instrument: str, key: str = "", voice: str = ""
     ) -> str:
-        """Submit a theme melody, choosing the target part's instrument."""
+        """Submit a theme melody, choosing the target part's instrument.
+
+        Args:
+            musicxml: MusicXML fragment.
+            instrument: Instrument name.
+            key: Key spelling.
+            voice: Voice slot name.
+
+        Returns:
+            The resulting text.
+        """
         return result_payload(
             service.submit_theme(
                 work_id,
@@ -97,23 +111,55 @@ def build_tools(
         )
 
     def add_part(voice: str, instrument: str) -> str:
-        """Add a new instrumental part and always name its instrument."""
+        """Add a new instrumental part and always name its instrument.
+
+        Args:
+            voice: Voice slot name.
+            instrument: Instrument name.
+
+        Returns:
+            The resulting text.
+        """
         return result_payload(
             service.add_part(work_id, movement_id, voice, instrument, check=False)
         )
 
     def remove_part(voice: str) -> str:
-        """Remove a voice from the movement."""
+        """Remove a voice from the movement.
+
+        Args:
+            voice: Voice slot name.
+
+        Returns:
+            The resulting text.
+        """
         return result_payload(
             service.remove_part(work_id, movement_id, voice, check=False)
         )
 
     def set_tempo(bpm: int) -> str:
-        """Change the tempo of the movement."""
+        """Change the tempo of the movement.
+
+        Args:
+            bpm: Tempo in quarter notes per minute.
+
+        Returns:
+            The resulting text.
+        """
         return result_payload(service.set_tempo(work_id, movement_id, bpm, check=False))
 
     def annotate(measure: int, voice: str, mark: str, value: str = "") -> str:
-        """Add an expressive mark to one measure of one voice."""
+        """Add an expressive mark to one measure of one voice.
+
+        Args:
+            measure: One-based measure number.
+            voice: Voice slot name.
+            mark: Expressive mark kind.
+            value: Raw value.
+
+        Returns:
+            The resulting text.
+        """
         return result_payload(
             service.annotate(
                 work_id, movement_id, measure, voice, mark, value, check=False
@@ -121,7 +167,16 @@ def build_tools(
         )
 
     def edit(measure: int, voice: str, musicxml: str = "") -> str:
-        """Replace or clear one measure of one voice."""
+        """Replace or clear one measure of one voice.
+
+        Args:
+            measure: One-based measure number.
+            voice: Voice slot name.
+            musicxml: MusicXML fragment.
+
+        Returns:
+            The resulting text.
+        """
         return result_payload(
             service.edit_measure(
                 work_id, movement_id, measure, voice, musicxml, check=False
@@ -129,7 +184,16 @@ def build_tools(
         )
 
     def insert(measure: int, voice: str = "", musicxml: str = "") -> str:
-        """Insert a new measure in every voice and receive the full score."""
+        """Insert a new measure in every voice and receive the full score.
+
+        Args:
+            measure: One-based measure number.
+            voice: Voice slot name.
+            musicxml: MusicXML fragment.
+
+        Returns:
+            The resulting text.
+        """
         return result_payload(
             service.insert_measure(
                 work_id,
@@ -143,7 +207,14 @@ def build_tools(
         )
 
     def delete(measure: int) -> str:
-        """Delete a measure from every voice and receive the full score."""
+        """Delete a measure from every voice and receive the full score.
+
+        Args:
+            measure: One-based measure number.
+
+        Returns:
+            The resulting text.
+        """
         return result_payload(
             service.delete_measure(work_id, movement_id, measure, check=False),
             include_score=True,

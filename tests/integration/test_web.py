@@ -34,7 +34,15 @@ _HTTP_NOT_FOUND = 404
 
 
 def _call(name: str, args: dict[str, object]) -> AIMessage:
-    """Build an assistant message requesting one tool."""
+    """Build an assistant message requesting one tool.
+
+    Args:
+        name: The name.
+        args: The args.
+
+    Returns:
+        The call result.
+    """
     return AIMessage(
         content="",
         tool_calls=[
@@ -101,7 +109,11 @@ class FakeChatModel:
 
 
 def theme_xml() -> str:
-    """Build a simple theme melody."""
+    """Build a simple theme melody.
+
+    Returns:
+        The resulting text.
+    """
     score = new_score(key="C", time_signature="4/4", tempo_bpm=84, voices=["soprano"])
     ScoreEditor(score).write_line(
         "soprano", 1, [ThemeNote("C5", 1.0), ThemeNote("D5", 1.0)]
@@ -111,7 +123,15 @@ def theme_xml() -> str:
 
 @pytest.fixture
 def app(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Flask:
-    """Return a testing Flask app with an isolated configuration directory."""
+    """Return a testing Flask app with an isolated configuration directory.
+
+    Args:
+        tmp_path: The pytest temporary path fixture.
+        monkeypatch: The pytest monkeypatch fixture.
+
+    Returns:
+        The app result.
+    """
     monkeypatch.setenv("HARMONIA_DOWNLOADS", str(tmp_path / "downloads"))
     monkeypatch.setattr("harmoniatextor.config.config_dir", lambda: tmp_path / "config")
     return create_app(tmp_path / "data", tmp_path / "vendor", testing=True)
@@ -119,12 +139,26 @@ def app(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Flask:
 
 @pytest.fixture
 def client(app: Flask) -> FlaskClient:
-    """Return a test client."""
+    """Return a test client.
+
+    Args:
+        app: The Flask application.
+
+    Returns:
+        The client result.
+    """
     return app.test_client()
 
 
 def make_work(app: Flask) -> tuple[str, str]:
-    """Create a work directly through the service."""
+    """Create a work directly through the service.
+
+    Args:
+        app: The Flask application.
+
+    Returns:
+        The make work result.
+    """
     service = get_service(app)
     work = service.create_work("Demo", "plain", "C")
     return work.id, work.movements[0].id
@@ -134,32 +168,52 @@ class TestPages:
     """HTML pages."""
 
     def test_index_empty(self, client: FlaskClient) -> None:
-        """The index renders with no works."""
+        """The index renders with no works.
+
+        Args:
+            client: The Flask test client.
+        """
         response = client.get("/")
         assert response.status_code == _HTTP_OK
         assert "HarmoniaTextor" in response.get_data(as_text=True)
 
     def test_language_defaults_to_english(self, client: FlaskClient) -> None:
-        """The interface is English by default."""
+        """The interface is English by default.
+
+        Args:
+            client: The Flask test client.
+        """
         page = client.get("/").get_data(as_text=True)
         assert 'lang="en"' in page
         assert "Create" in page
 
     def test_language_switch_to_chinese(self, client: FlaskClient) -> None:
-        """The configured language is rendered."""
+        """The configured language is rendered.
+
+        Args:
+            client: The Flask test client.
+        """
         save_config({"language": "zh"})
         page = client.get("/").get_data(as_text=True)
         assert 'lang="zh-CN"' in page
         assert "创作规划" in page
 
     def test_index_no_store(self, client: FlaskClient) -> None:
-        """Pages are not cached by the desktop webview."""
+        """Pages are not cached by the desktop webview.
+
+        Args:
+            client: The Flask test client.
+        """
         response = client.get("/")
         assert "no-store" in response.headers.get("Cache-Control", "")
         response.close()
 
     def test_history_persists_across_restarts(self, tmp_path: Path) -> None:
-        """Works survive an application restart on the same data directory."""
+        """Works survive an application restart on the same data directory.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         first = create_app(
             data_dir=tmp_path, vendor_dir=tmp_path / "vendor", testing=True
         )
@@ -172,7 +226,11 @@ class TestPages:
         assert "持久作品" in page
 
     def test_create_and_view(self, client: FlaskClient) -> None:
-        """Creating a work redirects to its workspace."""
+        """Creating a work redirects to its workspace.
+
+        Args:
+            client: The Flask test client.
+        """
         response = client.post("/works", data={"title": "Demo", "genre": "plain"})
         assert response.status_code == _HTTP_REDIRECT
         location = response.headers["Location"]
@@ -181,12 +239,22 @@ class TestPages:
         assert "Demo" in page.get_data(as_text=True)
 
     def test_index_with_work(self, app: Flask, client: FlaskClient) -> None:
-        """The index lists existing works."""
+        """The index lists existing works.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
         make_work(app)
         assert "Demo" in client.get("/").get_data(as_text=True)
 
     def test_index_with_empty_work(self, app: Flask, client: FlaskClient) -> None:
-        """A work without movements still renders the index."""
+        """A work without movements still renders the index.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
         work = get_service(app).create_work(
             "空作品", "plain", "C", with_movements=False
         )
@@ -195,7 +263,12 @@ class TestPages:
         assert work.title in response.get_data(as_text=True)
 
     def test_index_shows_style_chip(self, app: Flask, client: FlaskClient) -> None:
-        """The history list shows the work's style."""
+        """The history list shows the work's style.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
         get_service(app).create_work("Demo", "plain", "C", style="impressionist")
         page = client.get("/").get_data(as_text=True)
         assert 'chip soft">Impressionist</span>' in page
@@ -203,7 +276,12 @@ class TestPages:
     def test_index_legacy_work_defaults_to_baroque(
         self, app: Flask, client: FlaskClient
     ) -> None:
-        """A work without a stored style is labelled Baroque."""
+        """A work without a stored style is labelled Baroque.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
         service = get_service(app)
         work = service.create_work("Legacy", "plain", "C")
         work.style = None
@@ -214,7 +292,12 @@ class TestPages:
     def test_index_marks_interrupted_generation(
         self, app: Flask, client: FlaskClient
     ) -> None:
-        """An interrupted generation is marked in the index."""
+        """An interrupted generation is marked in the index.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
         service = get_service(app)
         work = service.create_work("中断作品", "plain", "C", with_movements=False)
         service.start_generation(work.id, "写一段")
@@ -225,7 +308,12 @@ class TestPages:
     def test_index_marks_failed_generation(
         self, app: Flask, client: FlaskClient
     ) -> None:
-        """A generation stopped by an error is marked in the index."""
+        """A generation stopped by an error is marked in the index.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
         service = get_service(app)
         work = service.create_work("失败作品", "plain", "C", with_movements=False)
         service.start_generation(work.id, "写一段")
@@ -236,7 +324,12 @@ class TestPages:
     def test_index_marks_running_generation(
         self, app: Flask, client: FlaskClient
     ) -> None:
-        """A generation still running is marked in the index."""
+        """A generation still running is marked in the index.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
         service = get_service(app)
         work = service.create_work("生成中作品", "plain", "C", with_movements=False)
         service.start_generation(work.id, "写一段")
@@ -246,14 +339,24 @@ class TestPages:
     def test_work_without_movements_redirects(
         self, app: Flask, client: FlaskClient
     ) -> None:
-        """A work without movements redirects to the index."""
+        """A work without movements redirects to the index.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
         work = get_service(app).create_work(
             "空作品", "plain", "C", with_movements=False
         )
         assert client.get(f"/works/{work.id}").status_code == _HTTP_REDIRECT
 
     def test_work_with_review(self, app: Flask, client: FlaskClient) -> None:
-        """A stored reviewer verdict is shown on the work page."""
+        """A stored reviewer verdict is shown on the work page.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
         work_id, movement_id = make_work(app)
         get_service(app).record_review(work_id, movement_id, False, "节奏太整齐")
         page = client.get(f"/works/{work_id}").get_data(as_text=True)
@@ -261,7 +364,12 @@ class TestPages:
         assert "节奏太整齐" in page
 
     def test_work_with_plan(self, app: Flask, client: FlaskClient) -> None:
-        """A stored creation plan is shown on the work page."""
+        """A stored creation plan is shown on the work page.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
         work_id, movement_id = make_work(app)
         get_service(app).record_plan(work_id, movement_id, "钢琴:平静到激昂")
         page = client.get(f"/works/{work_id}").get_data(as_text=True)
@@ -269,7 +377,11 @@ class TestPages:
         assert "钢琴:平静到激昂" in page
 
     def test_favicon(self, client: FlaskClient) -> None:
-        """The favicon route serves the bundled PNG."""
+        """The favicon route serves the bundled PNG.
+
+        Args:
+            client: The Flask test client.
+        """
         response = client.get("/favicon.ico")
         assert response.status_code == _HTTP_OK
         assert response.content_type == "image/png"
@@ -279,7 +391,12 @@ class TestPages:
     def test_favicon_missing(
         self, client: FlaskClient, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """A missing favicon yields a 404."""
+        """A missing favicon yields a 404.
+
+        Args:
+            client: The Flask test client.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         monkeypatch.setattr("app.routes.favicon_icon", lambda: None)
         assert client.get("/favicon.ico").status_code == _HTTP_NOT_FOUND
 
@@ -288,7 +405,12 @@ class TestApi:
     """JSON and score endpoints."""
 
     def test_score(self, app: Flask, client: FlaskClient) -> None:
-        """The score endpoint returns MusicXML."""
+        """The score endpoint returns MusicXML.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
         work_id, movement_id = make_work(app)
         get_service(app).submit_theme(work_id, movement_id, theme_xml(), check=False)
         response = client.get(f"/api/works/{work_id}/movements/{movement_id}/score")
@@ -296,7 +418,12 @@ class TestApi:
         assert "score-partwise" in response.get_data(as_text=True)
 
     def test_score_merged_movements(self, app: Flask, client: FlaskClient) -> None:
-        """A work with composed movements serves its live merged score."""
+        """A work with composed movements serves its live merged score.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
         service = get_service(app)
         work = service.create_work("Demo", "plain", "C", with_movements=False)
         service.add_movement(work.id)
@@ -305,15 +432,25 @@ class TestApi:
         assert "score-partwise" in response.get_data(as_text=True)
 
     def test_score_empty(self, app: Flask, client: FlaskClient) -> None:
-        """A work without movements returns an empty score."""
+        """A movement without notes returns an empty score.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
         service = get_service(app)
-        work = service.create_work("Demo", "plain", "C", with_movements=False)
+        work = service.create_work("Demo", "plain", "C")
         response = client.get(f"/api/works/{work.id}/movements/m01/score")
         assert response.status_code == _HTTP_OK
         assert response.get_data(as_text=True) == ""
 
     def test_score_fallback_revision(self, app: Flask, client: FlaskClient) -> None:
-        """A movement with a voice but no notes falls back to its revision."""
+        """A movement with a voice but no notes falls back to its revision.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
         service = get_service(app)
         work = service.create_work("Demo", "plain", "C")
         movement_id = work.movements[0].id
@@ -325,7 +462,16 @@ class TestApi:
     def test_score_failure(
         self, app: Flask, client: FlaskClient, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """A failing score read returns an empty document, not an HTML page."""
+        """A failing score read returns an empty document, not an HTML page.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+            monkeypatch: The pytest monkeypatch fixture.
+
+        Raises:
+            RuntimeError: When the operation cannot proceed.
+        """
         work_id, movement_id = make_work(app)
         service = get_service(app)
 
@@ -338,7 +484,12 @@ class TestApi:
         assert response.get_data(as_text=True) == ""
 
     def test_check(self, app: Flask, client: FlaskClient) -> None:
-        """The check endpoint reports the empty score."""
+        """The check endpoint reports the empty score.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
         work_id, movement_id = make_work(app)
         data = client.post(
             f"/api/works/{work_id}/movements/{movement_id}/check"
@@ -347,7 +498,12 @@ class TestApi:
         assert any(item["rule_id"] == "empty" for item in data["violations"])
 
     def test_finalize(self, app: Flask, client: FlaskClient) -> None:
-        """Finalisation returns a result."""
+        """Finalisation returns a result.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
         work_id, movement_id = make_work(app)
         data = client.post(
             f"/api/works/{work_id}/movements/{movement_id}/finalize"
@@ -355,7 +511,12 @@ class TestApi:
         assert "ok" in data
 
     def test_rollback_json(self, app: Flask, client: FlaskClient) -> None:
-        """Rollback accepts JSON."""
+        """Rollback accepts JSON.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
         service = get_service(app)
         work_id, movement_id = make_work(app)
         service.edit_measure(
@@ -368,7 +529,12 @@ class TestApi:
         assert data["ok"] is True
 
     def test_rollback_form(self, app: Flask, client: FlaskClient) -> None:
-        """Rollback accepts form data."""
+        """Rollback accepts form data.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
         work_id, movement_id = make_work(app)
         get_service(app).submit_theme(work_id, movement_id, theme_xml(), check=False)
         data = client.post(
@@ -378,7 +544,12 @@ class TestApi:
         assert data["ok"] is True
 
     def test_audit_json(self, app: Flask, client: FlaskClient) -> None:
-        """Audit notes accept JSON."""
+        """Audit notes accept JSON.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
         work_id, movement_id = make_work(app)
         data = client.post(
             f"/api/works/{work_id}/movements/{movement_id}/audit",
@@ -387,7 +558,12 @@ class TestApi:
         assert data["ok"] is True
 
     def test_audit_form(self, app: Flask, client: FlaskClient) -> None:
-        """Audit notes accept form data."""
+        """Audit notes accept form data.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
         work_id, movement_id = make_work(app)
         data = client.post(
             f"/api/works/{work_id}/movements/{movement_id}/audit",
@@ -395,21 +571,13 @@ class TestApi:
         ).get_json()
         assert data["ok"] is True
 
-    def test_agent(
-        self, app: Flask, client: FlaskClient, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """The agent endpoint runs a session."""
-        monkeypatch.setattr("app.routes.create_chat_model", FakeChatModel)
-        work_id, movement_id = make_work(app)
-        data = client.post(
-            f"/api/works/{work_id}/movements/{movement_id}/agent",
-            json={"goal": "写一个主题"},
-        ).get_json()
-        assert data["completed"] is True
-        assert data["final_text"] == "done"
-
     def test_export_musicxml(self, app: Flask, client: FlaskClient) -> None:
-        """MusicXML export returns a file."""
+        """MusicXML export returns a file.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
         work_id, movement_id = make_work(app)
         response = client.get(
             f"/works/{work_id}/movements/{movement_id}/export/musicxml"
@@ -421,7 +589,12 @@ class TestApi:
     def test_export_musicxml_merged_movements(
         self, app: Flask, client: FlaskClient
     ) -> None:
-        """A composed work exports its merged score."""
+        """A composed work exports its merged score.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
         service = get_service(app)
         work = service.create_work("Demo", "plain", "C", with_movements=False)
         service.add_movement(work.id)
@@ -432,7 +605,12 @@ class TestApi:
         response.close()
 
     def test_export_all_movements_single(self, app: Flask, client: FlaskClient) -> None:
-        """A composed work exports one merged file."""
+        """A composed work exports one merged file.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
         service = get_service(app)
         work = service.create_work("Demo", "plain", "C", with_movements=False)
         service.add_movement(work.id)
@@ -443,7 +621,12 @@ class TestApi:
         response.close()
 
     def test_export_midi(self, app: Flask, client: FlaskClient) -> None:
-        """MIDI export returns a file."""
+        """MIDI export returns a file.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
         work_id, movement_id = make_work(app)
         response = client.get(f"/works/{work_id}/movements/{movement_id}/export/midi")
         assert response.status_code == _HTTP_OK
@@ -451,25 +634,45 @@ class TestApi:
         response.close()
 
     def test_export_m4a_unavailable(self, app: Flask, client: FlaskClient) -> None:
-        """M4A export reports missing binaries."""
+        """M4A export reports missing binaries.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
         work_id, movement_id = make_work(app)
         response = client.get(f"/works/{work_id}/movements/{movement_id}/export/m4a")
         assert response.status_code == _HTTP_BAD_REQUEST
 
     def test_export_mp3_unavailable(self, app: Flask, client: FlaskClient) -> None:
-        """MP3 export reports missing binaries."""
+        """MP3 export reports missing binaries.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
         work_id, movement_id = make_work(app)
         response = client.get(f"/works/{work_id}/movements/{movement_id}/export/mp3")
         assert response.status_code == _HTTP_BAD_REQUEST
 
     def test_export_unsupported(self, app: Flask, client: FlaskClient) -> None:
-        """Unknown formats are rejected."""
+        """Unknown formats are rejected.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
         work_id, movement_id = make_work(app)
         response = client.get(f"/works/{work_id}/movements/{movement_id}/export/ogg")
         assert response.status_code == _HTTP_BAD_REQUEST
 
     def test_export_save_json(self, app: Flask, client: FlaskClient) -> None:
-        """Saving reports the written path instead of downloading."""
+        """Saving reports the written path instead of downloading.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
         work_id, movement_id = make_work(app)
         data = client.get(
             f"/works/{work_id}/movements/{movement_id}/export/musicxml?save=1"
@@ -478,7 +681,12 @@ class TestApi:
         assert data["path"]
 
     def test_export_all_single(self, app: Flask, client: FlaskClient) -> None:
-        """A single-movement work exports a single file."""
+        """A single-movement work exports a single file.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
         work_id, _movement_id = make_work(app)
         response = client.get(f"/works/{work_id}/export/musicxml")
         assert response.status_code == _HTTP_OK
@@ -486,7 +694,12 @@ class TestApi:
         response.close()
 
     def test_export_all_zip(self, app: Flask, client: FlaskClient) -> None:
-        """A multi-movement work exports a zip archive."""
+        """A multi-movement work exports a zip archive.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
         work = get_service(app).create_work("Demo", "sonata", "C")
         response = client.get(f"/works/{work.id}/export/musicxml")
         assert response.status_code == _HTTP_OK
@@ -494,14 +707,24 @@ class TestApi:
         response.close()
 
     def test_export_all_save_json(self, app: Flask, client: FlaskClient) -> None:
-        """Saving a whole work reports the written path."""
+        """Saving a whole work reports the written path.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
         work_id, _movement_id = make_work(app)
         data = client.get(f"/works/{work_id}/export/musicxml?save=1").get_json()
         assert data["ok"] is True
         assert data["path"]
 
     def test_export_all_unsupported(self, app: Flask, client: FlaskClient) -> None:
-        """Unknown work-level formats are rejected."""
+        """Unknown work-level formats are rejected.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
         work_id, _movement_id = make_work(app)
         assert (
             client.get(f"/works/{work_id}/export/ogg").status_code == _HTTP_BAD_REQUEST
@@ -514,14 +737,24 @@ class TestConfigApi:
     def test_get_config(
         self, client: FlaskClient, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """The config endpoint returns the effective configuration."""
+        """The config endpoint returns the effective configuration.
+
+        Args:
+            client: The Flask test client.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         monkeypatch.setattr("app.routes.current_config", lambda: {"model": "m"})
         assert client.get("/api/config").get_json() == {"model": "m"}
 
     def test_set_config(
         self, client: FlaskClient, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Posting configuration values persists them."""
+        """Posting configuration values persists them.
+
+        Args:
+            client: The Flask test client.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         saved: dict[str, object] = {}
 
         def fake_save(values: dict[str, object]) -> None:
@@ -534,13 +767,22 @@ class TestConfigApi:
         assert saved == {"model": "m"}
 
     def test_set_config_invalid(self, client: FlaskClient) -> None:
-        """A non-object payload is rejected."""
+        """A non-object payload is rejected.
+
+        Args:
+            client: The Flask test client.
+        """
         assert client.post("/api/config", json=[1, 2]).status_code == _HTTP_BAD_REQUEST
 
     def test_llm_status_probes_once(
         self, client: FlaskClient, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """The status endpoint probes while unknown and then caches."""
+        """The status endpoint probes while unknown and then caches.
+
+        Args:
+            client: The Flask test client.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         monkeypatch.setattr("app.routes.check_connection", lambda: "ok")
         assert client.get("/api/llm-status").get_json() == {"status": "ok"}
         assert client.get("/api/llm-status").get_json() == {"status": "ok"}
@@ -548,7 +790,12 @@ class TestConfigApi:
     def test_llm_ping(
         self, client: FlaskClient, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """The ping endpoint forces a fresh probe."""
+        """The ping endpoint forces a fresh probe.
+
+        Args:
+            client: The Flask test client.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         monkeypatch.setattr("app.routes.check_connection", lambda: "error")
         assert client.post("/api/llm-ping").get_json() == {"status": "error"}
 
@@ -557,12 +804,20 @@ class TestKitsApi:
     """Style-kit management endpoints."""
 
     def test_list_kits(self, client: FlaskClient) -> None:
-        """Built-in kits are listed."""
+        """Built-in kits are listed.
+
+        Args:
+            client: The Flask test client.
+        """
         data = client.get("/api/kits").get_json()
         assert any(kit["id"] == "baroque" for kit in data["kits"])
 
     def test_create_kit(self, client: FlaskClient) -> None:
-        """A custom kit can be created."""
+        """A custom kit can be created.
+
+        Args:
+            client: The Flask test client.
+        """
         data = client.post(
             "/api/kits",
             json={"name": "Mine", "rules": ["empty"], "techniques": ["imitation"]},
@@ -571,7 +826,11 @@ class TestKitsApi:
         assert data["kit"]["id"].startswith("s-")
 
     def test_create_kit_invalid(self, client: FlaskClient) -> None:
-        """An unknown rule is rejected."""
+        """An unknown rule is rejected.
+
+        Args:
+            client: The Flask test client.
+        """
         response = client.post(
             "/api/kits",
             json={"name": "Mine", "rules": ["nope"], "techniques": ["imitation"]},
@@ -579,7 +838,11 @@ class TestKitsApi:
         assert response.status_code == _HTTP_BAD_REQUEST
 
     def test_create_kit_non_list(self, client: FlaskClient) -> None:
-        """A non-list selection is treated as empty."""
+        """A non-list selection is treated as empty.
+
+        Args:
+            client: The Flask test client.
+        """
         data = client.post(
             "/api/kits",
             json={"name": "Mine", "rules": "nope", "techniques": "nope"},
@@ -588,7 +851,11 @@ class TestKitsApi:
         assert data["kit"]["rules"] == []
 
     def test_rename_kit(self, client: FlaskClient) -> None:
-        """A custom kit can be renamed."""
+        """A custom kit can be renamed.
+
+        Args:
+            client: The Flask test client.
+        """
         created = client.post(
             "/api/kits",
             json={"name": "Mine", "rules": ["empty"], "techniques": ["imitation"]},
@@ -599,17 +866,29 @@ class TestKitsApi:
         assert data["kit"]["name"] == "Yours"
 
     def test_rename_builtin(self, client: FlaskClient) -> None:
-        """A built-in kit cannot be renamed."""
+        """A built-in kit cannot be renamed.
+
+        Args:
+            client: The Flask test client.
+        """
         response = client.put("/api/kits/baroque", json={"name": "X"})
         assert response.status_code == _HTTP_BAD_REQUEST
 
     def test_rename_unknown(self, client: FlaskClient) -> None:
-        """Renaming a missing kit is a 404."""
+        """Renaming a missing kit is a 404.
+
+        Args:
+            client: The Flask test client.
+        """
         response = client.put("/api/kits/s-missing", json={"name": "X"})
         assert response.status_code == _HTTP_NOT_FOUND
 
     def test_delete_kit(self, client: FlaskClient) -> None:
-        """A custom kit can be deleted."""
+        """A custom kit can be deleted.
+
+        Args:
+            client: The Flask test client.
+        """
         created = client.post(
             "/api/kits",
             json={"name": "Mine", "rules": ["empty"], "techniques": ["imitation"]},
@@ -618,25 +897,286 @@ class TestKitsApi:
         assert client.delete(f"/api/kits/{kit_id}").get_json()["ok"] is True
 
     def test_delete_builtin(self, client: FlaskClient) -> None:
-        """A built-in kit cannot be deleted."""
+        """A built-in kit cannot be deleted.
+
+        Args:
+            client: The Flask test client.
+        """
         assert client.delete("/api/kits/baroque").status_code == _HTTP_BAD_REQUEST
 
     def test_delete_unknown(self, client: FlaskClient) -> None:
-        """Deleting a missing kit is a 404."""
+        """Deleting a missing kit is a 404.
+
+        Args:
+            client: The Flask test client.
+        """
         assert client.delete("/api/kits/s-missing").status_code == _HTTP_NOT_FOUND
+
+
+class TestRouteValidation:
+    """Missing resources and invalid payloads return 404/400."""
+
+    def test_unknown_work_page(self, client: FlaskClient) -> None:
+        """An unknown work page is a 404.
+
+        Args:
+            client: The Flask test client.
+        """
+        assert client.get("/works/nope").status_code == _HTTP_NOT_FOUND
+
+    def test_unknown_work_check(self, client: FlaskClient) -> None:
+        """Checking an unknown work is a 404.
+
+        Args:
+            client: The Flask test client.
+        """
+        response = client.post("/api/works/nope/movements/m01/check")
+        assert response.status_code == _HTTP_NOT_FOUND
+
+    def test_unknown_movement_check(self, app: Flask, client: FlaskClient) -> None:
+        """Checking an unknown movement is a 404.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
+        work_id, _movement_id = make_work(app)
+        response = client.post(f"/api/works/{work_id}/movements/m99/check")
+        assert response.status_code == _HTTP_NOT_FOUND
+
+    def test_unknown_finalize(self, client: FlaskClient) -> None:
+        """Finalising an unknown work is a 404.
+
+        Args:
+            client: The Flask test client.
+        """
+        response = client.post("/api/works/nope/movements/m01/finalize")
+        assert response.status_code == _HTTP_NOT_FOUND
+
+    def test_rollback_invalid_seq(self, app: Flask, client: FlaskClient) -> None:
+        """A non-numeric rollback sequence is a 400.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
+        work_id, movement_id = make_work(app)
+        response = client.post(
+            f"/api/works/{work_id}/movements/{movement_id}/rollback", json={"seq": "x"}
+        )
+        assert response.status_code == _HTTP_BAD_REQUEST
+
+    def test_audit_unknown(self, client: FlaskClient) -> None:
+        """Auditing an unknown work is a 404.
+
+        Args:
+            client: The Flask test client.
+        """
+        response = client.post(
+            "/api/works/nope/movements/m01/audit", json={"note": "x"}
+        )
+        assert response.status_code == _HTTP_NOT_FOUND
+
+    def test_score_unknown(self, client: FlaskClient) -> None:
+        """Scoring an unknown work is a 404.
+
+        Args:
+            client: The Flask test client.
+        """
+        response = client.get("/api/works/nope/movements/m01/score")
+        assert response.status_code == _HTTP_NOT_FOUND
+
+    def test_export_unknown(self, client: FlaskClient) -> None:
+        """Exporting an unknown work is a 404.
+
+        Args:
+            client: The Flask test client.
+        """
+        response = client.get("/works/nope/movements/m01/export/musicxml")
+        assert response.status_code == _HTTP_NOT_FOUND
+
+    def test_generate_unknown_genre(self, client: FlaskClient) -> None:
+        """An unknown genre is rejected.
+
+        Args:
+            client: The Flask test client.
+        """
+        response = client.post("/api/generate", json={"prompt": "x", "genre": "nope"})
+        assert response.status_code == _HTTP_BAD_REQUEST
+
+    def test_generate_invalid_payload(self, client: FlaskClient) -> None:
+        """A non-object payload is rejected.
+
+        Args:
+            client: The Flask test client.
+        """
+        response = client.post("/api/generate", json=[1, 2])
+        assert response.status_code == _HTTP_BAD_REQUEST
+
+    def test_run_unknown_movement(self, app: Flask, client: FlaskClient) -> None:
+        """Running an unknown movement is a 404.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
+        work_id, _movement_id = make_work(app)
+        response = client.post(f"/api/works/{work_id}/movements/m99/run", json={})
+        assert response.status_code == _HTTP_NOT_FOUND
+
+    def test_create_work_unknown_genre(self, client: FlaskClient) -> None:
+        """Creating with an unknown genre is rejected.
+
+        Args:
+            client: The Flask test client.
+        """
+        response = client.post("/works", data={"title": "x", "genre": "nope"})
+        assert response.status_code == _HTTP_BAD_REQUEST
+
+    def test_create_kit_invalid_payload(self, client: FlaskClient) -> None:
+        """A non-object kit payload is rejected.
+
+        Args:
+            client: The Flask test client.
+        """
+        assert client.post("/api/kits", json=[1]).status_code == _HTTP_BAD_REQUEST
+
+    def test_rename_kit_invalid_payload(self, client: FlaskClient) -> None:
+        """A non-object rename payload is rejected.
+
+        Args:
+            client: The Flask test client.
+        """
+        assert (
+            client.put("/api/kits/baroque", json=[1]).status_code == _HTTP_BAD_REQUEST
+        )
+
+    def test_work_page_bad_movement(self, app: Flask, client: FlaskClient) -> None:
+        """A bad movement query redirects to the index.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
+        work_id, _movement_id = make_work(app)
+        assert (
+            client.get(f"/works/{work_id}?movement=m99").status_code == _HTTP_REDIRECT
+        )
+
+    def test_run_invalid_payload(self, app: Flask, client: FlaskClient) -> None:
+        """A non-object run payload is rejected.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
+        work_id, movement_id = make_work(app)
+        response = client.post(
+            f"/api/works/{work_id}/movements/{movement_id}/run", json=[1]
+        )
+        assert response.status_code == _HTTP_BAD_REQUEST
+
+    def test_score_unknown_movement(self, app: Flask, client: FlaskClient) -> None:
+        """Scoring an unknown movement is a 404.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
+        work_id, _movement_id = make_work(app)
+        assert (
+            client.get(f"/api/works/{work_id}/movements/m99/score").status_code
+            == _HTTP_NOT_FOUND
+        )
+
+    def test_finalize_unknown_movement(self, app: Flask, client: FlaskClient) -> None:
+        """Finalising an unknown movement is a 404.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
+        work_id, _movement_id = make_work(app)
+        response = client.post(f"/api/works/{work_id}/movements/m99/finalize")
+        assert response.status_code == _HTTP_NOT_FOUND
+
+    def test_rollback_unknown_work(self, client: FlaskClient) -> None:
+        """Rolling back an unknown work is a 404.
+
+        Args:
+            client: The Flask test client.
+        """
+        response = client.post(
+            "/api/works/nope/movements/m01/rollback", json={"seq": 0}
+        )
+        assert response.status_code == _HTTP_NOT_FOUND
+
+    def test_rollback_unknown_movement(self, app: Flask, client: FlaskClient) -> None:
+        """Rolling back an unknown movement is a 404.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
+        work_id, _movement_id = make_work(app)
+        response = client.post(
+            f"/api/works/{work_id}/movements/m99/rollback", json={"seq": 0}
+        )
+        assert response.status_code == _HTTP_NOT_FOUND
+
+    def test_audit_unknown_movement(self, app: Flask, client: FlaskClient) -> None:
+        """Auditing an unknown movement is a 404.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
+        work_id, _movement_id = make_work(app)
+        response = client.post(
+            f"/api/works/{work_id}/movements/m99/audit", json={"note": "x"}
+        )
+        assert response.status_code == _HTTP_NOT_FOUND
+
+    def test_export_unknown_movement(self, app: Flask, client: FlaskClient) -> None:
+        """Exporting an unknown movement is a 404.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
+        work_id, _movement_id = make_work(app)
+        response = client.get(f"/works/{work_id}/movements/m99/export/musicxml")
+        assert response.status_code == _HTTP_NOT_FOUND
+
+    def test_export_all_unknown_work(self, client: FlaskClient) -> None:
+        """Exporting every movement of an unknown work is a 404.
+
+        Args:
+            client: The Flask test client.
+        """
+        assert client.get("/works/nope/export/musicxml").status_code == _HTTP_NOT_FOUND
 
 
 class TestJobs:
     """Background generation and progress streaming."""
 
     def test_generate_requires_prompt(self, client: FlaskClient) -> None:
-        """An empty prompt is rejected."""
+        """An empty prompt is rejected.
+
+        Args:
+            client: The Flask test client.
+        """
         assert client.post("/api/generate", json={}).status_code == _HTTP_BAD_REQUEST
 
     def test_generate_and_stream(
         self, client: FlaskClient, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Generation starts a job whose events stream to completion."""
+        """Generation starts a job whose events stream to completion.
+
+        Args:
+            client: The Flask test client.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         monkeypatch.setattr("app.routes.create_chat_model", FakeChatModel)
         response = client.post(
             "/api/generate",
@@ -651,7 +1191,11 @@ class TestJobs:
         assert "写一乐章" in events
 
     def test_run_unknown_work(self, client: FlaskClient) -> None:
-        """Continuing a missing work is a 404."""
+        """Continuing a missing work is a 404.
+
+        Args:
+            client: The Flask test client.
+        """
         assert (
             client.post("/api/works/nope/movements/m01/run", json={}).status_code
             == _HTTP_NOT_FOUND
@@ -660,7 +1204,13 @@ class TestJobs:
     def test_run_existing_work(
         self, app: Flask, client: FlaskClient, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Continuing an existing work with feedback starts a job."""
+        """Continuing an existing work with feedback starts a job.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         monkeypatch.setattr("app.routes.create_chat_model", FakeChatModel)
         work_id, movement_id = make_work(app)
         data = client.post(
@@ -672,11 +1222,19 @@ class TestJobs:
         assert "event: done" in events
 
     def test_unknown_job(self, client: FlaskClient) -> None:
-        """Streaming an unknown job is a 404."""
+        """Streaming an unknown job is a 404.
+
+        Args:
+            client: The Flask test client.
+        """
         assert client.get("/api/jobs/nope/events").status_code == _HTTP_NOT_FOUND
 
     def test_stream_keepalive(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """A running job with no events emits a keepalive."""
+        """A running job with no events emits a keepalive.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         monkeypatch.setattr("app.routes._SSE_TIMEOUT", 0.01)
         job = Job("j")
         stream = _stream(job)
@@ -692,11 +1250,19 @@ class TestContext:
     """Service accessors."""
 
     def test_accessors(self, app: Flask) -> None:
-        """The service accessors return bound services."""
+        """The service accessors return bound services.
+
+        Args:
+            app: The Flask application.
+        """
         assert get_service(app) is get_export_service(app).service
 
     def test_asset_version(self, tmp_path: Path) -> None:
-        """The asset version falls back to the package version without a folder."""
+        """The asset version falls back to the package version without a folder.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         assert _asset_version(None) == __version__
         (tmp_path / "js").mkdir()
         (tmp_path / "js" / "app.js").write_text("x", encoding="utf-8")

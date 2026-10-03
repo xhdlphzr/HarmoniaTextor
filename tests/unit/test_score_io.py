@@ -52,7 +52,11 @@ class TestIO:
         assert score.parts[0].partName == "soprano"
 
     def test_from_part_wraps_in_score(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """A bare part is wrapped into a score."""
+        """A bare part is wrapped into a score.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         part = new_part("soprano")
         monkeypatch.setattr(
             "harmoniatextor.score.io.converter.parseData", lambda *_, **__: part
@@ -60,7 +64,11 @@ class TestIO:
         assert isinstance(from_musicxml("<xml/>"), stream.Score)
 
     def test_from_invalid_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Non-score parses raise a value error."""
+        """Non-score parses raise a value error.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         monkeypatch.setattr(
             "harmoniatextor.score.io.converter.parseData", lambda *_, **__: object()
         )
@@ -89,14 +97,25 @@ class TestInstruments:
         assert make_instrument("DefinitelyNotAnInstrument").classes[0] == "Piano"
 
     def test_make_instrument_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """A resolver that returns None falls back to piano."""
+        """A resolver that returns None falls back to piano.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         monkeypatch.setattr(
             "harmoniatextor.score.io.instrument.fromString", lambda _name: None
         )
         assert make_instrument("x").classes[0] == "Piano"
 
     def test_make_instrument_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """A raising resolver falls back to piano."""
+        """A raising resolver falls back to piano.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+
+        Raises:
+            ValueError: When the operation cannot proceed.
+        """
 
         def boom(_name: str) -> object:
             raise ValueError("no")
@@ -105,7 +124,11 @@ class TestInstruments:
         assert make_instrument("x").classes[0] == "Piano"
 
     def test_set_instrument(self, score4: stream.Score) -> None:
-        """The editor can retarget a voice's instrument."""
+        """The editor can retarget a voice's instrument.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         editor = ScoreEditor(score4)
         editor.set_instrument("soprano", "Flute")
         part = editor.get_part("soprano")

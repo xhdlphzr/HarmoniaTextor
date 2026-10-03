@@ -17,7 +17,11 @@ from harmoniatextor.service.service import CompositionService
 
 
 def _movement_xml() -> str:
-    """Build a standalone one-part movement melody."""
+    """Build a standalone one-part movement melody.
+
+    Returns:
+        The resulting text.
+    """
     score = new_score(key="C", time_signature="4/4", tempo_bpm=84, voices=["violin"])
     ScoreEditor(score).write_line("violin", 1, [ThemeNote("C5", 1.0)])
     return to_musicxml(score)
@@ -27,7 +31,12 @@ class TestExportService:
     """Export operations."""
 
     def test_exports(self, service: CompositionService, tmp_path: Path) -> None:
-        """MusicXML and MIDI export succeed; audio degrades gracefully."""
+        """MusicXML and MIDI export succeed; audio degrades gracefully.
+
+        Args:
+            service: The composition service.
+            tmp_path: The pytest temporary path fixture.
+        """
         work = service.create_work("Demo", "plain", "C")
         movement_id = work.movements[0].id
         exporter = ExportService(service, tmp_path / "vendor")
@@ -47,7 +56,13 @@ class TestExportService:
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Audio export succeeds when synthesis is available."""
+        """Audio export succeeds when synthesis is available.
+
+        Args:
+            service: The composition service.
+            tmp_path: The pytest temporary path fixture.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         work = service.create_work("Demo", "plain", "C")
         movement_id = work.movements[0].id
         exporter = ExportService(service, tmp_path / "vendor")
@@ -70,7 +85,12 @@ class TestExportService:
             assert result.path.suffix == f".{fmt}"
 
     def test_export_dispatch(self, service: CompositionService, tmp_path: Path) -> None:
-        """The dispatcher routes known formats and rejects unknown ones."""
+        """The dispatcher routes known formats and rejects unknown ones.
+
+        Args:
+            service: The composition service.
+            tmp_path: The pytest temporary path fixture.
+        """
         work = service.create_work("Demo", "plain", "C")
         movement_id = work.movements[0].id
         exporter = ExportService(service, tmp_path / "vendor")
@@ -80,7 +100,12 @@ class TestExportService:
     def test_export_work_single(
         self, service: CompositionService, tmp_path: Path
     ) -> None:
-        """A single-movement work yields one file."""
+        """A single-movement work yields one file.
+
+        Args:
+            service: The composition service.
+            tmp_path: The pytest temporary path fixture.
+        """
         work = service.create_work("Demo", "plain", "C")
         exporter = ExportService(service, tmp_path / "vendor")
         result = exporter.export_work(work.id, "musicxml", tmp_path / "out")
@@ -89,7 +114,12 @@ class TestExportService:
         assert result.path.suffix == ".musicxml"
 
     def test_export_work_zip(self, service: CompositionService, tmp_path: Path) -> None:
-        """A multi-movement work yields a zip archive."""
+        """A multi-movement work yields a zip archive.
+
+        Args:
+            service: The composition service.
+            tmp_path: The pytest temporary path fixture.
+        """
         work = service.create_work("Demo", "sonata", "C")
         exporter = ExportService(service, tmp_path / "vendor")
         result = exporter.export_work(work.id, "musicxml", tmp_path / "out")
@@ -100,7 +130,12 @@ class TestExportService:
     def test_export_work_error(
         self, service: CompositionService, tmp_path: Path
     ) -> None:
-        """A failing movement aborts the work export."""
+        """A failing movement aborts the work export.
+
+        Args:
+            service: The composition service.
+            tmp_path: The pytest temporary path fixture.
+        """
         work = service.create_work("Demo", "sonata", "C")
         exporter = ExportService(service, tmp_path / "vendor")
         result = exporter.export_work(work.id, "m4a", tmp_path / "out")
@@ -116,7 +151,12 @@ class TestExportService:
     def test_export_musicxml_merged_movements(
         self, service: CompositionService, tmp_path: Path
     ) -> None:
-        """A work with composed movements exports its merged score."""
+        """A work with composed movements exports its merged score.
+
+        Args:
+            service: The composition service.
+            tmp_path: The pytest temporary path fixture.
+        """
         work_id = self._movement_work(service)
         exporter = ExportService(service, tmp_path / "vendor")
         result = exporter.export_musicxml(work_id, "m01", tmp_path / "out")
@@ -127,7 +167,12 @@ class TestExportService:
     def test_export_work_movements_single(
         self, service: CompositionService, tmp_path: Path
     ) -> None:
-        """A composed work exports one merged file, not a zip."""
+        """A composed work exports one merged file, not a zip.
+
+        Args:
+            service: The composition service.
+            tmp_path: The pytest temporary path fixture.
+        """
         work_id = self._movement_work(service)
         exporter = ExportService(service, tmp_path / "vendor")
         result = exporter.export_work(work_id, "musicxml", tmp_path / "out")
@@ -138,7 +183,12 @@ class TestExportService:
     def test_export_uses_sanitised_title(
         self, service: CompositionService, tmp_path: Path
     ) -> None:
-        """Exported files use the sanitised work title."""
+        """Exported files use the sanitised work title.
+
+        Args:
+            service: The composition service.
+            tmp_path: The pytest temporary path fixture.
+        """
         work = service.create_work("我的作品:第一首/测试", "plain", "C")
         exporter = ExportService(service, tmp_path / "vendor")
         result = exporter.export_musicxml(
@@ -152,7 +202,12 @@ class TestExportService:
     def test_export_work_uses_title(
         self, service: CompositionService, tmp_path: Path
     ) -> None:
-        """The merged work export is named after the title."""
+        """The merged work export is named after the title.
+
+        Args:
+            service: The composition service.
+            tmp_path: The pytest temporary path fixture.
+        """
         work = service.create_work("标题:测试", "plain", "C")
         service.submit_theme(
             work.id, work.movements[0].id, _movement_xml(), check=False
@@ -166,7 +221,12 @@ class TestExportService:
     def test_export_missing_movement_uses_title(
         self, service: CompositionService, tmp_path: Path
     ) -> None:
-        """An unknown movement still exports under the work title."""
+        """An unknown movement still exports under the work title.
+
+        Args:
+            service: The composition service.
+            tmp_path: The pytest temporary path fixture.
+        """
         work = service.create_work("标题", "plain", "C")
         service.submit_theme(
             work.id, work.movements[0].id, _movement_xml(), check=False
@@ -183,7 +243,13 @@ class TestExportService:
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Merged MIDI, audio and unsupported exports are handled."""
+        """Merged MIDI, audio and unsupported exports are handled.
+
+        Args:
+            service: The composition service.
+            tmp_path: The pytest temporary path fixture.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         work_id = self._movement_work(service)
         exporter = ExportService(service, tmp_path / "vendor")
         midi = exporter.export_work(work_id, "midi", tmp_path / "out")

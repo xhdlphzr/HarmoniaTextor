@@ -15,7 +15,12 @@ class TestFeatureDetector:
     """Audio backend detection."""
 
     def test_missing(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Missing binaries are reported as None."""
+        """Missing binaries are reported as None.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         monkeypatch.delenv("HARMONIA_SOUNDFONT", raising=False)
         monkeypatch.setattr(
             "harmoniatextor.render.features.shutil.which", lambda _name: None
@@ -28,7 +33,11 @@ class TestFeatureDetector:
         assert not features.playback_available
 
     def test_vendor_executables(self, tmp_path: Path) -> None:
-        """Binaries with a Windows suffix are detected in vendor/bin."""
+        """Binaries with a Windows suffix are detected in vendor/bin.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         vendor = tmp_path / "vendor"
         (vendor / "bin").mkdir(parents=True)
         (vendor / "soundfonts").mkdir(parents=True)
@@ -40,7 +49,11 @@ class TestFeatureDetector:
         assert features.playback_available
 
     def test_vendor_suffixless(self, tmp_path: Path) -> None:
-        """Binaries without a suffix are detected in vendor/bin."""
+        """Binaries without a suffix are detected in vendor/bin.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         vendor = tmp_path / "vendor"
         (vendor / "bin").mkdir(parents=True)
         (vendor / "bin" / "ffmpeg").write_text("x")
@@ -52,7 +65,12 @@ class TestFeatureDetector:
     def test_path_fallback(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Binaries on the PATH are used when vendor/ is empty."""
+        """Binaries on the PATH are used when vendor/ is empty.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         monkeypatch.setattr(
             "harmoniatextor.render.features.shutil.which",
             lambda name: f"/usr/bin/{name}",
@@ -64,7 +82,12 @@ class TestFeatureDetector:
     def test_soundfont_env(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """HARMONIA_SOUNDFONT overrides the vendored soundfont."""
+        """HARMONIA_SOUNDFONT overrides the vendored soundfont.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         font = tmp_path / "custom.sf3"
         font.write_text("x")
         monkeypatch.setenv("HARMONIA_SOUNDFONT", str(font))
@@ -73,6 +96,11 @@ class TestFeatureDetector:
     def test_soundfont_env_missing(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """A stale HARMONIA_SOUNDFONT path is ignored."""
+        """A stale HARMONIA_SOUNDFONT path is ignored.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         monkeypatch.setenv("HARMONIA_SOUNDFONT", str(tmp_path / "nope.sf2"))
         assert FeatureDetector(tmp_path / "vendor").detect().soundfont is None

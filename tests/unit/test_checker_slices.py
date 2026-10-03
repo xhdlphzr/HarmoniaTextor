@@ -15,7 +15,11 @@ class TestSlices:
     """Vertical slicing helpers."""
 
     def test_build_slices(self, score4: stream.Score) -> None:
-        """Notes at the same offset form one slice."""
+        """Notes at the same offset form one slice.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         editor = ScoreEditor(score4)
         editor.place_note("soprano", 1, 0.0, "C5", 1.0)
         editor.place_note("alto", 1, 0.0, "E4", 1.0)

@@ -16,7 +16,17 @@ from harmoniatextor.techniques import TechniqueContext, build_default_registry
 def apply(
     technique_id: str, score: stream.Score, themes: dict[int, Theme], **params: Any
 ) -> Any:
-    """Apply a technique by identifier."""
+    """Apply a technique by identifier.
+
+    Args:
+        technique_id: The technique id.
+        score: The score to inspect.
+        themes: The themes.
+        params: Validated parameters.
+
+    Returns:
+        The result.
+    """
     technique = REGISTRY.get(technique_id)
     context = TechniqueContext(score=score, themes=themes)
     return technique.apply(context, technique.params_model(**params))
@@ -29,11 +39,19 @@ class TestHarmonic:
     """Harmonic techniques."""
 
     def test_functional_cycle(self, score4: stream.Score) -> None:
-        """A functional cycle is realised."""
+        """A functional cycle is realised.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         apply("functional_cycle", score4, {}, key="C", measure_start=1)
 
     def test_dominant_seventh(self, score4: stream.Score) -> None:
-        """A dominant seventh is placed."""
+        """A dominant seventh is placed.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         apply(
             "dominant_seventh",
             score4,
@@ -44,7 +62,11 @@ class TestHarmonic:
         )
 
     def test_diminished_seventh(self, score4: stream.Score) -> None:
-        """A diminished seventh resolves to a target key."""
+        """A diminished seventh resolves to a target key.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         apply(
             "diminished_seventh",
             score4,
@@ -55,7 +77,11 @@ class TestHarmonic:
         )
 
     def test_harmonic_sequence(self, score4: stream.Score) -> None:
-        """A harmonic sequence steps through keys."""
+        """A harmonic sequence steps through keys.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         apply(
             "harmonic_sequence",
             score4,
@@ -66,7 +92,11 @@ class TestHarmonic:
         )
 
     def test_chromatic_harmony(self, score4: stream.Score) -> None:
-        """A degree can be raised chromatically."""
+        """A degree can be raised chromatically.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         ScoreEditor(score4).write_line("soprano", 1, [ThemeNote("F5", 1.0)])
         apply(
             "chromatic_harmony",
@@ -78,7 +108,11 @@ class TestHarmonic:
         )
 
     def test_chromatic_harmony_no_accidental(self, score4: stream.Score) -> None:
-        """A degree without an accidental yields a warning."""
+        """A degree without an accidental yields a warning.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         result = apply(
             "chromatic_harmony",
             score4,
@@ -90,7 +124,11 @@ class TestHarmonic:
         assert result.warnings
 
     def test_chromatic_harmony_unresolvable(self, score4: stream.Score) -> None:
-        """An unresolvable degree yields a warning."""
+        """An unresolvable degree yields a warning.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         result = apply(
             "chromatic_harmony",
             score4,
@@ -102,7 +140,11 @@ class TestHarmonic:
         assert result.warnings
 
     def test_modulation_bridge_auto(self, score4: stream.Score) -> None:
-        """An automatic bridge is realised."""
+        """An automatic bridge is realised.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         apply(
             "modulation_bridge",
             score4,
@@ -113,7 +155,11 @@ class TestHarmonic:
         )
 
     def test_modulation_bridge_explicit(self, score4: stream.Score) -> None:
-        """Explicit bridge chords are used."""
+        """Explicit bridge chords are used.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         apply(
             "modulation_bridge",
             score4,
@@ -125,7 +171,11 @@ class TestHarmonic:
         )
 
     def test_modulation_bridge_overflow(self, score4: stream.Score) -> None:
-        """A short range drops extra chords with a warning."""
+        """A short range drops extra chords with a warning.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         result = apply(
             "modulation_bridge",
             score4,
@@ -142,7 +192,11 @@ class TestModernHarmony:
     """Modern harmonic techniques."""
 
     def test_chromatic_modulation(self, score4: stream.Score) -> None:
-        """A chromatic Neapolitan pivot is realised."""
+        """A chromatic Neapolitan pivot is realised.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         apply(
             "chromatic_modulation",
             score4,
@@ -153,7 +207,11 @@ class TestModernHarmony:
         )
 
     def test_chromatic_modulation_overflow(self, score4: stream.Score) -> None:
-        """A short range drops extra chords with a warning."""
+        """A short range drops extra chords with a warning.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         result = apply(
             "chromatic_modulation",
             score4,
@@ -165,7 +223,11 @@ class TestModernHarmony:
         assert result.warnings
 
     def test_extended_harmony_silent(self, score4: stream.Score) -> None:
-        """A silent measure falls back to the key tonic as root."""
+        """A silent measure falls back to the key tonic as root.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         apply(
             "extended_harmony",
             score4,
@@ -177,7 +239,11 @@ class TestModernHarmony:
         )
 
     def test_extended_harmony_sounding(self, score4: stream.Score) -> None:
-        """The lowest sounding pitch becomes the root."""
+        """The lowest sounding pitch becomes the root.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         ScoreEditor(score4).write_line("bass", 1, [ThemeNote("C3", 4.0)])
         apply(
             "extended_harmony",
@@ -190,7 +256,11 @@ class TestModernHarmony:
         )
 
     def test_color_chord(self, score4: stream.Score) -> None:
-        """A colour tone is added above the root."""
+        """A colour tone is added above the root.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         apply(
             "color_chord",
             score4,
@@ -202,7 +272,11 @@ class TestModernHarmony:
         )
 
     def test_color_chord_default_color(self, score4: stream.Score) -> None:
-        """An unknown colour falls back to the ninth."""
+        """An unknown colour falls back to the ninth.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         apply(
             "color_chord",
             score4,
@@ -214,7 +288,11 @@ class TestModernHarmony:
         )
 
     def test_modal_harmony_mode(self, score4: stream.Score) -> None:
-        """A mode's default progression is realised."""
+        """A mode's default progression is realised.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         apply(
             "modal_harmony",
             score4,
@@ -225,7 +303,11 @@ class TestModernHarmony:
         )
 
     def test_modal_harmony_explicit(self, score4: stream.Score) -> None:
-        """Explicit modal chord figures are used."""
+        """Explicit modal chord figures are used.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         apply(
             "modal_harmony",
             score4,
@@ -237,7 +319,11 @@ class TestModernHarmony:
         )
 
     def test_modal_harmony_overflow(self, score4: stream.Score) -> None:
-        """A short range drops extra chords with a warning."""
+        """A short range drops extra chords with a warning.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         result = apply(
             "modal_harmony",
             score4,
@@ -250,7 +336,11 @@ class TestModernHarmony:
         assert result.warnings
 
     def test_whole_tone_up(self, score4: stream.Score) -> None:
-        """An ascending whole-tone run is written."""
+        """An ascending whole-tone run is written.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         apply(
             "whole_tone",
             score4,
@@ -261,7 +351,11 @@ class TestModernHarmony:
         )
 
     def test_whole_tone_down(self, score4: stream.Score) -> None:
-        """A descending whole-tone run is written."""
+        """A descending whole-tone run is written.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         apply(
             "whole_tone",
             score4,

@@ -34,7 +34,11 @@ class KeySpec:
 
     @property
     def music21_name(self) -> str:
-        """Return a music21-compatible key name such as ``"E-"`` or ``"f#"``."""
+        """Return a music21-compatible key name such as ``"E-"`` or ``"f#"``.
+
+        Returns:
+            The resulting text.
+        """
         letter = self.tonic[0]
         accidental = {"b": "-", "#": "#"}.get(self.tonic[1:], "")
         if self.mode == "major":
@@ -43,7 +47,11 @@ class KeySpec:
 
     @property
     def is_major(self) -> bool:
-        """Whether the key is major."""
+        """Whether the key is major.
+
+        Returns:
+            Whether the condition holds.
+        """
         return self.mode == "major"
 
 

@@ -24,7 +24,11 @@ from harmoniatextor.storage.project_store import ProjectStore
 
 
 def make_work() -> Work:
-    """Return a work with one movement."""
+    """Return a work with one movement.
+
+    Returns:
+        The work.
+    """
     movement = Movement(
         id="m01",
         work_id="w-1",
@@ -50,7 +54,11 @@ class TestProjectStore:
     """Persistence round trips."""
 
     def test_work_roundtrip(self, tmp_path: Path) -> None:
-        """A work survives save/load."""
+        """A work survives save/load.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         store = ProjectStore(tmp_path / "data")
         work = make_work()
         store.save_work(work)
@@ -60,12 +68,20 @@ class TestProjectStore:
         assert store.list_works() == ["w-1"]
 
     def test_missing_work(self, tmp_path: Path) -> None:
-        """Loading a missing work raises."""
+        """Loading a missing work raises.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         with pytest.raises(FileNotFoundError):
             ProjectStore(tmp_path / "data").load_work("nope")
 
     def test_style_roundtrip(self, tmp_path: Path) -> None:
-        """A work's style snapshot survives save/load."""
+        """A work's style snapshot survives save/load.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         store = ProjectStore(tmp_path / "data")
         work = make_work()
         work.style = StyleSelection(
@@ -81,13 +97,21 @@ class TestProjectStore:
         assert loaded.style.rules == frozenset({"empty"})
 
     def test_style_absent(self, tmp_path: Path) -> None:
-        """A work without a style loads as None."""
+        """A work without a style loads as None.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         store = ProjectStore(tmp_path / "data")
         store.save_work(make_work())
         assert store.load_work("w-1").style is None
 
     def test_works_style_migration(self, tmp_path: Path) -> None:
-        """A works table created before the style column is migrated."""
+        """A works table created before the style column is migrated.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         connection = sqlite3.connect(tmp_path / "history.db")
         connection.execute(
             "CREATE TABLE works (id TEXT PRIMARY KEY, title TEXT, genre TEXT, tonic TEXT,"
@@ -100,7 +124,11 @@ class TestProjectStore:
         assert store.load_work("w-1").style is None
 
     def test_revision_roundtrip(self, tmp_path: Path) -> None:
-        """Revisions store XML and metadata."""
+        """Revisions store XML and metadata.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         store = ProjectStore(tmp_path / "data")
         revision = Revision(
             id="r-m01-0",
@@ -116,14 +144,22 @@ class TestProjectStore:
         assert meta[0]["id"] == "r-m01-0"
 
     def test_missing_revision(self, tmp_path: Path) -> None:
-        """Loading a missing revision raises."""
+        """Loading a missing revision raises.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         store = ProjectStore(tmp_path / "data")
         with pytest.raises(FileNotFoundError):
             store.load_revision_xml("w-1", "m01", 9)
         assert store.load_revision_meta("w-1", "m01") == []
 
     def test_theme_roundtrip(self, tmp_path: Path) -> None:
-        """Themes survive save/load."""
+        """Themes survive save/load.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         store = ProjectStore(tmp_path / "data")
         theme = Theme(1, "m01", "soprano", 1, [ThemeNote("C5", 1.0)], "r-0")
         store.save_themes("w-1", "m01", {1: theme})
@@ -132,11 +168,19 @@ class TestProjectStore:
         assert loaded[1].fingerprint
 
     def test_themes_missing(self, tmp_path: Path) -> None:
-        """A movement without themes returns an empty mapping."""
+        """A movement without themes returns an empty mapping.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         assert ProjectStore(tmp_path / "data").load_themes("w-1", "m01") == {}
 
     def test_load_all_themes(self, tmp_path: Path) -> None:
-        """Themes are loaded across every target of a work."""
+        """Themes are loaded across every target of a work.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         store = ProjectStore(tmp_path / "data")
         store.save_themes(
             "w-1",
@@ -151,11 +195,19 @@ class TestProjectStore:
         assert loaded[("m02", 2)].notes[0].pitch == "E5"
 
     def test_load_all_themes_missing(self, tmp_path: Path) -> None:
-        """A work without themes returns an empty mapping."""
+        """A work without themes returns an empty mapping.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         assert ProjectStore(tmp_path / "data").load_all_themes("w-1") == {}
 
     def test_journal(self, tmp_path: Path) -> None:
-        """Journal events append and reload."""
+        """Journal events append and reload.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         store = ProjectStore(tmp_path / "data")
         store.append_journal("w-1", {"event": "a"})
         store.append_journal("w-1", {"event": "b"})
@@ -163,7 +215,11 @@ class TestProjectStore:
         assert ProjectStore(tmp_path / "other").load_journal("w-2") == []
 
     def test_movement_prompt_roundtrip(self, tmp_path: Path) -> None:
-        """A movement's Step 1 prompt survives save/load."""
+        """A movement's Step 1 prompt survives save/load.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         store = ProjectStore(tmp_path / "data")
         work = make_work()
         work.movements[0].prompt = "写一个8小节的赋格主题"
@@ -171,7 +227,11 @@ class TestProjectStore:
         assert store.load_work("w-1").movements[0].prompt == "写一个8小节的赋格主题"
 
     def test_column_migration(self, tmp_path: Path) -> None:
-        """A database created before the new columns is migrated in place."""
+        """A database created before the new columns is migrated in place.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
         connection = sqlite3.connect(tmp_path / "history.db")
         connection.execute(
             "CREATE TABLE movements (work_id TEXT, id TEXT, name TEXT, time_signature TEXT,"

@@ -45,6 +45,73 @@ __all__ = ["register_routes"]
 _SSE_TIMEOUT = 15
 
 
+def _json_payload() -> dict[str, Any] | None:
+    """Return the request body as a JSON object.
+
+    Returns:
+        The parsed object, an empty mapping when the body is missing, or
+        ``None`` when the body is not a JSON object.
+    """
+    payload = request.get_json(silent=True)
+    if payload is None:
+        return {}
+    if not isinstance(payload, dict):
+        return None
+    return payload
+
+
+def _load_work(service: Any, work_id: str) -> Any | None:
+    """Load a work, returning ``None`` when it does not exist.
+
+    Args:
+        service: Composition service.
+        work_id: Work identifier.
+
+    Returns:
+        The work, or ``None`` when unknown.
+    """
+    try:
+        return service.get_work(work_id)
+    except FileNotFoundError:
+        return None
+
+
+def _has_movement(service: Any, work: Any, movement_id: str) -> bool:
+    """Return whether a work contains a movement.
+
+    Args:
+        service: Composition service.
+        work: Owning work.
+        movement_id: Movement identifier.
+
+    Returns:
+        ``True`` when the movement exists.
+    """
+    try:
+        service.get_movement(work, movement_id)
+    except KeyError:
+        return False
+    return True
+
+
+def _unknown_work() -> Any:
+    """Return the standard 404 response for a missing work.
+
+    Returns:
+        The result.
+    """
+    return jsonify({"ok": False, "error": "unknown work"}), 404
+
+
+def _unknown_movement() -> Any:
+    """Return the standard 404 response for a missing movement.
+
+    Returns:
+        The result.
+    """
+    return jsonify({"ok": False, "error": "unknown movement"}), 404
+
+
 def register_routes(app: Flask) -> None:
     """Register all routes on the application.
 
@@ -70,7 +137,11 @@ def _register_pages(app: Flask) -> None:
 
     @app.get("/")
     def index() -> str:
-        """Render the works index."""
+        """Render the works index.
+
+        Returns:
+            The resulting text.
+        """
         service = get_service(app)
         work_ids = service.list_works()
         works = [service.get_work(work_id) for work_id in work_ids]
@@ -103,7 +174,11 @@ def _register_pages(app: Flask) -> None:
 
     @app.get("/favicon.ico")
     def favicon() -> Any:
-        """Serve the application favicon."""
+        """Serve the application favicon.
+
+        Returns:
+            The result.
+        """
         icon = favicon_icon()
         if icon is None:
             return Response(status=404)
@@ -111,23 +186,43 @@ def _register_pages(app: Flask) -> None:
 
     @app.post("/works")
     def create_work() -> Any:
-        """Create a work from form data and redirect to it."""
+        """Create a work from form data and redirect to it.
+
+        Returns:
+            The result.
+        """
         service = get_service(app)
         title = request.form.get("title") or DEFAULT_TITLE
         genre = request.form.get("genre") or "plain"
         style = request.form.get("style") or None
+        try:
+            service.genres.get(genre)
+        except KeyError:
+            return jsonify({"ok": False, "error": "unknown genre"}), 400
         work = service.create_work(title, genre, style=style)
         return redirect(url_for("work", work_id=work.id))
 
     @app.get("/works/<work_id>")
     def work(work_id: str) -> Any:
-        """Render a work workspace."""
+        """Render a work workspace.
+
+        Args:
+            work_id: Work identifier.
+
+        Returns:
+            The result.
+        """
         service = get_service(app)
-        loaded = service.get_work(work_id)
+        loaded = _load_work(service, work_id)
+        if loaded is None:
+            return Response(status=404)
         if not loaded.movements:
             return redirect(url_for("index"))
         movement_id = request.args.get("movement") or loaded.movements[0].id
-        movement = service.get_movement(loaded, movement_id)
+        try:
+            movement = service.get_movement(loaded, movement_id)
+        except KeyError:
+            return redirect(url_for("index"))
         revisions = service.store.load_revision_meta(work_id, movement_id)
         themes = service.store.load_themes(work_id, movement_id)
         genres = service.genres.all()
@@ -156,14 +251,22 @@ def _register_config(app: Flask) -> None:
 
     @app.get("/api/config")
     def get_config() -> Response:
-        """Return the effective LLM configuration."""
+        """Return the effective LLM configuration.
+
+        Returns:
+            The HTTP response.
+        """
         return jsonify(current_config())
 
     @app.post("/api/config")
     def set_config() -> Any:
-        """Persist LLM configuration values."""
-        payload = request.get_json(silent=True) or {}
-        if not isinstance(payload, dict):
+        """Persist LLM configuration values.
+
+        Returns:
+            The result.
+        """
+        payload = _json_payload()
+        if payload is None:
             return jsonify({"ok": False, "error": "invalid payload"}), 400
         save_config({str(key): value for key, value in payload.items()})
         _llm_state(app)["status"] = UNKNOWN
@@ -171,7 +274,11 @@ def _register_config(app: Flask) -> None:
 
     @app.get("/api/llm-status")
     def llm_status() -> Response:
-        """Return endpoint connectivity, probing once while unknown."""
+        """Return endpoint connectivity, probing once while unknown.
+
+        Returns:
+            The HTTP response.
+        """
         state = _llm_state(app)
         if state["status"] == UNKNOWN:
             refresh_llm_status(app)
@@ -179,7 +286,11 @@ def _register_config(app: Flask) -> None:
 
     @app.post("/api/llm-ping")
     def llm_ping() -> Response:
-        """Force a connectivity probe of the configured endpoint."""
+        """Force a connectivity probe of the configured endpoint.
+
+        Returns:
+            The HTTP response.
+        """
         return jsonify({"status": refresh_llm_status(app)})
 
 
@@ -206,15 +317,25 @@ def _register_kits(app: Flask) -> None:
 
     @app.get("/api/kits")
     def list_kits() -> Response:
-        """Return every style kit."""
+        """Return every style kit.
+
+        Returns:
+            The HTTP response.
+        """
         return jsonify(
             {"kits": [kit.to_dict() for kit in get_service(app).styles.all()]}
         )
 
     @app.post("/api/kits")
     def create_kit() -> Any:
-        """Create a custom style kit."""
-        payload = request.get_json(silent=True) or {}
+        """Create a custom style kit.
+
+        Returns:
+            The result.
+        """
+        payload = _json_payload()
+        if payload is None:
+            return jsonify({"ok": False, "error": "invalid payload"}), 400
         try:
             kit = get_service(app).styles.create(
                 str(payload.get("name", "")),
@@ -227,8 +348,17 @@ def _register_kits(app: Flask) -> None:
 
     @app.put("/api/kits/<kit_id>")
     def rename_kit(kit_id: str) -> Any:
-        """Rename a custom style kit."""
-        payload = request.get_json(silent=True) or {}
+        """Rename a custom style kit.
+
+        Args:
+            kit_id: Style-kit identifier.
+
+        Returns:
+            The result.
+        """
+        payload = _json_payload()
+        if payload is None:
+            return jsonify({"ok": False, "error": "invalid payload"}), 400
         try:
             kit = get_service(app).styles.rename(kit_id, str(payload.get("name", "")))
         except ValueError as exc:
@@ -239,7 +369,14 @@ def _register_kits(app: Flask) -> None:
 
     @app.delete("/api/kits/<kit_id>")
     def delete_kit(kit_id: str) -> Any:
-        """Delete a custom style kit."""
+        """Delete a custom style kit.
+
+        Args:
+            kit_id: Style-kit identifier.
+
+        Returns:
+            The result.
+        """
         try:
             get_service(app).styles.delete(kit_id)
         except ValueError as exc:
@@ -258,15 +395,25 @@ def _register_jobs(app: Flask) -> None:
 
     @app.post("/api/generate")
     def generate() -> Any:
-        """Create a work and start a fully automatic composer session."""
-        payload = request.get_json(silent=True) or {}
+        """Create a work and start a fully automatic composer session.
+
+        Returns:
+            The result.
+        """
+        payload = _json_payload()
+        if payload is None:
+            return jsonify({"ok": False, "error": "invalid payload"}), 400
         prompt = str(payload.get("prompt", "")).strip()
         if not prompt:
-            return jsonify({"ok": False, "error": "提示词不能为空。"}), 400
+            return jsonify({"ok": False, "error": "prompt is required"}), 400
         genre = str(payload.get("genre") or "plain")
         title = str(payload.get("title") or DEFAULT_TITLE)
         style = str(payload.get("style") or "") or None
         service = get_service(app)
+        try:
+            service.genres.get(genre)
+        except KeyError:
+            return jsonify({"ok": False, "error": "unknown genre"}), 400
         work = service.create_work(title, genre, style=style, with_movements=False)
         job = _start_architecture_job(app, service, work.id, prompt)
         return jsonify(
@@ -275,15 +422,26 @@ def _register_jobs(app: Flask) -> None:
 
     @app.post("/api/works/<work_id>/movements/<movement_id>/run")
     def run_work(work_id: str, movement_id: str) -> Any:
-        """Continue an existing work with a fully automatic composer session."""
-        payload = request.get_json(silent=True) or {}
+        """Continue an existing work with a fully automatic composer session.
+
+        Args:
+            work_id: Work identifier.
+            movement_id: Movement identifier.
+
+        Returns:
+            The result.
+        """
+        payload = _json_payload()
+        if payload is None:
+            return jsonify({"ok": False, "error": "invalid payload"}), 400
         prompt = str(payload.get("prompt") or "继续完善这首作品。")
         feedback = payload.get("feedback")
         service = get_service(app)
-        try:
-            service.get_work(work_id)
-        except FileNotFoundError:
-            return jsonify({"ok": False, "error": "unknown work"}), 404
+        work = _load_work(service, work_id)
+        if work is None:
+            return _unknown_work()
+        if not _has_movement(service, work, movement_id):
+            return _unknown_movement()
         job = _start_agent_job(
             app,
             service,
@@ -303,7 +461,14 @@ def _register_jobs(app: Flask) -> None:
 
     @app.get("/api/jobs/<job_id>/events")
     def job_events(job_id: str) -> Any:
-        """Stream job progress as server-sent events."""
+        """Stream job progress as server-sent events.
+
+        Args:
+            job_id: Job identifier.
+
+        Returns:
+            The result.
+        """
         job = _jobs(app).get(job_id)
         if job is None:
             return jsonify({"ok": False, "error": "unknown job"}), 404
@@ -348,6 +513,57 @@ def refresh_llm_status(app: Flask) -> str:
     state = _llm_state(app)
     state["status"] = check_connection()
     return state["status"]
+
+
+def _job_result(
+    service: Any,
+    work_id: str,
+    *,
+    completed: bool,
+    steps: int,
+    final_text: str,
+    plan: str,
+    plan_tree: list[dict[str, Any]],
+    review_passed: bool | None,
+    review_suggestions: str,
+) -> dict[str, Any]:
+    """Assemble the shared terminal payload of a composer job.
+
+    Args:
+        service: Composition service.
+        work_id: Active work.
+        completed: Whether the agent run finished.
+        steps: Number of agent steps (or movements).
+        final_text: The agent's closing text.
+        plan: The rendered creation plan.
+        plan_tree: The plan as a movement tree.
+        review_passed: Reviewer verdict, or ``None``.
+        review_suggestions: Reviewer suggestions.
+
+    Returns:
+        The job result dictionary.
+    """
+    service.ensure_title(work_id)
+    movements = service.get_work(work_id).movements
+    movement_id = movements[0].id if movements else "m01"
+    if review_passed is not None:
+        service.record_review(work_id, movement_id, review_passed, review_suggestions)
+    reports = [service.check(work_id, movement.id) for movement in movements]
+    violations = [item for report in reports for item in report.to_dict()["violations"]]
+    ok = bool(reports) and all(report.ok for report in reports) and completed
+    return {
+        "work_id": work_id,
+        "movement_id": movement_id,
+        "completed": completed,
+        "steps": steps,
+        "final_text": final_text,
+        "plan": plan,
+        "plan_tree": plan_tree,
+        "review_passed": review_passed,
+        "review_suggestions": review_suggestions,
+        "ok": ok,
+        "violations": violations,
+    }
 
 
 def _start_agent_job(
@@ -395,28 +611,18 @@ def _start_agent_job(
                 on_event=emit,
                 plan=plan,
             )
-            service.ensure_title(work_id)
-            if result.review_passed is not None:
-                service.record_review(
-                    work_id,
-                    movement_id,
-                    result.review_passed,
-                    result.review_suggestions,
-                )
-            report = service.check(work_id, movement_id)
             finished = True
-            return {
-                "work_id": work_id,
-                "movement_id": movement_id,
-                "completed": result.completed,
-                "steps": result.steps,
-                "final_text": result.final_text,
-                "plan": result.plan or service.latest_plan(work_id) or "",
-                "review_passed": result.review_passed,
-                "review_suggestions": result.review_suggestions,
-                "ok": report.ok and result.completed,
-                "violations": report.to_dict()["violations"],
-            }
+            return _job_result(
+                service,
+                work_id,
+                completed=result.completed,
+                steps=result.steps,
+                final_text=result.final_text,
+                plan=result.plan or service.latest_plan(work_id) or "",
+                plan_tree=[],
+                review_passed=result.review_passed,
+                review_suggestions=result.review_suggestions,
+            )
         finally:
             service.finish_generation(work_id, finished)
 
@@ -453,39 +659,19 @@ def _start_architecture_job(app: Flask, service: Any, work_id: str, prompt: str)
                 context_window=window,
             )
             outcome = composer.compose(work_id, prompt, on_event=emit)
-            service.ensure_title(work_id)
             movements = service.get_work(work_id).movements
-            movement_id = movements[0].id if movements else "m01"
-            if outcome.review_passed is not None:
-                service.record_review(
-                    work_id,
-                    movement_id,
-                    outcome.review_passed,
-                    outcome.review_suggestions,
-                )
-            reports = [service.check(work_id, movement.id) for movement in movements]
-            violations = [
-                item for report in reports for item in report.to_dict()["violations"]
-            ]
-            ok = (
-                bool(reports)
-                and all(report.ok for report in reports)
-                and outcome.completed
-            )
             finished = True
-            return {
-                "work_id": work_id,
-                "movement_id": movement_id,
-                "completed": outcome.completed,
-                "steps": len(movements),
-                "final_text": plan.plan,
-                "plan": plan.plan,
-                "plan_tree": plan.tree,
-                "review_passed": outcome.review_passed,
-                "review_suggestions": outcome.review_suggestions,
-                "ok": ok,
-                "violations": violations,
-            }
+            return _job_result(
+                service,
+                work_id,
+                completed=outcome.completed,
+                steps=len(movements),
+                final_text=plan.plan,
+                plan=plan.plan,
+                plan_tree=plan.tree,
+                review_passed=outcome.review_passed,
+                review_suggestions=outcome.review_suggestions,
+            )
         finally:
             service.finish_generation(work_id, finished)
 
@@ -532,12 +718,24 @@ def _register_api(app: Flask) -> None:
     def score(work_id: str, movement_id: str) -> Response:
         """Return the current score as MusicXML.
 
-        Works with composed movements expose the live merged movements; an empty
-        work falls back to the movement's latest revision.  A transient failure
-        returns an empty MusicXML document so the browser renderer never receives
-        an HTML error page.
+                Works with composed movements expose the live merged movements; an empty
+                work falls back to the movement's latest revision.  A transient failure
+                returns an empty MusicXML document so the browser renderer never receives
+                an HTML error page.
+
+        Args:
+            work_id: Work identifier.
+            movement_id: Movement identifier.
+
+        Returns:
+            The HTTP response.
         """
         service = get_service(app)
+        work = _load_work(service, work_id)
+        if work is None:
+            return Response(status=404)
+        if not _has_movement(service, work, movement_id):
+            return Response(status=404)
         mimetype = "application/vnd.recordare.musicxml+xml"
         try:
             merged = service.merged_musicxml(work_id)
@@ -552,59 +750,92 @@ def _register_api(app: Flask) -> None:
             return Response("", mimetype=mimetype)
 
     @app.post("/api/works/<work_id>/movements/<movement_id>/check")
-    def check(work_id: str, movement_id: str) -> Response:
-        """Return the symbolic check report."""
-        report = get_service(app).check(work_id, movement_id)
-        return jsonify(report.to_dict())
+    def check(work_id: str, movement_id: str) -> Any:
+        """Return the symbolic check report.
+
+        Args:
+            work_id: Work identifier.
+            movement_id: Movement identifier.
+
+        Returns:
+            The result.
+        """
+        service = get_service(app)
+        work = _load_work(service, work_id)
+        if work is None:
+            return _unknown_work()
+        if not _has_movement(service, work, movement_id):
+            return _unknown_movement()
+        return jsonify(service.check(work_id, movement_id).to_dict())
 
     @app.post("/api/works/<work_id>/movements/<movement_id>/finalize")
-    def finalize(work_id: str, movement_id: str) -> Response:
-        """Finalise a movement."""
-        result = get_service(app).finalize(work_id, movement_id)
-        return jsonify(_result_payload(result))
+    def finalize(work_id: str, movement_id: str) -> Any:
+        """Finalise a movement.
+
+        Args:
+            work_id: Work identifier.
+            movement_id: Movement identifier.
+
+        Returns:
+            The result.
+        """
+        service = get_service(app)
+        work = _load_work(service, work_id)
+        if work is None:
+            return _unknown_work()
+        if not _has_movement(service, work, movement_id):
+            return _unknown_movement()
+        return jsonify(_result_payload(service.finalize(work_id, movement_id)))
 
     @app.post("/api/works/<work_id>/movements/<movement_id>/rollback")
-    def rollback(work_id: str, movement_id: str) -> Response:
-        """Roll a movement back to an earlier revision."""
-        raw = (
-            request.json.get("seq", 0)
-            if request.is_json
-            else request.form.get("seq", 0)
-        )
-        result = get_service(app).rollback(work_id, movement_id, int(raw))
-        return jsonify(_result_payload(result))
+    def rollback(work_id: str, movement_id: str) -> Any:
+        """Roll a movement back to an earlier revision.
+
+        Args:
+            work_id: Work identifier.
+            movement_id: Movement identifier.
+
+        Returns:
+            The result.
+        """
+        service = get_service(app)
+        work = _load_work(service, work_id)
+        if work is None:
+            return _unknown_work()
+        if not _has_movement(service, work, movement_id):
+            return _unknown_movement()
+        if request.is_json:
+            payload = _json_payload()
+            raw: Any = (payload or {}).get("seq", 0) if payload is not None else 0
+        else:
+            raw = request.form.get("seq", 0)
+        try:
+            seq = int(raw)
+        except TypeError, ValueError:
+            return jsonify({"ok": False, "error": "invalid seq"}), 400
+        return jsonify(_result_payload(service.rollback(work_id, movement_id, seq)))
 
     @app.post("/api/works/<work_id>/movements/<movement_id>/audit")
-    def audit(work_id: str, movement_id: str) -> Response:
-        """Record a human audition note."""
-        note = request.form.get("note") or (request.json or {}).get("note", "")
-        get_service(app).record_audit(work_id, movement_id, str(note))
-        return jsonify({"ok": True})
+    def audit(work_id: str, movement_id: str) -> Any:
+        """Record a human audition note.
 
-    @app.post("/api/works/<work_id>/movements/<movement_id>/agent")
-    def run_agent(work_id: str, movement_id: str) -> Response:
-        """Run one composer-agent session."""
-        payload: dict[str, Any] = request.get_json(silent=True) or {}
-        goal = str(payload.get("goal", "创作一首古典音乐作品。"))
-        feedback = payload.get("feedback")
+        Args:
+            work_id: Work identifier.
+            movement_id: Movement identifier.
+
+        Returns:
+            The result.
+        """
         service = get_service(app)
-        window = context_window_tokens()
-        loop = AgentLoop(
-            service,
-            create_chat_model(),
-            reviewer=ReviewerAI(create_chat_model(), context_window=window),
-            context_window=window,
-        )
-        outcome = loop.run(work_id, movement_id, goal, feedback=feedback)
-        service.ensure_title(work_id)
-        return jsonify(
-            {
-                "completed": outcome.completed,
-                "steps": outcome.steps,
-                "final_text": outcome.final_text,
-                "review_passed": outcome.review_passed,
-            }
-        )
+        work = _load_work(service, work_id)
+        if work is None:
+            return _unknown_work()
+        if not _has_movement(service, work, movement_id):
+            return _unknown_movement()
+        payload = _json_payload()
+        note = request.form.get("note") or (payload or {}).get("note", "")
+        service.record_audit(work_id, movement_id, str(note))
+        return jsonify({"ok": True})
 
 
 def _downloads_dir() -> Path:
@@ -625,7 +856,22 @@ def _register_export(app: Flask) -> None:
 
     @app.get("/works/<work_id>/movements/<movement_id>/export/<fmt>")
     def export(work_id: str, movement_id: str, fmt: str) -> Any:
-        """Export a movement artifact into the downloads folder."""
+        """Export a movement artifact into the downloads folder.
+
+        Args:
+            work_id: Work identifier.
+            movement_id: Movement identifier.
+            fmt: The export format.
+
+        Returns:
+            The result.
+        """
+        service = get_service(app)
+        work = _load_work(service, work_id)
+        if work is None:
+            return _unknown_work()
+        if not _has_movement(service, work, movement_id):
+            return _unknown_movement()
         exporter = get_export_service(app)
         result = exporter.export(work_id, movement_id, _downloads_dir(), fmt)
         if not result.ok or result.path is None:
@@ -636,7 +882,18 @@ def _register_export(app: Flask) -> None:
 
     @app.get("/works/<work_id>/export/<fmt>")
     def export_all(work_id: str, fmt: str) -> Any:
-        """Export every movement, zipping when there are several."""
+        """Export every movement, zipping when there are several.
+
+        Args:
+            work_id: Work identifier.
+            fmt: The export format.
+
+        Returns:
+            The result.
+        """
+        service = get_service(app)
+        if _load_work(service, work_id) is None:
+            return _unknown_work()
         exporter = get_export_service(app)
         result = exporter.export_work(work_id, fmt, _downloads_dir())
         if not result.ok or result.path is None:
@@ -659,6 +916,5 @@ def _result_payload(result: Any) -> dict[str, Any]:
         "ok": result.ok,
         "message": result.message,
         "error_code": result.error_code,
-        "theme_id": result.theme_id,
         "violations": result.report.to_dict()["violations"] if result.report else [],
     }

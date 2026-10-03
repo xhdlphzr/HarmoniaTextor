@@ -44,7 +44,15 @@ class AlbertiBassTechnique(Technique[AlbertiBassParams]):
     def apply(
         self, ctx: TechniqueContext, params: AlbertiBassParams
     ) -> TechniqueResult:
-        """Write the Alberti figure measure by measure."""
+        """Write the Alberti figure measure by measure.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         editor = ScoreEditor(ctx.score)
         bar = editor.bar_length()
         cells = max(1, round(bar))
@@ -75,7 +83,15 @@ class BrokenChordTechnique(Technique[BrokenChordParams]):
     def apply(
         self, ctx: TechniqueContext, params: BrokenChordParams
     ) -> TechniqueResult:
-        """Write the arpeggio."""
+        """Write the arpeggio.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         editor = ScoreEditor(ctx.score)
         bar = editor.bar_length()
         length = note_value(params.note_value)
@@ -109,7 +125,15 @@ class ParallelChordsTechnique(Technique[ParallelChordsParams]):
     def apply(
         self, ctx: TechniqueContext, params: ParallelChordsParams
     ) -> TechniqueResult:
-        """Place the parallel chords."""
+        """Place the parallel chords.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         editor = ScoreEditor(ctx.score)
         bar = editor.bar_length()
         interval = parse_interval(params.step_interval)
@@ -142,7 +166,15 @@ class PlaningTechnique(Technique[PlaningParams]):
     params_model = PlaningParams
 
     def apply(self, ctx: TechniqueContext, params: PlaningParams) -> TechniqueResult:
-        """Place the planing chords."""
+        """Place the planing chords.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         editor = ScoreEditor(ctx.score)
         bar = editor.bar_length()
         interval = parse_interval(params.step)
