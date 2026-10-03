@@ -61,5 +61,8 @@ def profile_for_rules(enabled: Iterable[str]) -> ValidationProfile:
     """
     keep = set(enabled)
     return ValidationProfile(
-        settings={rule.rule_id: RuleSetting(enabled=rule.rule_id in keep) for rule in BUILTIN_RULES}
+        settings={
+            rule.rule_id: RuleSetting(enabled=rule.rule_id in keep)
+            for rule in BUILTIN_RULES
+        }
     )

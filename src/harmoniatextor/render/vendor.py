@@ -27,7 +27,9 @@ FLUIDSYNTH_BASE = "https://github.com/FluidSynth/fluidsynth/releases/download"
 FLUIDSYNTH_ASSETS: dict[str, str] = {
     "Windows": f"fluidsynth-v{FLUIDSYNTH_VERSION}-win10-x64-cpp11.zip",
 }
-SOUNDFONT_ARCHIVE_URL = "https://codeload.github.com/mrbumpy409/GeneralUser-GS/zip/refs/heads/main"
+SOUNDFONT_ARCHIVE_URL = (
+    "https://codeload.github.com/mrbumpy409/GeneralUser-GS/zip/refs/heads/main"
+)
 SOUNDFONT_NAME = "GeneralUser-GS.sf2"
 
 #: Per platform: (download url, local archive name, executable basename).
@@ -37,7 +39,11 @@ FFMPEG_BUILDS: dict[str, tuple[str, str, str]] = {
         "ffmpeg-win64.zip",
         "ffmpeg.exe",
     ),
-    "Darwin": ("https://evermeet.cx/ffmpeg/getrelease/zip", "ffmpeg-macos.zip", "ffmpeg"),
+    "Darwin": (
+        "https://evermeet.cx/ffmpeg/getrelease/zip",
+        "ffmpeg-macos.zip",
+        "ffmpeg",
+    ),
     "Linux": (
         "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz",
         "ffmpeg-linux.tar.xz",
@@ -208,7 +214,7 @@ def _safe_fetch(vendor: Path) -> None:
     """
     try:
         fetch(vendor)
-    except Exception:  # a failed download must not crash the app
+    except Exception:  # noqa: BLE001 - a failed download must not crash the app
         return
 
 

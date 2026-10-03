@@ -10,11 +10,17 @@ musical artifact so work can continue without losing state.
 
 from __future__ import annotations
 
+import contextlib
 from collections.abc import Callable
 from typing import Any
 
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import (
+    BaseMessage,
+    HumanMessage,
+    SystemMessage,
+    ToolMessage,
+)
 
 __all__ = [
     "COMPRESS_RATIO",
@@ -106,7 +112,9 @@ def _estimate_tokens(text: str) -> int:
     return non_ascii + ascii_count // _CHARS_PER_TOKEN + 1
 
 
-def _count_with_tokenizer(count_tokens: Callable[[str], int], messages: list[BaseMessage]) -> int:
+def _count_with_tokenizer(
+    count_tokens: Callable[[str], int], messages: list[BaseMessage]
+) -> int:
     """Count a conversation with the model's own tokenizer.
 
     Every OpenAI-compatible chat model exposes ``get_num_tokens(text)``, which
@@ -168,16 +176,13 @@ def token_count(chat_model: BaseChatModel, messages: list[BaseMessage]) -> int:
     """
     counter = getattr(chat_model, "get_num_tokens_from_messages", None)
     if callable(counter):
-        try:
+        # A model tokenizer is best-effort: fall through on any failure.
+        with contextlib.suppress(Exception):
             return int(counter(messages))
-        except Exception:
-            pass
     count_tokens = getattr(chat_model, "get_num_tokens", None)
     if callable(count_tokens):
-        try:
+        with contextlib.suppress(Exception):
             return _count_with_tokenizer(count_tokens, messages)
-        except Exception:
-            pass
     return _count_with_heuristic(messages)
 
 
@@ -254,14 +259,16 @@ def ensure_tool_responses(messages: list[BaseMessage]) -> None:
                 if call_id not in answered:
                     messages.insert(
                         scan,
-                        ToolMessage(content="[missing tool result]", tool_call_id=call_id),
+                        ToolMessage(
+                            content="[missing tool result]", tool_call_id=call_id
+                        ),
                     )
                     scan += 1
                     answered.add(call_id)
         index += 1
 
 
-def compress_messages(  # noqa: PLR0913
+def compress_messages(
     chat_model: BaseChatModel,
     messages: list[BaseMessage],
     *,

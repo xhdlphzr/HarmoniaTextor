@@ -130,7 +130,9 @@ class DesktopApp:
 
     def run(self) -> None:
         """Serve the application and open the native window."""
-        server: BaseWSGIServer = make_server(self.host, self.port, self.flask_app, threaded=True)
+        server: BaseWSGIServer = make_server(
+            self.host, self.port, self.flask_app, threaded=True
+        )
         url = f"http://{self.host}:{server.server_port}/"
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()

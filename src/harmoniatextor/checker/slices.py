@@ -57,7 +57,9 @@ def build_slices(score: stream.Score) -> list[Slice]:
             if abs(event.offset - offset) < _EPSILON
         }
         if events:
-            result.append(Slice(offset=offset, measure=measure_of(score, offset), events=events))
+            result.append(
+                Slice(offset=offset, measure=measure_of(score, offset), events=events)
+            )
     return result
 
 

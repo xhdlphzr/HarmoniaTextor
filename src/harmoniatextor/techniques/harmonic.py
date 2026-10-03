@@ -104,11 +104,16 @@ class FunctionalCycleTechnique(Technique[FunctionalCycleParams]):
     summary = "Realise a T-S-D functional progression as four-part harmony."
     params_model = FunctionalCycleParams
 
-    def apply(self, ctx: TechniqueContext, params: FunctionalCycleParams) -> TechniqueResult:
+    def apply(
+        self, ctx: TechniqueContext, params: FunctionalCycleParams
+    ) -> TechniqueResult:
         """Realise the cycle."""
         editor = ScoreEditor(ctx.score)
         bar = editor.bar_length()
-        figures = [params.start_chord, *(functional_figure(params.key, f) for f in params.sequence)]
+        figures = [
+            params.start_chord,
+            *(functional_figure(params.key, f) for f in params.sequence),
+        ]
         for index, figure in enumerate(figures):
             realize_chord(
                 editor,
@@ -128,12 +133,16 @@ class DominantSeventhTechnique(Technique[DominantSeventhParams]):
     summary = "Realise a V7 (or applied V7) at a specific position."
     params_model = DominantSeventhParams
 
-    def apply(self, ctx: TechniqueContext, params: DominantSeventhParams) -> TechniqueResult:
+    def apply(
+        self, ctx: TechniqueContext, params: DominantSeventhParams
+    ) -> TechniqueResult:
         """Realise the dominant seventh."""
         measure, beat = parse_measure_position(params.measure_position)
         editor = ScoreEditor(ctx.score)
         pitches = chord_pitches(params.key, params.chord)
-        realize_chord(editor, params.key, params.chord, Placement(measure, beat - 1.0, 1.0))
+        realize_chord(
+            editor, params.key, params.chord, Placement(measure, beat - 1.0, 1.0)
+        )
         editor.place_note(params.voice, measure, beat - 1.0, pitches[0], 1.0)
         return TechniqueResult(ctx.score)
 
@@ -147,11 +156,15 @@ class DiminishedSeventhTechnique(Technique[DiminishedSeventhParams]):
     summary = "Realise a vii°7 and pivot it towards a target key."
     params_model = DiminishedSeventhParams
 
-    def apply(self, ctx: TechniqueContext, params: DiminishedSeventhParams) -> TechniqueResult:
+    def apply(
+        self, ctx: TechniqueContext, params: DiminishedSeventhParams
+    ) -> TechniqueResult:
         """Realise the diminished seventh and its resolution."""
         measure, beat = parse_measure_position(params.measure_position)
         editor = ScoreEditor(ctx.score)
-        realize_chord(editor, params.key, params.chord, Placement(measure, beat - 1.0, 1.0))
+        realize_chord(
+            editor, params.key, params.chord, Placement(measure, beat - 1.0, 1.0)
+        )
         target = parse_key(params.target_key)
         tonic_figure = "I" if target.is_major else "i"
         realize_chord(
@@ -172,7 +185,9 @@ class HarmonicSequenceTechnique(Technique[HarmonicSequenceParams]):
     summary = "Sequence a chord template, moving the whole pattern by an interval."
     params_model = HarmonicSequenceParams
 
-    def apply(self, ctx: TechniqueContext, params: HarmonicSequenceParams) -> TechniqueResult:
+    def apply(
+        self, ctx: TechniqueContext, params: HarmonicSequenceParams
+    ) -> TechniqueResult:
         """Realise a harmonic sequence."""
         editor = ScoreEditor(ctx.score)
         bar = editor.bar_length()
@@ -196,7 +211,9 @@ class ChromaticHarmonyTechnique(Technique[ChromaticHarmonyParams]):
     summary = "Raise or lower a scale degree by a semitone across a passage."
     params_model = ChromaticHarmonyParams
 
-    def apply(self, ctx: TechniqueContext, params: ChromaticHarmonyParams) -> TechniqueResult:
+    def apply(
+        self, ctx: TechniqueContext, params: ChromaticHarmonyParams
+    ) -> TechniqueResult:
         """Apply chromatic alteration."""
         editor = ScoreEditor(ctx.score)
         warnings: list[str] = []
@@ -210,7 +227,7 @@ class ChromaticHarmonyTechnique(Technique[ChromaticHarmonyParams]):
             return TechniqueResult(ctx.score, warnings)
         try:
             target_pc = name_to_midi(chord_pitches(params.key, base)[0]) % 12
-        except Exception:
+        except Exception:  # noqa: BLE001 - music21 raises many types for bad figures
             warnings.append(f"cannot resolve degree {degree!r} in key {params.key!r}")
             return TechniqueResult(ctx.score, warnings)
 
@@ -221,7 +238,9 @@ class ChromaticHarmonyTechnique(Technique[ChromaticHarmonyParams]):
             return pitch
 
         for voice in editor.voice_names():
-            editor.map_notes(voice, params.measure_range.start, params.measure_range.end, alter)
+            editor.map_notes(
+                voice, params.measure_range.start, params.measure_range.end, alter
+            )
         return TechniqueResult(ctx.score, warnings)
 
 
@@ -234,7 +253,9 @@ class ModulationBridgeTechnique(Technique[ModulationBridgeParams]):
     summary = "Bridge two keys with an explicit pivot progression."
     params_model = ModulationBridgeParams
 
-    def apply(self, ctx: TechniqueContext, params: ModulationBridgeParams) -> TechniqueResult:
+    def apply(
+        self, ctx: TechniqueContext, params: ModulationBridgeParams
+    ) -> TechniqueResult:
         """Realise a modulation bridge."""
         editor = ScoreEditor(ctx.score)
         bar = editor.bar_length()
@@ -253,7 +274,9 @@ class ModulationBridgeTechnique(Technique[ModulationBridgeParams]):
             figures = figures[:span]
         for index, figure in enumerate(figures):
             current_key = params.start_key if index == 0 else params.target_key
-            realize_chord(editor, current_key, figure, Placement(start + index, 0.0, bar))
+            realize_chord(
+                editor, current_key, figure, Placement(start + index, 0.0, bar)
+            )
         return TechniqueResult(ctx.score, warnings)
 
 
@@ -266,7 +289,9 @@ class ChromaticModulationTechnique(Technique[ChromaticModulationParams]):
     summary = "Bridge two keys with a chromatic Neapolitan pivot and a target cadence."
     params_model = ChromaticModulationParams
 
-    def apply(self, ctx: TechniqueContext, params: ChromaticModulationParams) -> TechniqueResult:
+    def apply(
+        self, ctx: TechniqueContext, params: ChromaticModulationParams
+    ) -> TechniqueResult:
         """Realise the chromatic modulation."""
         editor = ScoreEditor(ctx.score)
         bar = editor.bar_length()
@@ -280,7 +305,9 @@ class ChromaticModulationTechnique(Technique[ChromaticModulationParams]):
             (params.target_key, "I"),
         ]
         if len(plan) > span:
-            warnings.append("chromatic modulation ran out of measures; extra chords were dropped")
+            warnings.append(
+                "chromatic modulation ran out of measures; extra chords were dropped"
+            )
             plan = plan[:span]
         for index, (key, figure) in enumerate(plan):
             realize_chord(editor, key, figure, Placement(start + index, 0.0, bar))
@@ -317,7 +344,9 @@ class ExtendedHarmonyTechnique(Technique[ExtendedHarmonyParams]):
     summary = "Stack 7/9/11/13 extensions above the sounding root of each measure."
     params_model = ExtendedHarmonyParams
 
-    def apply(self, ctx: TechniqueContext, params: ExtendedHarmonyParams) -> TechniqueResult:
+    def apply(
+        self, ctx: TechniqueContext, params: ExtendedHarmonyParams
+    ) -> TechniqueResult:
         """Write the extension chords."""
         editor = ScoreEditor(ctx.score)
         bar = editor.bar_length()
@@ -347,7 +376,9 @@ class ColorChordTechnique(Technique[ColorChordParams]):
         offset = _COLOR_SEMITONES.get(params.color, _COLOR_SEMITONES["9"])
         for measure in range(params.measure_range.start, params.measure_range.end + 1):
             root = _sounding_root(editor, measure, params.key)
-            editor.place_note(params.voice, measure, 0.0, midi_to_name(root + offset), bar)
+            editor.place_note(
+                params.voice, measure, 0.0, midi_to_name(root + offset), bar
+            )
         return TechniqueResult(ctx.score)
 
 
@@ -360,7 +391,9 @@ class ModalHarmonyTechnique(Technique[ModalHarmonyParams]):
     summary = "Realise a modal chord progression derived from the chosen church mode."
     params_model = ModalHarmonyParams
 
-    def apply(self, ctx: TechniqueContext, params: ModalHarmonyParams) -> TechniqueResult:
+    def apply(
+        self, ctx: TechniqueContext, params: ModalHarmonyParams
+    ) -> TechniqueResult:
         """Realise the modal progression."""
         editor = ScoreEditor(ctx.score)
         bar = editor.bar_length()
@@ -369,10 +402,14 @@ class ModalHarmonyTechnique(Technique[ModalHarmonyParams]):
         span = params.measure_range.end - start + 1
         warnings: list[str] = []
         if len(figures) > span:
-            warnings.append("modal progression ran out of measures; extra chords were dropped")
+            warnings.append(
+                "modal progression ran out of measures; extra chords were dropped"
+            )
             figures = figures[:span]
         for index, figure in enumerate(figures):
-            realize_chord(editor, params.key, figure, Placement(start + index, 0.0, bar))
+            realize_chord(
+                editor, params.key, figure, Placement(start + index, 0.0, bar)
+            )
         return TechniqueResult(ctx.score, warnings)
 
 

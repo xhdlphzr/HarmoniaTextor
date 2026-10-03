@@ -34,7 +34,9 @@ class TestIO:
 
     def test_roundtrip(self) -> None:
         """MusicXML survives a round trip."""
-        score = new_score(key="C", time_signature="4/4", tempo_bpm=90, voices=["soprano", "bass"])
+        score = new_score(
+            key="C", time_signature="4/4", tempo_bpm=90, voices=["soprano", "bass"]
+        )
         editor = ScoreEditor(score)
         editor.write_line("soprano", 1, [ThemeNote("C5", 1.0)])
         restored = from_musicxml(to_musicxml(score))
@@ -42,7 +44,9 @@ class TestIO:
 
     def test_clone_is_independent(self) -> None:
         """Cloning produces an independent score."""
-        score = new_score(key="C", time_signature="4/4", tempo_bpm=90, voices=["soprano"])
+        score = new_score(
+            key="C", time_signature="4/4", tempo_bpm=90, voices=["soprano"]
+        )
         clone = clone_score(score)
         clone.parts[0].partName = "changed"
         assert score.parts[0].partName == "soprano"
@@ -50,7 +54,9 @@ class TestIO:
     def test_from_part_wraps_in_score(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """A bare part is wrapped into a score."""
         part = new_part("soprano")
-        monkeypatch.setattr("harmoniatextor.score.io.converter.parseData", lambda *_, **__: part)
+        monkeypatch.setattr(
+            "harmoniatextor.score.io.converter.parseData", lambda *_, **__: part
+        )
         assert isinstance(from_musicxml("<xml/>"), stream.Score)
 
     def test_from_invalid_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -84,7 +90,9 @@ class TestInstruments:
 
     def test_make_instrument_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """A resolver that returns None falls back to piano."""
-        monkeypatch.setattr("harmoniatextor.score.io.instrument.fromString", lambda _name: None)
+        monkeypatch.setattr(
+            "harmoniatextor.score.io.instrument.fromString", lambda _name: None
+        )
         assert make_instrument("x").classes[0] == "Piano"
 
     def test_make_instrument_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -102,7 +110,9 @@ class TestInstruments:
         editor.set_instrument("soprano", "Flute")
         part = editor.get_part("soprano")
         assert part is not None
-        assert any(item.classes[0] == "Flute" for item in part.getElementsByClass("Instrument"))
+        assert any(
+            item.classes[0] == "Flute" for item in part.getElementsByClass("Instrument")
+        )
 
 
 class TestFromMusicXmlInstruments:
@@ -110,7 +120,9 @@ class TestFromMusicXmlInstruments:
 
     def test_assigns_missing_instruments(self) -> None:
         """Parts without an instrument get a voice-based default."""
-        score = new_score(key="C", time_signature="4/4", tempo_bpm=84, voices=["violin1", "piano"])
+        score = new_score(
+            key="C", time_signature="4/4", tempo_bpm=84, voices=["violin1", "piano"]
+        )
         ScoreEditor(score).write_line("violin1", 1, [ThemeNote("G4", 1.0)])
         for part in score.parts:
             for item in list(part.getElementsByClass("Instrument")):

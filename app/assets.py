@@ -21,7 +21,11 @@ def assets_dir() -> Path:
         The assets directory.
     """
     frozen = getattr(sys, "_MEIPASS", None)
-    base = Path(frozen) if isinstance(frozen, str) else Path(__file__).resolve().parent.parent
+    base = (
+        Path(frozen)
+        if isinstance(frozen, str)
+        else Path(__file__).resolve().parent.parent
+    )
     return base / "assets"
 
 

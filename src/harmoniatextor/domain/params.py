@@ -145,7 +145,9 @@ class _MelodicParams(_Params):
 class ImitationParams(_MelodicParams):
     """Parameters for the imitation technique."""
 
-    delay_measures: int = Field(default=2, ge=0, description="Delay before entry, in measures.")
+    delay_measures: int = Field(
+        default=2, ge=0, description="Delay before entry, in measures."
+    )
     interval: int = Field(default=5, description="Signed interval; +5 is the dominant.")
     strict: bool = Field(default=True, description="Whether the imitation is literal.")
 
@@ -153,7 +155,9 @@ class ImitationParams(_MelodicParams):
 class InversionParams(_MelodicParams):
     """Parameters for the inversion technique."""
 
-    axis: str = Field(default="auto", description='Mirror axis pitch such as "C4", or "auto".')
+    axis: str = Field(
+        default="auto", description='Mirror axis pitch such as "C4", or "auto".'
+    )
 
 
 class RetrogradeParams(_MelodicParams):
@@ -177,16 +181,24 @@ class DiminutionParams(_MelodicParams):
 class TranspositionParams(_MelodicParams):
     """Parameters for the transposition technique."""
 
-    interval: int = Field(default=5, description="Signed interval used when no target key.")
-    target_key: str | None = Field(default=None, description='Absolute target key, e.g. "G".')
+    interval: int = Field(
+        default=5, description="Signed interval used when no target key."
+    )
+    target_key: str | None = Field(
+        default=None, description='Absolute target key, e.g. "G".'
+    )
 
 
 class SequenceParams(_MelodicParams):
     """Parameters for the sequence technique."""
 
     step_interval: int = Field(default=2, description="Interval moved per repetition.")
-    repetitions: int = Field(default=3, ge=1, le=16, description="Number of repetitions.")
-    start_measure: int = Field(default=1, ge=1, description="First measure of the sequence.")
+    repetitions: int = Field(
+        default=3, ge=1, le=16, description="Number of repetitions."
+    )
+    start_measure: int = Field(
+        default=1, ge=1, description="First measure of the sequence."
+    )
 
 
 class VoiceExchangeParams(_Params):
@@ -194,9 +206,15 @@ class VoiceExchangeParams(_Params):
 
     theme_id_1: int | None = Field(default=None, ge=1, description="First theme.")
     theme_id_2: int | None = Field(default=None, ge=1, description="Second theme.")
-    voice_1: str | None = Field(default=None, description="First voice when no themes given.")
-    voice_2: str | None = Field(default=None, description="Second voice when no themes given.")
-    measure_range: MeasureRange = Field(description="Measures where voices are exchanged.")
+    voice_1: str | None = Field(
+        default=None, description="First voice when no themes given."
+    )
+    voice_2: str | None = Field(
+        default=None, description="Second voice when no themes given."
+    )
+    measure_range: MeasureRange = Field(
+        description="Measures where voices are exchanged."
+    )
 
     @model_validator(mode="after")
     def _check_targets(self) -> VoiceExchangeParams:
@@ -224,11 +242,15 @@ class DevelopmentParams(_Params):
     """Parameters for the development technique."""
 
     theme_ids: list[int] = Field(min_length=1, description="Themes to develop.")
-    target_keys: list[str] = Field(min_length=1, description="Key sequence to pass through.")
+    target_keys: list[str] = Field(
+        min_length=1, description="Key sequence to pass through."
+    )
     techniques: list[str] = Field(
         default_factory=lambda: ["inversion"], description="Techniques used."
     )
-    measure_range: MeasureRange = Field(description="Measures occupied by the development.")
+    measure_range: MeasureRange = Field(
+        description="Measures occupied by the development."
+    )
 
 
 class RecapitulationParams(_Params):
@@ -255,7 +277,8 @@ class RondoParams(_Params):
         min_length=1, description="Contrasting episode themes (B, C, ...) in order."
     )
     episode_keys: list[str] = Field(
-        default_factory=list, description="Optional key per episode; empty uses the dominant."
+        default_factory=list,
+        description="Optional key per episode; empty uses the dominant.",
     )
     tonic: str = Field(min_length=1, description="Home key the refrain returns to.")
     measure_start: int = Field(ge=1, description="First measure of the rondo.")
@@ -265,8 +288,12 @@ class StrettoParams(_Params):
     """Parameters for the stretto technique."""
 
     theme_id: int = Field(ge=1, description="Theme to stack.")
-    entry_delay: float = Field(default=2.0, gt=0, description="Delay between entries, in beats.")
-    voices: list[str] = Field(min_length=2, description="Voices participating, in entry order.")
+    entry_delay: float = Field(
+        default=2.0, gt=0, description="Delay between entries, in beats."
+    )
+    voices: list[str] = Field(
+        min_length=2, description="Voices participating, in entry order."
+    )
 
 
 class PedalPointParams(_Params):
@@ -275,7 +302,9 @@ class PedalPointParams(_Params):
     pitch: str = Field(min_length=1, description='Sustained pitch such as "G2".')
     voice: str = Field(min_length=1, description="Voice slot holding the pedal.")
     measure_range: MeasureRange = Field(description="Measures of the pedal.")
-    pedal_type: Literal["tonic", "dominant"] = Field(default="tonic", description="Pedal function.")
+    pedal_type: Literal["tonic", "dominant"] = Field(
+        default="tonic", description="Pedal function."
+    )
 
 
 class PedalToneParams(_Params):
@@ -284,7 +313,9 @@ class PedalToneParams(_Params):
     pitch: str = Field(min_length=1, description="Fixed pitch.")
     voice: str = Field(min_length=1, description="Voice slot holding the pedal.")
     measure_range: MeasureRange = Field(description="Measures of the pedal.")
-    above_movement: bool = Field(default=True, description="Let upper voices move freely.")
+    above_movement: bool = Field(
+        default=True, description="Let upper voices move freely."
+    )
 
 
 class FunctionalCycleParams(_Params):
@@ -295,7 +326,9 @@ class FunctionalCycleParams(_Params):
         default_factory=lambda: ["T", "S", "D", "T"], description="Functions."
     )
     key: str = Field(min_length=1, description="Key of the cycle.")
-    measure_start: int = Field(default=1, ge=1, description="First measure of the cycle.")
+    measure_start: int = Field(
+        default=1, ge=1, description="First measure of the cycle."
+    )
 
 
 class DominantSeventhParams(MeasurePosition):
@@ -319,7 +352,9 @@ class HarmonicSequenceParams(_Params):
 
     chord_sequence: list[str] = Field(min_length=1, description="Chord template.")
     step_interval: int = Field(default=2, description="Interval moved per repetition.")
-    repetitions: int = Field(default=3, ge=1, le=8, description="Number of repetitions.")
+    repetitions: int = Field(
+        default=3, ge=1, le=8, description="Number of repetitions."
+    )
     key: str = Field(min_length=1, description="Starting key.")
 
 
@@ -336,7 +371,9 @@ class ModulationBridgeParams(_Params):
 
     start_key: str = Field(min_length=1, description="Key to leave.")
     target_key: str = Field(min_length=1, description="Key to reach.")
-    bridge_chords: list[str] | None = Field(default=None, description="Optional pivot chords.")
+    bridge_chords: list[str] | None = Field(
+        default=None, description="Optional pivot chords."
+    )
     measure_range: MeasureRange = Field(description="Measures of the bridge.")
 
 
@@ -345,13 +382,17 @@ class SyncopationParams(_Params):
 
     theme_id: int = Field(ge=1, description="Theme to syncopate.")
     measure_range: MeasureRange = Field(description="Measures to affect.")
-    sync_pattern: str = Field(default="quarter-half-quarter", description="Rhythmic pattern.")
+    sync_pattern: str = Field(
+        default="quarter-half-quarter", description="Rhythmic pattern."
+    )
 
 
 class RhythmicIndependenceParams(_Params):
     """Parameters for the rhythmic independence technique."""
 
-    voice_pairs: list[list[str]] = Field(min_length=1, description="Voice pairs to differentiate.")
+    voice_pairs: list[list[str]] = Field(
+        min_length=1, description="Voice pairs to differentiate."
+    )
     measure_range: MeasureRange = Field(description="Measures to affect.")
 
 
@@ -360,14 +401,18 @@ class CounterRhythmParams(_Params):
 
     main_voice: str = Field(min_length=1, description="Reference voice.")
     counter_voice: str = Field(min_length=1, description="Voice to re-rhythm.")
-    rhythm_ratio: str = Field(default="2:1", description='Ratio such as "2:1" or "3:2".')
+    rhythm_ratio: str = Field(
+        default="2:1", description='Ratio such as "2:1" or "3:2".'
+    )
     measure_range: MeasureRange = Field(description="Measures to affect.")
 
 
 class VoiceMotionParams(_Params):
     """Parameters for the voice motion technique."""
 
-    voice_pairs: list[list[str]] = Field(min_length=1, description="Voice pairs to move.")
+    voice_pairs: list[list[str]] = Field(
+        min_length=1, description="Voice pairs to move."
+    )
     motion_type: Literal["parallel", "contrary", "oblique"] = Field(
         default="contrary", description="Required motion type."
     )
@@ -385,7 +430,9 @@ class AlbertiBassParams(_Params):
             than the range.
     """
 
-    voice: str = Field(min_length=1, description="Voice slot receiving the Alberti figure.")
+    voice: str = Field(
+        min_length=1, description="Voice slot receiving the Alberti figure."
+    )
     measure_range: MeasureRange = Field(description="Measures to fill.")
     key: str = Field(min_length=1, description="Key used to realise the chords.")
     chord_sequence: list[str] = Field(
@@ -410,7 +457,9 @@ class BrokenChordParams(_Params):
     measure_range: MeasureRange = Field(description="Measures to fill.")
     key: str = Field(min_length=1, description="Key used to realise the chord.")
     chord: str = Field(default="I", description="Roman-numeral chord to arpeggiate.")
-    note_value: str = Field(default="eighth", description="Note value name, e.g. 'eighth'.")
+    note_value: str = Field(
+        default="eighth", description="Note value name, e.g. 'eighth'."
+    )
     direction: Literal["up", "down", "updown"] = Field(
         default="up", description="Arpeggio direction."
     )
@@ -432,8 +481,12 @@ class ParallelChordsParams(_Params):
     measure_range: MeasureRange = Field(description="Measures the chords occupy.")
     key: str = Field(min_length=1, description="Key used to realise the source chord.")
     chord: str = Field(default="I", description="Source Roman-numeral chord.")
-    step_interval: int = Field(default=2, description="Diatonic interval moved per repetition.")
-    repetitions: int = Field(default=4, ge=1, le=16, description="Number of chord statements.")
+    step_interval: int = Field(
+        default=2, description="Diatonic interval moved per repetition."
+    )
+    repetitions: int = Field(
+        default=4, ge=1, le=16, description="Number of chord statements."
+    )
 
 
 class PlaningParams(_Params):
@@ -447,10 +500,14 @@ class PlaningParams(_Params):
         step: Diatonic step moved per measure.
     """
 
-    voice: str = Field(min_length=1, description="Voice slot receiving the stacked chords.")
+    voice: str = Field(
+        min_length=1, description="Voice slot receiving the stacked chords."
+    )
     measure_range: MeasureRange = Field(description="Measures the chords occupy.")
     key: str = Field(min_length=1, description="Key used to realise the source chord.")
-    chord_size: Literal["triad", "seventh"] = Field(default="triad", description="Chord size.")
+    chord_size: Literal["triad", "seventh"] = Field(
+        default="triad", description="Chord size."
+    )
     step: int = Field(default=1, description="Diatonic step moved per measure.")
 
 
@@ -487,7 +544,9 @@ class ExtendedHarmonyParams(_Params):
         extensions: Extension degrees to stack (``"7"``, ``"9"``, ``"11"``, ``"13"``).
     """
 
-    voice: str = Field(min_length=1, description="Voice slot receiving the extension chord.")
+    voice: str = Field(
+        min_length=1, description="Voice slot receiving the extension chord."
+    )
     measure_range: MeasureRange = Field(description="Measures to extend.")
     key: str = Field(min_length=1, description="Key used to resolve the chord root.")
     extensions: list[Literal["7", "9", "11", "13"]] = Field(
@@ -507,10 +566,14 @@ class ColorChordParams(_Params):
         color: Colour degree such as ``"6"``, ``"9"``, ``"#11"`` or ``"b13"``.
     """
 
-    voice: str = Field(min_length=1, description="Voice slot receiving the colour tone.")
+    voice: str = Field(
+        min_length=1, description="Voice slot receiving the colour tone."
+    )
     measure_range: MeasureRange = Field(description="Measures to colour.")
     key: str = Field(min_length=1, description="Key used to resolve the chord root.")
-    color: str = Field(default="9", description="Colour degree such as '6', '9', '#11', 'b13'.")
+    color: str = Field(
+        default="9", description="Colour degree such as '6', '9', '#11', 'b13'."
+    )
 
 
 class ModalHarmonyParams(_Params):
@@ -524,8 +587,8 @@ class ModalHarmonyParams(_Params):
     """
 
     key: str = Field(min_length=1, description="Home key.")
-    mode: Literal["ionian", "dorian", "phrygian", "lydian", "mixolydian", "aeolian"] = Field(
-        default="ionian", description="Church mode."
+    mode: Literal["ionian", "dorian", "phrygian", "lydian", "mixolydian", "aeolian"] = (
+        Field(default="ionian", description="Church mode.")
     )
     measure_range: MeasureRange = Field(description="Measures to harmonise.")
     chord_sequence: list[str] = Field(
@@ -548,8 +611,12 @@ class WholeToneParams(_Params):
     voice: str = Field(min_length=1, description="Voice slot receiving the scale.")
     measure_range: MeasureRange = Field(description="Measures to fill.")
     root: str = Field(default="C4", description='Root pitch such as "C4".')
-    direction: Literal["up", "down"] = Field(default="up", description="Scale direction.")
-    note_value: str = Field(default="eighth", description="Note value name, e.g. 'eighth'.")
+    direction: Literal["up", "down"] = Field(
+        default="up", description="Scale direction."
+    )
+    note_value: str = Field(
+        default="eighth", description="Note value name, e.g. 'eighth'."
+    )
 
 
 class RubatoParams(_Params):
@@ -562,7 +629,10 @@ class RubatoParams(_Params):
 
     measure_range: MeasureRange = Field(description="Measures to breathe.")
     amount: float = Field(
-        default=0.2, gt=0, lt=0.9, description="Agogic amount; the downbeat is stretched."
+        default=0.2,
+        gt=0,
+        lt=0.9,
+        description="Agogic amount; the downbeat is stretched.",
     )
 
 
@@ -576,7 +646,9 @@ class FreeVoiceLeadingParams(_Params):
     """
 
     voice: str = Field(min_length=1, description="Voice whose measures are exempted.")
-    measure_range: MeasureRange = Field(description="Measures where the exemption applies.")
+    measure_range: MeasureRange = Field(
+        description="Measures where the exemption applies."
+    )
     reason: str = Field(
         min_length=4,
         description=(
@@ -652,7 +724,9 @@ class SetTempoParams(_Params):
         bpm: New tempo in quarter notes per minute.
     """
 
-    bpm: int = Field(ge=20, le=300, description="New tempo in quarter notes per minute (20-300).")
+    bpm: int = Field(
+        ge=20, le=300, description="New tempo in quarter notes per minute (20-300)."
+    )
 
 
 class AnnotateParams(_Params):
@@ -695,7 +769,9 @@ class SetTitleParams(_Params):
         title: The work title chosen by the composer.
     """
 
-    title: str = Field(min_length=1, description="A concise, fitting title for the work.")
+    title: str = Field(
+        min_length=1, description="A concise, fitting title for the work."
+    )
 
 
 class EditParams(_Params):
@@ -727,7 +803,9 @@ class InsertMeasureParams(_Params):
 
     measure: int = Field(ge=1, description="One-based position of the new measure.")
     voice: str = Field(default="", description="Voice that receives the fragment.")
-    musicxml: str = Field(default="", description="MusicXML fragment for the new measure.")
+    musicxml: str = Field(
+        default="", description="MusicXML fragment for the new measure."
+    )
 
 
 class DeleteMeasureParams(_Params):

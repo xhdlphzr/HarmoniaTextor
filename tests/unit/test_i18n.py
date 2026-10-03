@@ -84,7 +84,9 @@ class TestTranslate:
         """An unknown id falls back to the id itself."""
         assert translate("does.not.exist", "en") == "does.not.exist"
 
-    def test_missing_falls_back_to_english(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_missing_falls_back_to_english(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """A missing Chinese id falls back to the English text."""
         monkeypatch.delitem(CATALOG["zh"], "nav.create")
         assert translate("nav.create", "zh") == "Create"

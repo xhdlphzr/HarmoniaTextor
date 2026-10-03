@@ -13,7 +13,9 @@ from harmoniatextor.score.streamops import ScoreEditor
 from harmoniatextor.techniques import TechniqueContext, build_default_registry
 
 
-def apply(technique_id: str, score: stream.Score, themes: dict[int, Theme], **params: Any) -> Any:
+def apply(
+    technique_id: str, score: stream.Score, themes: dict[int, Theme], **params: Any
+) -> Any:
     """Apply a technique by identifier."""
     technique = REGISTRY.get(technique_id)
     context = TechniqueContext(score=score, themes=themes)
@@ -32,15 +34,36 @@ class TestHarmonic:
 
     def test_dominant_seventh(self, score4: stream.Score) -> None:
         """A dominant seventh is placed."""
-        apply("dominant_seventh", score4, {}, key="C", measure_position="2+1", voice="bass")
+        apply(
+            "dominant_seventh",
+            score4,
+            {},
+            key="C",
+            measure_position="2+1",
+            voice="bass",
+        )
 
     def test_diminished_seventh(self, score4: stream.Score) -> None:
         """A diminished seventh resolves to a target key."""
-        apply("diminished_seventh", score4, {}, key="C", target_key="G", measure_position="3+1")
+        apply(
+            "diminished_seventh",
+            score4,
+            {},
+            key="C",
+            target_key="G",
+            measure_position="3+1",
+        )
 
     def test_harmonic_sequence(self, score4: stream.Score) -> None:
         """A harmonic sequence steps through keys."""
-        apply("harmonic_sequence", score4, {}, chord_sequence=["I", "V"], repetitions=2, key="C")
+        apply(
+            "harmonic_sequence",
+            score4,
+            {},
+            chord_sequence=["I", "V"],
+            repetitions=2,
+            key="C",
+        )
 
     def test_chromatic_harmony(self, score4: stream.Score) -> None:
         """A degree can be raised chromatically."""

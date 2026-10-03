@@ -82,7 +82,9 @@ class SyncopationTechnique(Technique[SyncopationParams]):
     summary = "Apply a syncopated rhythmic pattern to a theme's pitches."
     params_model = SyncopationParams
 
-    def apply(self, ctx: TechniqueContext, params: SyncopationParams) -> TechniqueResult:
+    def apply(
+        self, ctx: TechniqueContext, params: SyncopationParams
+    ) -> TechniqueResult:
         """Apply syncopation."""
         theme = get_theme(ctx, params.theme_id)
         durations = _parse_pattern(params.sync_pattern)
@@ -108,7 +110,9 @@ class RhythmicIndependenceTechnique(Technique[RhythmicIndependenceParams]):
     summary = "Offset a paired voice so the two rhythms no longer coincide."
     params_model = RhythmicIndependenceParams
 
-    def apply(self, ctx: TechniqueContext, params: RhythmicIndependenceParams) -> TechniqueResult:
+    def apply(
+        self, ctx: TechniqueContext, params: RhythmicIndependenceParams
+    ) -> TechniqueResult:
         """Apply rhythmic independence."""
         editor = ScoreEditor(ctx.score)
         warnings: list[str] = []
@@ -120,8 +124,12 @@ class RhythmicIndependenceTechnique(Technique[RhythmicIndependenceParams]):
             if not line_second:
                 warnings.append(f"voice {second!r} has no material to differentiate")
                 continue
-            editor.clear_measure_range(second, params.measure_range.start, params.measure_range.end)
-            editor.write_line(second, params.measure_range.start, line_second, start_offset=0.5)
+            editor.clear_measure_range(
+                second, params.measure_range.start, params.measure_range.end
+            )
+            editor.write_line(
+                second, params.measure_range.start, line_second, start_offset=0.5
+            )
         return TechniqueResult(ctx.score, warnings)
 
 
@@ -134,7 +142,9 @@ class CounterRhythmTechnique(Technique[CounterRhythmParams]):
     summary = "Subdivide the counter voice to a ratio such as 2:1 or 3:2."
     params_model = CounterRhythmParams
 
-    def apply(self, ctx: TechniqueContext, params: CounterRhythmParams) -> TechniqueResult:
+    def apply(
+        self, ctx: TechniqueContext, params: CounterRhythmParams
+    ) -> TechniqueResult:
         """Apply counter-rhythm."""
         parts = params.rhythm_ratio.split(":")
         if len(parts) != _RATIO_PARTS:
@@ -142,7 +152,9 @@ class CounterRhythmTechnique(Technique[CounterRhythmParams]):
         try:
             numerator = int(parts[0])
         except ValueError as exc:
-            raise TechniqueError("BAD_PARAM", f"invalid ratio {params.rhythm_ratio!r}") from exc
+            raise TechniqueError(
+                "BAD_PARAM", f"invalid ratio {params.rhythm_ratio!r}"
+            ) from exc
         if numerator < 1:
             raise TechniqueError("BAD_PARAM", f"invalid ratio {params.rhythm_ratio!r}")
         editor = ScoreEditor(ctx.score)
@@ -150,11 +162,15 @@ class CounterRhythmTechnique(Technique[CounterRhythmParams]):
             params.counter_voice, params.measure_range.start, params.measure_range.end
         )
         if not line:
-            return TechniqueResult(ctx.score, [f"voice {params.counter_voice!r} is empty"])
+            return TechniqueResult(
+                ctx.score, [f"voice {params.counter_voice!r} is empty"]
+            )
         subdivided: list[ThemeNote] = []
         for item in line:
             for _ in range(numerator):
-                subdivided.append(ThemeNote(item.pitch, item.quarter_length / numerator))
+                subdivided.append(
+                    ThemeNote(item.pitch, item.quarter_length / numerator)
+                )
         editor.clear_measure_range(
             params.counter_voice, params.measure_range.start, params.measure_range.end
         )
@@ -171,7 +187,9 @@ class VoiceMotionTechnique(Technique[VoiceMotionParams]):
     summary = "Make paired voices move in parallel, contrary or oblique motion."
     params_model = VoiceMotionParams
 
-    def apply(self, ctx: TechniqueContext, params: VoiceMotionParams) -> TechniqueResult:
+    def apply(
+        self, ctx: TechniqueContext, params: VoiceMotionParams
+    ) -> TechniqueResult:
         """Apply the requested motion type."""
         editor = ScoreEditor(ctx.score)
         warnings: list[str] = []
@@ -188,17 +206,26 @@ class VoiceMotionTechnique(Technique[VoiceMotionParams]):
                 continue
             if params.motion_type == "oblique":
                 held = line_second[0].pitch
-                new_line = [ThemeNote(held, item.quarter_length) for item in line_second]
-            elif params.motion_type == "parallel":
-                offset = name_to_midi(line_second[0].pitch) - name_to_midi(line_first[0].pitch)
                 new_line = [
-                    ThemeNote(midi_to_name(name_to_midi(item.pitch) + offset), item.quarter_length)
+                    ThemeNote(held, item.quarter_length) for item in line_second
+                ]
+            elif params.motion_type == "parallel":
+                offset = name_to_midi(line_second[0].pitch) - name_to_midi(
+                    line_first[0].pitch
+                )
+                new_line = [
+                    ThemeNote(
+                        midi_to_name(name_to_midi(item.pitch) + offset),
+                        item.quarter_length,
+                    )
                     for item in line_first
                 ]
             else:
                 axis = name_to_midi(line_second[0].pitch)
                 new_line = invert_notes(line_second, axis)
-            editor.clear_measure_range(second, params.measure_range.start, params.measure_range.end)
+            editor.clear_measure_range(
+                second, params.measure_range.start, params.measure_range.end
+            )
             editor.write_line(second, params.measure_range.start, new_line)
         return TechniqueResult(ctx.score, warnings)
 
@@ -221,19 +248,26 @@ class RubatoTechnique(Technique[RubatoParams]):
         editor = ScoreEditor(ctx.score)
         warnings: list[str] = []
         for voice in editor.voice_names():
-            for measure in range(params.measure_range.start, params.measure_range.end + 1):
+            for measure in range(
+                params.measure_range.start, params.measure_range.end + 1
+            ):
                 line = editor.read_line(voice, measure, measure)
                 if len(line) < _MIN_NOTES:
                     continue
                 total = sum(item.quarter_length for item in line)
                 rest_total = total - line[0].quarter_length
-                if rest_total <= 0:  # pragma: no cover - defensive; needs 2+ positive notes
+                if (
+                    rest_total <= 0
+                ):  # pragma: no cover - defensive; needs 2+ positive notes
                     continue
-                first = min(total * (1 + params.amount), total - (len(line) - 1) * _MIN_TAIL)
+                first = min(
+                    total * (1 + params.amount), total - (len(line) - 1) * _MIN_TAIL
+                )
                 factor = (total - first) / rest_total
                 shaped = [ThemeNote(line[0].pitch, first)]
                 shaped.extend(
-                    ThemeNote(item.pitch, item.quarter_length * factor) for item in line[1:]
+                    ThemeNote(item.pitch, item.quarter_length * factor)
+                    for item in line[1:]
                 )
                 editor.clear_measure_range(voice, measure, measure)
                 editor.write_line(voice, measure, shaped)

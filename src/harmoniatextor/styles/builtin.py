@@ -48,7 +48,9 @@ _HARMONIC = frozenset(
     }
 )
 _HARMONIC_NO_FUNCTIONAL = _HARMONIC - {"functional_cycle"}
-_RHYTHMIC = frozenset({"syncopation", "rhythmic_independence", "counter_rhythm", "voice_motion"})
+_RHYTHMIC = frozenset(
+    {"syncopation", "rhythmic_independence", "counter_rhythm", "voice_motion"}
+)
 _NEW = frozenset(
     {
         "alberti_bass",
@@ -140,7 +142,9 @@ _IMPRESSION_TECHNIQUES = (
 }
 
 _CLASSICAL_RULES = ALL_RULE_IDS - {"hf5th", "ho8ve", "omission"}
-_ROMANTIC_RULES = frozenset({"empty", "pf5th", "po8ve", "dom7res", "tonality", "voices"})
+_ROMANTIC_RULES = frozenset(
+    {"empty", "pf5th", "po8ve", "dom7res", "tonality", "voices"}
+)
 _IMPRESSION_RULES = frozenset({"empty", "voices"})
 
 BUILTIN_KITS: dict[str, StyleKit] = {

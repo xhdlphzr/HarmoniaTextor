@@ -5,7 +5,11 @@
 
 from __future__ import annotations
 
-from harmoniatextor.checker.profile import RuleSetting, ValidationProfile, profile_for_rules
+from harmoniatextor.checker.profile import (
+    RuleSetting,
+    ValidationProfile,
+    profile_for_rules,
+)
 from harmoniatextor.domain.enums import Severity
 
 

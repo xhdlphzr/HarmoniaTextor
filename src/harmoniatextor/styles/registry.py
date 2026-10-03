@@ -51,7 +51,10 @@ class StyleRegistry:
             Every known kit.
         """
         custom = self.store.load()
-        return [*self.builtins.values(), *sorted(custom.values(), key=lambda kit: kit.name)]
+        return [
+            *self.builtins.values(),
+            *sorted(custom.values(), key=lambda kit: kit.name),
+        ]
 
     def get(self, kit_id: str) -> StyleKit:
         """Return a kit by id.
@@ -88,7 +91,9 @@ class StyleRegistry:
                 pass
         return self.builtins[DEFAULT_STYLE_ID]
 
-    def create(self, name: str, rules: Iterable[str], techniques: Iterable[str]) -> StyleKit:
+    def create(
+        self, name: str, rules: Iterable[str], techniques: Iterable[str]
+    ) -> StyleKit:
         """Create and persist a custom kit.
 
         Args:

@@ -20,11 +20,15 @@ class TestAudio:
 
     def test_unavailable(self, tmp_path: Path) -> None:
         """Missing binaries raise a feature error."""
-        score = new_score(key="C", time_signature="4/4", tempo_bpm=80, voices=["soprano"])
+        score = new_score(
+            key="C", time_signature="4/4", tempo_bpm=80, voices=["soprano"]
+        )
         with pytest.raises(FeatureUnavailableError):
             synthesize_audio(score, tmp_path / "out.m4a", Features())
 
-    def test_synthesize_m4a(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_synthesize_m4a(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """The pipeline invokes FluidSynth then ffmpeg for M4A."""
         calls: list[list[str]] = []
 
@@ -32,7 +36,9 @@ class TestAudio:
             calls.append(args)
 
         monkeypatch.setattr("harmoniatextor.render.audio.subprocess.run", fake_run)
-        score = new_score(key="C", time_signature="4/4", tempo_bpm=80, voices=["soprano"])
+        score = new_score(
+            key="C", time_signature="4/4", tempo_bpm=80, voices=["soprano"]
+        )
         features = Features(
             ffmpeg=tmp_path / "ffmpeg.exe",
             fluidsynth=tmp_path / "fluidsynth.exe",
@@ -46,7 +52,9 @@ class TestAudio:
         assert not (tmp_path / "out.mid").exists()
         assert not (tmp_path / "out.wav").exists()
 
-    def test_synthesize_mp3(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_synthesize_mp3(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """The pipeline encodes MP3 with libmp3lame."""
         calls: list[list[str]] = []
 
@@ -54,7 +62,9 @@ class TestAudio:
             calls.append(args)
 
         monkeypatch.setattr("harmoniatextor.render.audio.subprocess.run", fake_run)
-        score = new_score(key="C", time_signature="4/4", tempo_bpm=80, voices=["soprano"])
+        score = new_score(
+            key="C", time_signature="4/4", tempo_bpm=80, voices=["soprano"]
+        )
         features = Features(
             ffmpeg=tmp_path / "ffmpeg.exe",
             fluidsynth=tmp_path / "fluidsynth.exe",
@@ -76,7 +86,9 @@ class TestAudio:
             calls.append(args)
 
         monkeypatch.setattr("harmoniatextor.render.audio.subprocess.run", fake_run)
-        score = new_score(key="C", time_signature="4/4", tempo_bpm=80, voices=["soprano"])
+        score = new_score(
+            key="C", time_signature="4/4", tempo_bpm=80, voices=["soprano"]
+        )
         features = Features(
             ffmpeg=tmp_path / "ffmpeg.exe",
             fluidsynth=tmp_path / "fluidsynth.exe",

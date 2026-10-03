@@ -17,7 +17,9 @@ class TestFeatureDetector:
     def test_missing(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Missing binaries are reported as None."""
         monkeypatch.delenv("HARMONIA_SOUNDFONT", raising=False)
-        monkeypatch.setattr("harmoniatextor.render.features.shutil.which", lambda _name: None)
+        monkeypatch.setattr(
+            "harmoniatextor.render.features.shutil.which", lambda _name: None
+        )
         features = FeatureDetector(tmp_path / "vendor").detect()
         assert features.ffmpeg is None
         assert features.fluidsynth is None
@@ -47,7 +49,9 @@ class TestFeatureDetector:
         assert features.ffmpeg == vendor / "bin" / "ffmpeg"
         assert features.fluidsynth == vendor / "bin" / "fluidsynth"
 
-    def test_path_fallback(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_path_fallback(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Binaries on the PATH are used when vendor/ is empty."""
         monkeypatch.setattr(
             "harmoniatextor.render.features.shutil.which",
@@ -57,14 +61,18 @@ class TestFeatureDetector:
         assert features.ffmpeg == Path("/usr/bin/ffmpeg")
         assert features.fluidsynth == Path("/usr/bin/fluidsynth")
 
-    def test_soundfont_env(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_soundfont_env(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """HARMONIA_SOUNDFONT overrides the vendored soundfont."""
         font = tmp_path / "custom.sf3"
         font.write_text("x")
         monkeypatch.setenv("HARMONIA_SOUNDFONT", str(font))
         assert FeatureDetector(tmp_path / "vendor").detect().soundfont == font
 
-    def test_soundfont_env_missing(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_soundfont_env_missing(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """A stale HARMONIA_SOUNDFONT path is ignored."""
         monkeypatch.setenv("HARMONIA_SOUNDFONT", str(tmp_path / "nope.sf2"))
         assert FeatureDetector(tmp_path / "vendor").detect().soundfont is None

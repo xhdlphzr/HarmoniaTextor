@@ -126,7 +126,9 @@ def transpose_note(pitch: str, interval: DiatonicInterval) -> str:
     return str(transposed.nameWithOctave)
 
 
-def transpose_notes(notes: list[ThemeNote], interval: DiatonicInterval) -> list[ThemeNote]:
+def transpose_notes(
+    notes: list[ThemeNote], interval: DiatonicInterval
+) -> list[ThemeNote]:
     """Transpose a melody.
 
     Args:
@@ -137,7 +139,10 @@ def transpose_notes(notes: list[ThemeNote], interval: DiatonicInterval) -> list[
         A new transposed melody.
     """
     return [
-        ThemeNote(pitch=transpose_note(item.pitch, interval), quarter_length=item.quarter_length)
+        ThemeNote(
+            pitch=transpose_note(item.pitch, interval),
+            quarter_length=item.quarter_length,
+        )
         for item in notes
     ]
 
@@ -155,7 +160,9 @@ def average_axis_midi(notes: list[ThemeNote]) -> int:
         TechniqueError: When the melody is empty.
     """
     if not notes:
-        raise TechniqueError("THEME_NOT_FOUND", "cannot compute an axis for an empty theme")
+        raise TechniqueError(
+            "THEME_NOT_FOUND", "cannot compute an axis for an empty theme"
+        )
     total = sum(name_to_midi(item.pitch) * item.quarter_length for item in notes)
     weight = sum(item.quarter_length for item in notes)
     return round(total / weight)
@@ -184,7 +191,8 @@ def transpose_to_key(notes: list[ThemeNote], target_key: str) -> list[ThemeNote]
         delta -= _SEMITONES_PER_OCTAVE
     return [
         ThemeNote(
-            pitch=midi_to_name(name_to_midi(item.pitch) + delta), quarter_length=item.quarter_length
+            pitch=midi_to_name(name_to_midi(item.pitch) + delta),
+            quarter_length=item.quarter_length,
         )
         for item in notes
     ]
@@ -203,7 +211,9 @@ def invert_notes(notes: list[ThemeNote], axis_midi: int) -> list[ThemeNote]:
     result: list[ThemeNote] = []
     for item in notes:
         mirrored = 2 * axis_midi - name_to_midi(item.pitch)
-        result.append(ThemeNote(pitch=midi_to_name(mirrored), quarter_length=item.quarter_length))
+        result.append(
+            ThemeNote(pitch=midi_to_name(mirrored), quarter_length=item.quarter_length)
+        )
     return result
 
 
@@ -223,7 +233,9 @@ def chord_pitches(key: str, figure: str) -> list[str]:
     try:
         numeral = roman.RomanNumeral(figure, m21key.Key(parse_key(key).music21_name))
     except Exception as exc:
-        raise TechniqueError("BAD_PARAM", f"cannot realise chord {figure!r} in {key!r}") from exc
+        raise TechniqueError(
+            "BAD_PARAM", f"cannot realise chord {figure!r} in {key!r}"
+        ) from exc
     return [item.nameWithOctave for item in numeral.pitches]
 
 
@@ -288,5 +300,7 @@ def realize_chord(
     for index, voice in enumerate(editor.voice_names()):
         chord_index = len(pitches) - 1 - index
         pitch = pitches[max(chord_index, 0)]
-        editor.place_note(voice, placement.measure, placement.offset, pitch, placement.duration)
+        editor.place_note(
+            voice, placement.measure, placement.offset, pitch, placement.duration
+        )
     return pitches

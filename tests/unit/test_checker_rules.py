@@ -33,7 +33,9 @@ from harmoniatextor.score.analysis import VoiceEvent
 from harmoniatextor.score.streamops import ScoreEditor
 
 
-def place(score: stream.Score, voice: str, offset: float, pitch: str, length: float = 1.0) -> None:
+def place(
+    score: stream.Score, voice: str, offset: float, pitch: str, length: float = 1.0
+) -> None:
     """Place a note at a global offset (assumes 4/4)."""
     measure = int(offset // 4) + 1
     inner = offset - (measure - 1) * 4
@@ -70,7 +72,9 @@ class TestVoiceLeading:
         place(score4, "soprano", 1.0, "D5")
         place(score4, "alto", 0.0, "C4")
         place(score4, "alto", 1.0, "D4")
-        assert rule_ids(ParallelOctavesRule().run(score4, CheckerContext())) == ["po8ve"]
+        assert rule_ids(ParallelOctavesRule().run(score4, CheckerContext())) == [
+            "po8ve"
+        ]
 
     def test_hidden_fifths(self, score4: stream.Score) -> None:
         """Hidden fifths are detected."""
@@ -92,19 +96,25 @@ class TestVoiceLeading:
         """Crossing voices are detected."""
         place(score4, "soprano", 0.0, "C4")
         place(score4, "alto", 0.0, "C5")
-        assert rule_ids(VoiceCrossingRule().run(score4, CheckerContext())) == ["crossing"]
+        assert rule_ids(VoiceCrossingRule().run(score4, CheckerContext())) == [
+            "crossing"
+        ]
 
     def test_excessive_spacing(self, score4: stream.Score) -> None:
         """Over-wide spacing is detected."""
         place(score4, "soprano", 0.0, "C5")
         place(score4, "alto", 0.0, "C3")
-        assert rule_ids(ExcessiveSpacingRule().run(score4, CheckerContext())) == ["spacing"]
+        assert rule_ids(ExcessiveSpacingRule().run(score4, CheckerContext())) == [
+            "spacing"
+        ]
 
     def test_final_outer_interval(self, score4: stream.Score) -> None:
         """A bad final outer interval is detected."""
         place(score4, "soprano", 0.0, "C5")
         place(score4, "bass", 0.0, "D4")
-        assert rule_ids(FinalOuterIntervalRule().run(score4, CheckerContext())) == ["final_outer"]
+        assert rule_ids(FinalOuterIntervalRule().run(score4, CheckerContext())) == [
+            "final_outer"
+        ]
 
     def test_final_outer_interval_ok(self, score4: stream.Score) -> None:
         """A perfect final interval passes."""
@@ -131,7 +141,9 @@ class TestHarmony:
             ["soprano", "alto", "tenor", "bass"], ["A4", "F4", "D4", "D3"], strict=True
         ):
             place(score4, voice, 1.0, pitch)
-        assert rule_ids(DominantResolutionRule().run(score4, CheckerContext())) == ["dom7res"]
+        assert rule_ids(DominantResolutionRule().run(score4, CheckerContext())) == [
+            "dom7res"
+        ]
 
     def test_dominant_resolution_ok(self, score4: stream.Score) -> None:
         """A resolved dominant seventh passes."""
@@ -149,7 +161,9 @@ class TestHarmony:
         """An unresolved leading tone is detected."""
         place(score4, "soprano", 0.0, "B4")
         place(score4, "soprano", 1.0, "G4")
-        assert rule_ids(LeadingToneRule().run(score4, CheckerContext(tonic="C"))) == ["leading"]
+        assert rule_ids(LeadingToneRule().run(score4, CheckerContext(tonic="C"))) == [
+            "leading"
+        ]
 
     def test_leading_tone_ok(self, score4: stream.Score) -> None:
         """A rising leading tone passes."""
@@ -161,14 +175,18 @@ class TestHarmony:
         """A doubled leading tone is detected."""
         place(score4, "soprano", 0.0, "B4")
         place(score4, "alto", 0.0, "B3")
-        assert rule_ids(ChordOmissionRule().run(score4, CheckerContext(tonic="C"))) == ["omission"]
+        assert rule_ids(ChordOmissionRule().run(score4, CheckerContext(tonic="C"))) == [
+            "omission"
+        ]
 
     def test_diminished_interval(self, score4: stream.Score) -> None:
         """An unresolved diminished leap is detected."""
         place(score4, "soprano", 0.0, "C5")
         place(score4, "soprano", 1.0, "F#5")
         place(score4, "soprano", 2.0, "A5")
-        assert rule_ids(DiminishedIntervalRule().run(score4, CheckerContext())) == ["diminterval"]
+        assert rule_ids(DiminishedIntervalRule().run(score4, CheckerContext())) == [
+            "diminterval"
+        ]
 
     def test_diminished_interval_ok(self, score4: stream.Score) -> None:
         """A resolved diminished leap passes."""
@@ -184,13 +202,17 @@ class TestTonal:
     def test_tonal_unity(self, score4: stream.Score) -> None:
         """A missing tonic at an expectation is detected."""
         place(score4, "soprano", 0.0, "D5")
-        context = CheckerContext(expectations=[StructuralExpectation(measure=1, key="C")])
+        context = CheckerContext(
+            expectations=[StructuralExpectation(measure=1, key="C")]
+        )
         assert rule_ids(TonalUnityRule().run(score4, context)) == ["tonality"]
 
     def test_tonal_unity_ok(self, score4: stream.Score) -> None:
         """A present tonic passes."""
         place(score4, "soprano", 0.0, "C5")
-        context = CheckerContext(expectations=[StructuralExpectation(measure=1, key="C")])
+        context = CheckerContext(
+            expectations=[StructuralExpectation(measure=1, key="C")]
+        )
         assert TonalUnityRule().run(score4, context) == []
 
     def test_tonal_unity_no_expectations(self, score4: stream.Score) -> None:
@@ -202,7 +224,9 @@ class TestTonal:
         """A missing authentic cadence is detected."""
         place(score4, "soprano", 0.0, "D5")
         place(score4, "soprano", 4.0, "E5")
-        context = CheckerContext(expectations=[StructuralExpectation(measure=2, cadence=True)])
+        context = CheckerContext(
+            expectations=[StructuralExpectation(measure=2, cadence=True)]
+        )
         assert rule_ids(CadenceTypeRule().run(score4, context)) == ["cadence"]
 
     def test_cadence_ok(self, score4: stream.Score) -> None:
@@ -211,7 +235,9 @@ class TestTonal:
             place(score4, voice, 0.0, pitch)
         for voice, pitch in zip(["soprano", "bass"], ["C5", "C3"], strict=True):
             place(score4, voice, 4.0, pitch)
-        context = CheckerContext(expectations=[StructuralExpectation(measure=2, cadence=True)])
+        context = CheckerContext(
+            expectations=[StructuralExpectation(measure=2, cadence=True)]
+        )
         assert CadenceTypeRule().run(score4, context) == []
 
     def test_cadence_no_points(self, score4: stream.Score) -> None:
@@ -225,38 +251,51 @@ class TestTonal:
             place(score4, "soprano", measure * 4.0, "C5")
         for measure in range(4):
             place(score4, "alto", measure * 4.0, "E4")
-        assert rule_ids(FixedVoiceCountRule().run(score4, CheckerContext())) == ["voices"]
+        assert rule_ids(FixedVoiceCountRule().run(score4, CheckerContext())) == [
+            "voices"
+        ]
 
     def test_voice_count_disabled(self, score4: stream.Score) -> None:
         """The rule can be disabled by context."""
         place(score4, "soprano", 0.0, "C5")
         place(score4, "soprano", 4.0, "D5")
-        assert FixedVoiceCountRule().run(score4, CheckerContext(enforce_voice_count=False)) == []
+        assert (
+            FixedVoiceCountRule().run(score4, CheckerContext(enforce_voice_count=False))
+            == []
+        )
 
     def test_tonal_unity_skips_keyless(self, score4: stream.Score) -> None:
         """Expectations without a key are skipped."""
         place(score4, "soprano", 0.0, "D5")
-        context = CheckerContext(expectations=[StructuralExpectation(measure=1, key=None)])
+        context = CheckerContext(
+            expectations=[StructuralExpectation(measure=1, key=None)]
+        )
         assert TonalUnityRule().run(score4, context) == []
 
     def test_tonal_unity_far_measure(self, score4: stream.Score) -> None:
         """A far-away expectation falls back to the last slice."""
         place(score4, "soprano", 0.0, "D5")
-        context = CheckerContext(expectations=[StructuralExpectation(measure=999, key="C")])
+        context = CheckerContext(
+            expectations=[StructuralExpectation(measure=999, key="C")]
+        )
         assert rule_ids(TonalUnityRule().run(score4, context)) == ["tonality"]
 
     def test_cadence_far_measure(self, score4: stream.Score) -> None:
         """A cadence point before the music falls back to all slices."""
         place(score4, "soprano", 0.0, "C5")
         place(score4, "soprano", 4.0, "D5")
-        context = CheckerContext(expectations=[StructuralExpectation(measure=0, cadence=True)])
+        context = CheckerContext(
+            expectations=[StructuralExpectation(measure=0, cadence=True)]
+        )
         assert rule_ids(CadenceTypeRule().run(score4, context)) == ["cadence"]
 
     def test_slice_for_fallback(self, score4: stream.Score) -> None:
         """Locating an unknown event falls back to the first slice."""
         place(score4, "soprano", 0.0, "C5")
         slices = build_slices(score4)
-        missing = VoiceEvent(offset=99.0, measure=99, pitch="C5", midi=72, quarter_length=1.0)
+        missing = VoiceEvent(
+            offset=99.0, measure=99, pitch="C5", midi=72, quarter_length=1.0
+        )
         assert _slice_for(slices, missing) is slices[0]
 
 
@@ -265,7 +304,9 @@ class TestEmpty:
 
     def test_empty_score(self) -> None:
         """An empty score is rejected."""
-        assert rule_ids(EmptyScoreRule().run(stream.Score(), CheckerContext())) == ["empty"]
+        assert rule_ids(EmptyScoreRule().run(stream.Score(), CheckerContext())) == [
+            "empty"
+        ]
 
     def test_non_empty_score(self, score4: stream.Score) -> None:
         """A score with at least one note passes."""

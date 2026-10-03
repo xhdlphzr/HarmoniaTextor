@@ -81,7 +81,9 @@ class ExpositionTechnique(Technique[ExpositionParams]):
     id = "exposition"
     name = "呈示部"
     category = TechniqueCategory.STRUCTURAL
-    summary = "State the subject, answer it in the dominant, then state the secondary theme."
+    summary = (
+        "State the subject, answer it in the dominant, then state the secondary theme."
+    )
     params_model = ExpositionParams
 
     def apply(self, ctx: TechniqueContext, params: ExpositionParams) -> TechniqueResult:
@@ -124,7 +126,9 @@ def _require_voices(editor: ScoreEditor) -> list[str]:
     """
     voices = editor.voice_names()
     if not voices:
-        raise TechniqueError("NO_VOICE", "本乐章还没有任何声部,请先用 add_part 创建声部。")
+        raise TechniqueError(
+            "NO_VOICE", "本乐章还没有任何声部,请先用 add_part 创建声部。"
+        )
     return voices
 
 
@@ -137,7 +141,9 @@ class DevelopmentTechnique(Technique[DevelopmentParams]):
     summary = "Fragment and transform themes while moving through target keys."
     params_model = DevelopmentParams
 
-    def apply(self, ctx: TechniqueContext, params: DevelopmentParams) -> TechniqueResult:
+    def apply(
+        self, ctx: TechniqueContext, params: DevelopmentParams
+    ) -> TechniqueResult:
         """Build a development block."""
         editor = ScoreEditor(ctx.score)
         voices = _require_voices(editor)
@@ -150,7 +156,9 @@ class DevelopmentTechnique(Technique[DevelopmentParams]):
             notes = _vary(theme, technique)
             notes = transpose_to_key(notes, key)
             if measure > params.measure_range.end:
-                warnings.append("development ran out of measures before all keys were used")
+                warnings.append(
+                    "development ran out of measures before all keys were used"
+                )
                 break
             editor.write_line(voices[index % len(voices)], measure, notes)
             measure += _line_measures(notes, bar)
@@ -187,7 +195,9 @@ class RecapitulationTechnique(Technique[RecapitulationParams]):
     summary = "Restate themes, all returned to the tonic key."
     params_model = RecapitulationParams
 
-    def apply(self, ctx: TechniqueContext, params: RecapitulationParams) -> TechniqueResult:
+    def apply(
+        self, ctx: TechniqueContext, params: RecapitulationParams
+    ) -> TechniqueResult:
         """Build a recapitulation block."""
         editor = ScoreEditor(ctx.score)
         voices = _require_voices(editor)
@@ -326,4 +336,6 @@ def _snap_above(editor: ScoreEditor, params: PedalToneParams) -> None:
     for voice in editor.voice_names():
         if voice == params.voice:
             continue
-        editor.map_notes(voice, params.measure_range.start, params.measure_range.end, snap)
+        editor.map_notes(
+            voice, params.measure_range.start, params.measure_range.end, snap
+        )

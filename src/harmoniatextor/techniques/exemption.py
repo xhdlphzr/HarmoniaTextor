@@ -51,7 +51,9 @@ class FreeVoiceLeadingTechnique(Technique[FreeVoiceLeadingParams]):
     params_model = FreeVoiceLeadingParams
     exempts = FREE_VOICE_LEADING_EXEMPT
 
-    def apply(self, ctx: TechniqueContext, params: FreeVoiceLeadingParams) -> TechniqueResult:
+    def apply(
+        self, ctx: TechniqueContext, params: FreeVoiceLeadingParams
+    ) -> TechniqueResult:
         """Return the score unchanged, noting the exempted scope."""
         note = (
             f"已豁免 {params.voice} 第 {params.measure_range.start}-"

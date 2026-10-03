@@ -58,6 +58,6 @@ def check_connection(
     try:
         client = model if model is not None else create_chat_model()
         client.invoke([HumanMessage(content="ping")])
-    except Exception:
+    except Exception:  # noqa: BLE001 - any probe failure means "unreachable"
         return ERROR
     return OK

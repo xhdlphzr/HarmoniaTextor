@@ -11,7 +11,11 @@ from music21 import stream
 
 from harmoniatextor.domain.models import Theme, ThemeNote
 from harmoniatextor.score.streamops import ScoreEditor
-from harmoniatextor.techniques import TechniqueContext, TechniqueError, build_default_registry
+from harmoniatextor.techniques import (
+    TechniqueContext,
+    TechniqueError,
+    build_default_registry,
+)
 from harmoniatextor.techniques.melodic import _smooth_leaps
 from harmoniatextor.techniques.structural import _vary
 
@@ -21,7 +25,9 @@ _AUGMENTED_DURATION = 2.0
 _DIMINISHED_DURATION = 0.5
 
 
-def apply(technique_id: str, score: stream.Score, themes: dict[int, Theme], **params: Any) -> Any:
+def apply(
+    technique_id: str, score: stream.Score, themes: dict[int, Theme], **params: Any
+) -> Any:
     """Apply a technique by identifier."""
     technique = REGISTRY.get(technique_id)
     context = TechniqueContext(score=score, themes=themes)
@@ -76,7 +82,9 @@ class TestEdgeBranches:
         )
         assert ScoreEditor(score4).read_line("soprano", 1, 1)[0].pitch == "D5"
 
-    def test_syncopation_empty_pattern(self, score4: stream.Score, theme: Theme) -> None:
+    def test_syncopation_empty_pattern(
+        self, score4: stream.Score, theme: Theme
+    ) -> None:
         """An empty pattern is rejected."""
         with pytest.raises(TechniqueError, match="empty rhythmic pattern"):
             apply(

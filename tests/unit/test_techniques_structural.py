@@ -11,11 +11,17 @@ from music21 import stream
 
 from harmoniatextor.domain.models import Theme, ThemeNote
 from harmoniatextor.score.streamops import ScoreEditor
-from harmoniatextor.techniques import TechniqueContext, TechniqueError, build_default_registry
+from harmoniatextor.techniques import (
+    TechniqueContext,
+    TechniqueError,
+    build_default_registry,
+)
 from harmoniatextor.techniques.structural import _require_voices
 
 
-def apply(technique_id: str, score: stream.Score, themes: dict[int, Theme], **params: Any) -> Any:
+def apply(
+    technique_id: str, score: stream.Score, themes: dict[int, Theme], **params: Any
+) -> Any:
     """Apply a technique by identifier."""
     technique = REGISTRY.get(technique_id)
     context = TechniqueContext(score=score, themes=themes)
@@ -42,7 +48,9 @@ class TestStructural:
             measure_start=1,
         )
 
-    def test_exposition_generated_secondary(self, score4: stream.Score, theme: Theme) -> None:
+    def test_exposition_generated_secondary(
+        self, score4: stream.Score, theme: Theme
+    ) -> None:
         """Exposition can generate a secondary theme from the main one."""
         apply(
             "exposition",
@@ -130,7 +138,12 @@ class TestStructural:
     def test_pedal_tone(self, score4: stream.Score) -> None:
         """Pedal tones pulse a pitch."""
         apply(
-            "pedal_tone", score4, {}, pitch="C3", voice="bass", measure_range={"start": 1, "end": 2}
+            "pedal_tone",
+            score4,
+            {},
+            pitch="C3",
+            voice="bass",
+            measure_range={"start": 1, "end": 2},
         )
 
     def test_pedal_tone_snaps_above(self, score4: stream.Score) -> None:

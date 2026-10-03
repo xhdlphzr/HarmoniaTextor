@@ -35,7 +35,10 @@ def service(store: ProjectStore, tmp_path: Path) -> CompositionService:
 def score4() -> stream.Score:
     """Return an empty four-voice C major score."""
     return new_score(
-        key="C", time_signature="4/4", tempo_bpm=96, voices=["soprano", "alto", "tenor", "bass"]
+        key="C",
+        time_signature="4/4",
+        tempo_bpm=96,
+        voices=["soprano", "alto", "tenor", "bass"],
     )
 
 

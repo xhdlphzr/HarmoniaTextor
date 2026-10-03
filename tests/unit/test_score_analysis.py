@@ -83,7 +83,9 @@ class TestAnalysis:
 
     def test_note_without_octave(self) -> None:
         """Notes are read with octaves."""
-        score = new_score(key="C", time_signature="4/4", tempo_bpm=80, voices=["soprano"])
+        score = new_score(
+            key="C", time_signature="4/4", tempo_bpm=80, voices=["soprano"]
+        )
         measure = score.parts[0].measure(1)
         assert measure is not None
         measure.insert(0.0, m21note.Note("C5"))

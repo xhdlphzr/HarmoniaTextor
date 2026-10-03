@@ -99,7 +99,9 @@ def format_feedback(report: CheckReport) -> str:
     lines = [f"[检查不通过] 共 {len(report.errors)} 处违规:"]
     for index, item in enumerate(report.errors, start=1):
         voices = (
-            f"{item.voice_a} 与 {item.voice_b}" if item.voice_b else (item.voice_a or "全体声部")
+            f"{item.voice_a} 与 {item.voice_b}"
+            if item.voice_b
+            else (item.voice_a or "全体声部")
         )
         fix = RULE_CONSTRAINTS.get(item.rule_id, "")
         suffix = f" 修改建议:{fix}" if fix else ""
@@ -107,5 +109,7 @@ def format_feedback(report: CheckReport) -> str:
             f"{index}) 小节 {item.measure} · 声部 {voices} · 规则 {item.rule_id}:"
             f"{item.message_zh} 具体位置:{item.snippet}{suffix}"
         )
-    lines.append("请针对上面每一处,按修改建议用 edit(measure, voice, musicxml) 改对应小节与声部。")
+    lines.append(
+        "请针对上面每一处,按修改建议用 edit(measure, voice, musicxml) 改对应小节与声部。"
+    )
     return "\n".join(lines)

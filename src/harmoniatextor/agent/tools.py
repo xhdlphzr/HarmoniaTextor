@@ -80,7 +80,9 @@ def build_tools(
         xml = service.current_musicxml(work_id, movement_id)
         return xml or "空谱:本乐章还没有任何声部。请先用 add_part 建立声部。"
 
-    def submit_theme(musicxml: str, instrument: str, key: str = "", voice: str = "") -> str:
+    def submit_theme(
+        musicxml: str, instrument: str, key: str = "", voice: str = ""
+    ) -> str:
         """Submit a theme melody, choosing the target part's instrument."""
         return result_payload(
             service.submit_theme(
@@ -102,7 +104,9 @@ def build_tools(
 
     def remove_part(voice: str) -> str:
         """Remove a voice from the movement."""
-        return result_payload(service.remove_part(work_id, movement_id, voice, check=False))
+        return result_payload(
+            service.remove_part(work_id, movement_id, voice, check=False)
+        )
 
     def set_tempo(bpm: int) -> str:
         """Change the tempo of the movement."""
@@ -111,20 +115,29 @@ def build_tools(
     def annotate(measure: int, voice: str, mark: str, value: str = "") -> str:
         """Add an expressive mark to one measure of one voice."""
         return result_payload(
-            service.annotate(work_id, movement_id, measure, voice, mark, value, check=False)
+            service.annotate(
+                work_id, movement_id, measure, voice, mark, value, check=False
+            )
         )
 
     def edit(measure: int, voice: str, musicxml: str = "") -> str:
         """Replace or clear one measure of one voice."""
         return result_payload(
-            service.edit_measure(work_id, movement_id, measure, voice, musicxml, check=False)
+            service.edit_measure(
+                work_id, movement_id, measure, voice, musicxml, check=False
+            )
         )
 
     def insert(measure: int, voice: str = "", musicxml: str = "") -> str:
         """Insert a new measure in every voice and receive the full score."""
         return result_payload(
             service.insert_measure(
-                work_id, movement_id, measure, voice=voice or None, musicxml=musicxml, check=False
+                work_id,
+                movement_id,
+                measure,
+                voice=voice or None,
+                musicxml=musicxml,
+                check=False,
             ),
             include_score=True,
         )
@@ -239,7 +252,9 @@ def build_tools(
         def make_func(technique_id: str) -> Any:
             def apply(**kwargs: Any) -> str:
                 return result_payload(
-                    service.apply_technique(work_id, movement_id, technique_id, kwargs, check=False)
+                    service.apply_technique(
+                        work_id, movement_id, technique_id, kwargs, check=False
+                    )
                 )
 
             return apply

@@ -39,7 +39,9 @@ class Features:
     def audio_available(self) -> bool:
         """Whether compressed audio export (M4A/MP3) is possible."""
         return (
-            self.ffmpeg is not None and self.fluidsynth is not None and self.soundfont is not None
+            self.ffmpeg is not None
+            and self.fluidsynth is not None
+            and self.soundfont is not None
         )
 
     @property

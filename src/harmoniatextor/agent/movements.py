@@ -78,7 +78,7 @@ class MovementComposer:
         context_window: Context window used to trigger compression.
     """
 
-    def __init__(  # noqa: PLR0913
+    def __init__(
         self,
         service: CompositionService,
         chat_model: BaseChatModel,
@@ -126,7 +126,11 @@ class MovementComposer:
         for movement in movements:
             _emit(
                 on_event,
-                {"kind": "movement_start", "movement": movement.id, "name": movement.name},
+                {
+                    "kind": "movement_start",
+                    "movement": movement.id,
+                    "name": movement.name,
+                },
             )
             self._compose_movement(work_id, movement, goal, "", on_event, sessions)
             if self.reviewer is not None:
@@ -134,12 +138,14 @@ class MovementComposer:
                     work_id, movement, goal, on_event, sessions
                 )
                 if not passed:
-                    return ComposeResult(False, self._finalize(work_id), False, suggestions)
+                    return ComposeResult(
+                        False, self._finalize(work_id), False, suggestions
+                    )
             _emit(on_event, {"kind": "movement_done", "movement": movement.id})
         reviewed: bool | None = None if self.reviewer is None else True
         return ComposeResult(True, self._finalize(work_id), reviewed, "")
 
-    def _compose_movement(  # noqa: PLR0913, PLR0917
+    def _compose_movement(
         self,
         work_id: str,
         movement: Movement,
@@ -250,7 +256,9 @@ class MovementComposer:
         ]
         themes = self._previous_themes(work_id, movement.id)
         if themes:
-            parts.append("【此前已出现的主题(可引用/发展/加变奏,但不可修改原主题)】\n" + themes)
+            parts.append(
+                "【此前已出现的主题(可引用/发展/加变奏,但不可修改原主题)】\n" + themes
+            )
         parts.append(_MOVEMENT_TAIL)
         return "\n\n".join(parts)
 
@@ -270,7 +278,9 @@ class MovementComposer:
                 break
             themes = self.service.store.load_themes(work_id, movement.id)
             for theme_id, theme in sorted(themes.items()):
-                notes = " ".join(f"{note.pitch}/{note.quarter_length}" for note in theme.notes)
+                notes = " ".join(
+                    f"{note.pitch}/{note.quarter_length}" for note in theme.notes
+                )
                 lines.append(f"乐章 {movement.name} 主题 {theme_id}: {notes}")
         return "\n".join(lines)
 
@@ -329,7 +339,9 @@ class MovementComposer:
             messages,
             context_window=self.context_window,
             artifact_label="本乐章完整 MusicXML",
-            artifact_provider=lambda: self.service.current_musicxml(work_id, movement.id),
+            artifact_provider=lambda: self.service.current_musicxml(
+                work_id, movement.id
+            ),
             pinned_provider=lambda: self.service.latest_plan(work_id) or "",
         )
         if compressed:
@@ -363,7 +375,9 @@ class MovementComposer:
         reviews = 0
         while True:
             score = self.service.current_musicxml(work_id, movement.id)
-            report = self.service.check_score(work_id, movement.id, from_musicxml(score))
+            report = self.service.check_score(
+                work_id, movement.id, from_musicxml(score)
+            )
             _emit(on_event, {"kind": "review_start", "movement": movement.id})
             style = self.service.style_for(work)
             rules = self.service.effective_rules(work)
@@ -391,7 +405,9 @@ class MovementComposer:
             if reviews >= self.max_reviews:
                 return False, suggestions
             _emit(on_event, {"kind": "movement_fix", "movement": movement.id})
-            self._compose_movement(work_id, movement, goal, suggestions, on_event, sessions)
+            self._compose_movement(
+                work_id, movement, goal, suggestions, on_event, sessions
+            )
 
     def _finalize(self, work_id: str) -> str:
         """Merge every movement.

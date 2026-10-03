@@ -13,7 +13,9 @@ from harmoniatextor.score.streamops import ScoreEditor
 from harmoniatextor.techniques import TechniqueContext, build_default_registry
 
 
-def apply(technique_id: str, score: stream.Score, themes: dict[int, Theme], **params: Any) -> Any:
+def apply(
+    technique_id: str, score: stream.Score, themes: dict[int, Theme], **params: Any
+) -> Any:
     """Apply a technique by identifier."""
     technique = REGISTRY.get(technique_id)
     context = TechniqueContext(score=score, themes=themes)
@@ -41,7 +43,12 @@ class TestMelodic:
     def test_imitation_strict(self, score4: stream.Score, theme: Theme) -> None:
         """Strict imitation transposes literally."""
         result = apply(
-            "imitation", score4, {1: theme}, theme_id=1, target_voice="bass", delay_measures=1
+            "imitation",
+            score4,
+            {1: theme},
+            theme_id=1,
+            target_voice="bass",
+            delay_measures=1,
         )
         assert result.score is score4
 
@@ -60,26 +67,44 @@ class TestMelodic:
     def test_inversion_auto(self, score4: stream.Score, theme: Theme) -> None:
         """Automatic inversion uses the average axis."""
         assert (
-            apply("inversion", score4, {1: theme}, theme_id=1, target_voice="alto").score is score4
+            apply(
+                "inversion", score4, {1: theme}, theme_id=1, target_voice="alto"
+            ).score
+            is score4
         )
 
     def test_inversion_explicit_axis(self, score4: stream.Score, theme: Theme) -> None:
         """An explicit axis is honoured."""
         assert (
-            apply("inversion", score4, {1: theme}, theme_id=1, axis="C4", target_voice="alto").score
+            apply(
+                "inversion",
+                score4,
+                {1: theme},
+                theme_id=1,
+                axis="C4",
+                target_voice="alto",
+            ).score
             is score4
         )
 
     def test_retrograde_preserve(self, score4: stream.Score, theme: Theme) -> None:
         """Retrograde preserves rhythm by default."""
         assert (
-            apply("retrograde", score4, {1: theme}, theme_id=1, target_voice="alto").score is score4
+            apply(
+                "retrograde", score4, {1: theme}, theme_id=1, target_voice="alto"
+            ).score
+            is score4
         )
 
     def test_retrograde_free(self, score4: stream.Score, theme: Theme) -> None:
         """Retrograde can reverse rhythm too."""
         assert apply(
-            "retrograde", score4, {1: theme}, theme_id=1, target_voice="alto", preserve_rhythm=False
+            "retrograde",
+            score4,
+            {1: theme},
+            theme_id=1,
+            target_voice="alto",
+            preserve_rhythm=False,
         )
 
     def test_augmentation(self, score4: stream.Score, theme: Theme) -> None:
@@ -92,15 +117,36 @@ class TestMelodic:
 
     def test_transposition_interval(self, score4: stream.Score, theme: Theme) -> None:
         """Transposition by interval."""
-        apply("transposition", score4, {1: theme}, theme_id=1, interval=5, target_voice="alto")
+        apply(
+            "transposition",
+            score4,
+            {1: theme},
+            theme_id=1,
+            interval=5,
+            target_voice="alto",
+        )
 
     def test_transposition_key(self, score4: stream.Score, theme: Theme) -> None:
         """Transposition into an absolute key."""
-        apply("transposition", score4, {1: theme}, theme_id=1, target_key="G", target_voice="alto")
+        apply(
+            "transposition",
+            score4,
+            {1: theme},
+            theme_id=1,
+            target_key="G",
+            target_voice="alto",
+        )
 
     def test_sequence(self, score4: stream.Score, theme: Theme) -> None:
         """A melodic sequence repeats and steps."""
-        apply("sequence", score4, {1: theme}, theme_id=1, target_voice="alto", repetitions=3)
+        apply(
+            "sequence",
+            score4,
+            {1: theme},
+            theme_id=1,
+            target_voice="alto",
+            repetitions=3,
+        )
 
     def test_voice_exchange_themes(self, score4: stream.Score, theme: Theme) -> None:
         """Voice exchange by themes."""

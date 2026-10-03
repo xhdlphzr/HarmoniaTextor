@@ -264,7 +264,9 @@ class ProjectStore:
             Work identifiers, most recently created first.
         """
         with self._connect() as conn:
-            rows = conn.execute("SELECT id FROM works ORDER BY created_at DESC, id").fetchall()
+            rows = conn.execute(
+                "SELECT id FROM works ORDER BY created_at DESC, id"
+            ).fetchall()
         return [str(row[0]) for row in rows]
 
     def save_revision_for(self, work_id: str, revision: Revision) -> None:
@@ -293,7 +295,9 @@ class ProjectStore:
                     json.dumps(revision.params, ensure_ascii=False),
                     int(revision.ok),
                     revision.parent_seq,
-                    json.dumps(check, ensure_ascii=False) if check is not None else None,
+                    json.dumps(check, ensure_ascii=False)
+                    if check is not None
+                    else None,
                     revision.full_xml,
                 ),
             )
@@ -324,7 +328,9 @@ class ProjectStore:
             raise FileNotFoundError(f"{work_id}/{movement_id}/r{seq}")
         return str(row[0])
 
-    def load_revision_meta(self, work_id: str, movement_id: str) -> list[dict[str, Any]]:
+    def load_revision_meta(
+        self, work_id: str, movement_id: str
+    ) -> list[dict[str, Any]]:
         """Load revision metadata for a movement.
 
         Args:
@@ -359,7 +365,9 @@ class ProjectStore:
             for row in rows
         ]
 
-    def save_themes(self, work_id: str, movement_id: str, themes: dict[int, Theme]) -> None:
+    def save_themes(
+        self, work_id: str, movement_id: str, themes: dict[int, Theme]
+    ) -> None:
         """Persist the theme registry of a movement.
 
         Args:
@@ -390,7 +398,10 @@ class ProjectStore:
                         theme.fingerprint,
                         json.dumps(
                             [
-                                {"pitch": note.pitch, "quarter_length": note.quarter_length}
+                                {
+                                    "pitch": note.pitch,
+                                    "quarter_length": note.quarter_length,
+                                }
                                 for note in theme.notes
                             ],
                             ensure_ascii=False,

@@ -139,7 +139,9 @@ class TestProjectStore:
         """Themes are loaded across every target of a work."""
         store = ProjectStore(tmp_path / "data")
         store.save_themes(
-            "w-1", "m01", {1: Theme(1, "m01", "soprano", 1, [ThemeNote("C5", 1.0)], "r-0")}
+            "w-1",
+            "m01",
+            {1: Theme(1, "m01", "soprano", 1, [ThemeNote("C5", 1.0)], "r-0")},
         )
         store.save_themes(
             "w-1", "m02", {2: Theme(2, "m02", "alto", 1, [ThemeNote("E5", 1.0)], "r-1")}

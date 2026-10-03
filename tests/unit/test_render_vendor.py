@@ -128,7 +128,9 @@ class TestExtractSoundfont:
 class TestFetch:
     """The idempotent vendor fetch."""
 
-    def test_windows_downloads_all(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_windows_downloads_all(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """ffmpeg, FluidSynth and the soundfont are all fetched on Windows."""
         monkeypatch.setattr(platform, "system", lambda: "Windows")
         calls: list[str] = []
@@ -157,7 +159,9 @@ class TestFetch:
         vendor.fetch(tmp_path)
         assert calls == []
 
-    def test_unsupported_platform(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_unsupported_platform(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Only the soundfont is fetched on an unsupported platform."""
         monkeypatch.setattr(platform, "system", lambda: "Plan9")
         calls: list[str] = []
@@ -170,7 +174,9 @@ class TestFetch:
         vendor.fetch(tmp_path)
         assert calls == [vendor.SOUNDFONT_ARCHIVE_URL]
 
-    def test_linux_tar_ffmpeg(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_linux_tar_ffmpeg(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """A tar.xz ffmpeg build is extracted and made executable."""
         monkeypatch.setattr(platform, "system", lambda: "Linux")
 
@@ -184,7 +190,9 @@ class TestFetch:
         vendor.fetch(tmp_path)
         assert (tmp_path / "bin" / "ffmpeg").is_file()
 
-    def test_ffmpeg_missing_member(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_ffmpeg_missing_member(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """A bad ffmpeg archive is ignored without crashing."""
         monkeypatch.setattr(platform, "system", lambda: "Windows")
 
@@ -210,11 +218,15 @@ class TestEnsureAsync:
         """A complete backend is left untouched."""
         _ready_vendor(tmp_path)
         started: list[dict[str, object]] = []
-        monkeypatch.setattr(threading, "Thread", lambda **kwargs: started.append(kwargs))
+        monkeypatch.setattr(
+            threading, "Thread", lambda **kwargs: started.append(kwargs)
+        )
         vendor.ensure_async(tmp_path)
         assert started == []
 
-    def test_starts_thread_once(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_starts_thread_once(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """The fetch runs at most once per process."""
         vendor._FETCH_STARTED.clear()
         started: list[dict[str, object]] = []
@@ -233,7 +245,9 @@ class TestEnsureAsync:
         vendor.ensure_async(tmp_path)
         assert len(started) == 1
 
-    def test_safe_fetch_success(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_safe_fetch_success(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """A successful fetch is silent."""
         monkeypatch.setattr(vendor, "fetch", lambda _vendor: None)
         vendor._safe_fetch(tmp_path)

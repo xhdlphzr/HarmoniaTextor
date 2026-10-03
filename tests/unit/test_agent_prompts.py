@@ -20,7 +20,9 @@ class TestPrompts:
     def test_system_prompt(self) -> None:
         """The system prompt lists the style techniques and rules."""
         style = BUILTIN_KITS["baroque"]
-        prompt = system_prompt(PlainGenre(), style, build_default_registry(), style.rules)
+        prompt = system_prompt(
+            PlainGenre(), style, build_default_registry(), style.rules
+        )
         assert "technique_imitation" in prompt
         assert "当前风格:巴洛克" in prompt
         assert "pf5th" in prompt
@@ -34,7 +36,9 @@ class TestPrompts:
     def test_system_prompt_is_style_scoped(self) -> None:
         """Only the style's rules and techniques appear."""
         style = BUILTIN_KITS["impressionist"]
-        prompt = system_prompt(PlainGenre(), style, build_default_registry(), style.rules)
+        prompt = system_prompt(
+            PlainGenre(), style, build_default_registry(), style.rules
+        )
         assert "当前风格:印象派" in prompt
         assert "pf5th" not in prompt
         assert "voices" in prompt

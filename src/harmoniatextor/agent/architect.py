@@ -26,9 +26,7 @@ __all__ = ["Architect", "PlanResult", "plan_tree", "render_plan"]
 
 ProgressCallback = Callable[[dict[str, Any]], None]
 
-_MISSING_MESSAGE = (
-    "以下乐章还没有创作要求,请用 set_movement_prompt(movement, prompt) 逐条补全:\n{listing}"
-)
+_MISSING_MESSAGE = "以下乐章还没有创作要求,请用 set_movement_prompt(movement, prompt) 逐条补全:\n{listing}"
 _NO_MOVEMENTS_MESSAGE = "还没有任何乐章,请先用 add_movement 规划乐章并为其写 prompt。"
 
 
@@ -99,7 +97,9 @@ def _missing_listing(service: CompositionService, work_id: str) -> list[str]:
         One bullet per movement without a prompt.
     """
     work = service.get_work(work_id)
-    numbers = {movement.id: index for index, movement in enumerate(work.movements, start=1)}
+    numbers = {
+        movement.id: index for index, movement in enumerate(work.movements, start=1)
+    }
     return [
         f"- 乐章 {numbers.get(movement.id, '?')}({movement.name})"
         for movement in service.missing_movement_prompts(work_id)
@@ -181,7 +181,9 @@ class Architect:
                 rounds += 1
                 if rounds > self.max_rounds:
                     break
-                messages.append(HumanMessage(_MISSING_MESSAGE.format(listing="\n".join(listing))))
+                messages.append(
+                    HumanMessage(_MISSING_MESSAGE.format(listing="\n".join(listing)))
+                )
                 continue
             completed = True
             break

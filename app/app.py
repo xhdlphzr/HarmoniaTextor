@@ -104,7 +104,9 @@ def create_app(
     app.config["TESTING"] = testing
     app.config["TEMPLATES_AUTO_RELOAD"] = True
     data = Path(data_dir or os.environ.get("HARMONIA_DATA") or config_dir())
-    vendor = Path(vendor_dir or os.environ.get("HARMONIA_VENDOR") or (config_dir() / "vendor"))
+    vendor = Path(
+        vendor_dir or os.environ.get("HARMONIA_VENDOR") or (config_dir() / "vendor")
+    )
     service = CompositionService(ProjectStore(data))
     service.interrupt_stale_generations()
     app.extensions["harmonia_service"] = service
@@ -122,7 +124,9 @@ def create_app(
             payloads.
         """
         if response.mimetype in _NO_STORE_MIMETYPES:
-            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            response.headers["Cache-Control"] = (
+                "no-store, no-cache, must-revalidate, max-age=0"
+            )
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"
         return response
@@ -134,7 +138,9 @@ def create_app(
         Returns:
             A mapping with ``asset_version``, ``lang``, ``t`` and ``i18n_json``.
         """
-        language = normalize_language(current_config().get("language", DEFAULT_LANGUAGE))
+        language = normalize_language(
+            current_config().get("language", DEFAULT_LANGUAGE)
+        )
         return {
             "asset_version": _asset_version(app.static_folder),
             "lang": language,

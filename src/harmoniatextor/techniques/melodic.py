@@ -67,7 +67,9 @@ def _smooth_leaps(notes: list[ThemeNote]) -> list[ThemeNote]:
             current -= 12
         while previous - current > _MAX_LEAP:
             current += 12
-        result.append(ThemeNote(pitch=midi_to_name(current), quarter_length=item.quarter_length))
+        result.append(
+            ThemeNote(pitch=midi_to_name(current), quarter_length=item.quarter_length)
+        )
     return result
 
 
@@ -89,7 +91,9 @@ class ImitationTechnique(Technique[ImitationParams]):
             notes = _smooth_leaps(notes)
             warnings.append("non-strict imitation smoothed leaps over an octave")
         editor = ScoreEditor(ctx.score)
-        editor.write_line(params.target_voice, theme.start_measure + params.delay_measures, notes)
+        editor.write_line(
+            params.target_voice, theme.start_measure + params.delay_measures, notes
+        )
         return TechniqueResult(ctx.score, warnings)
 
 
@@ -106,10 +110,14 @@ class InversionTechnique(Technique[InversionParams]):
         """Apply inversion."""
         theme = get_theme(ctx, params.theme_id)
         axis = (
-            average_axis_midi(theme.notes) if params.axis == "auto" else name_to_midi(params.axis)
+            average_axis_midi(theme.notes)
+            if params.axis == "auto"
+            else name_to_midi(params.axis)
         )
         editor = ScoreEditor(ctx.score)
-        editor.write_line(params.target_voice, theme.start_measure, invert_notes(theme.notes, axis))
+        editor.write_line(
+            params.target_voice, theme.start_measure, invert_notes(theme.notes, axis)
+        )
         return TechniqueResult(ctx.score)
 
 
@@ -152,10 +160,15 @@ class AugmentationTechnique(Technique[AugmentationParams]):
     summary = "Multiply all theme durations by a factor."
     params_model = AugmentationParams
 
-    def apply(self, ctx: TechniqueContext, params: AugmentationParams) -> TechniqueResult:
+    def apply(
+        self, ctx: TechniqueContext, params: AugmentationParams
+    ) -> TechniqueResult:
         """Apply augmentation."""
         theme = get_theme(ctx, params.theme_id)
-        notes = [ThemeNote(item.pitch, item.quarter_length * params.factor) for item in theme.notes]
+        notes = [
+            ThemeNote(item.pitch, item.quarter_length * params.factor)
+            for item in theme.notes
+        ]
         editor = ScoreEditor(ctx.score)
         editor.write_line(params.target_voice, theme.start_measure, notes)
         return TechniqueResult(ctx.score)
@@ -173,7 +186,10 @@ class DiminutionTechnique(Technique[DiminutionParams]):
     def apply(self, ctx: TechniqueContext, params: DiminutionParams) -> TechniqueResult:
         """Apply diminution."""
         theme = get_theme(ctx, params.theme_id)
-        notes = [ThemeNote(item.pitch, item.quarter_length / params.factor) for item in theme.notes]
+        notes = [
+            ThemeNote(item.pitch, item.quarter_length / params.factor)
+            for item in theme.notes
+        ]
         editor = ScoreEditor(ctx.score)
         editor.write_line(params.target_voice, theme.start_measure, notes)
         return TechniqueResult(ctx.score)
@@ -188,7 +204,9 @@ class TranspositionTechnique(Technique[TranspositionParams]):
     summary = "Transpose a theme by interval, or map it into a target key."
     params_model = TranspositionParams
 
-    def apply(self, ctx: TechniqueContext, params: TranspositionParams) -> TechniqueResult:
+    def apply(
+        self, ctx: TechniqueContext, params: TranspositionParams
+    ) -> TechniqueResult:
         """Apply transposition."""
         theme = get_theme(ctx, params.theme_id)
         if params.target_key is not None:
@@ -221,7 +239,8 @@ class SequenceTechnique(Technique[SequenceParams]):
                 notes = transpose_notes(notes, step)
             editor.write_line(params.target_voice, measure, notes)
             measure += max(
-                1, round(sum(item.quarter_length for item in notes) / editor.bar_length())
+                1,
+                round(sum(item.quarter_length for item in notes) / editor.bar_length()),
             )
         return TechniqueResult(ctx.score)
 
@@ -235,7 +254,9 @@ class VoiceExchangeTechnique(Technique[VoiceExchangeParams]):
     summary = "Swap the melodic content of two voices within a measure range."
     params_model = VoiceExchangeParams
 
-    def apply(self, ctx: TechniqueContext, params: VoiceExchangeParams) -> TechniqueResult:
+    def apply(
+        self, ctx: TechniqueContext, params: VoiceExchangeParams
+    ) -> TechniqueResult:
         """Apply a voice exchange."""
         editor = ScoreEditor(ctx.score)
         if params.theme_id_1 is not None and params.theme_id_2 is not None:

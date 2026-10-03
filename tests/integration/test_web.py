@@ -12,7 +12,13 @@ from flask import Flask
 from flask.testing import FlaskClient
 from langchain_core.messages import AIMessage
 
-from app.app import _asset_version, create_app, get_export_service, get_service, local_time
+from app.app import (
+    _asset_version,
+    create_app,
+    get_export_service,
+    get_service,
+    local_time,
+)
 from app.jobs import Job
 from app.routes import _stream
 from harmoniatextor import __version__
@@ -31,7 +37,9 @@ def _call(name: str, args: dict[str, object]) -> AIMessage:
     """Build an assistant message requesting one tool."""
     return AIMessage(
         content="",
-        tool_calls=[{"name": name, "args": args, "id": f"{name}-1", "type": "tool_call"}],
+        tool_calls=[
+            {"name": name, "args": args, "id": f"{name}-1", "type": "tool_call"}
+        ],
     )
 
 
@@ -86,14 +94,18 @@ class FakeChatModel:
                 return _call(name, args)
             return AIMessage(content="规划完成")
         if "edit" in self.tools and self.calls % 2 == 1:
-            return _call("edit", {"measure": 1, "voice": "soprano", "musicxml": theme_xml()})
+            return _call(
+                "edit", {"measure": 1, "voice": "soprano", "musicxml": theme_xml()}
+            )
         return AIMessage(content="done")
 
 
 def theme_xml() -> str:
     """Build a simple theme melody."""
     score = new_score(key="C", time_signature="4/4", tempo_bpm=84, voices=["soprano"])
-    ScoreEditor(score).write_line("soprano", 1, [ThemeNote("C5", 1.0), ThemeNote("D5", 1.0)])
+    ScoreEditor(score).write_line(
+        "soprano", 1, [ThemeNote("C5", 1.0), ThemeNote("D5", 1.0)]
+    )
     return to_musicxml(score)
 
 
@@ -148,9 +160,13 @@ class TestPages:
 
     def test_history_persists_across_restarts(self, tmp_path: Path) -> None:
         """Works survive an application restart on the same data directory."""
-        first = create_app(data_dir=tmp_path, vendor_dir=tmp_path / "vendor", testing=True)
+        first = create_app(
+            data_dir=tmp_path, vendor_dir=tmp_path / "vendor", testing=True
+        )
         work = get_service(first).create_work("持久作品", "plain", "C")
-        second = create_app(data_dir=tmp_path, vendor_dir=tmp_path / "vendor", testing=True)
+        second = create_app(
+            data_dir=tmp_path, vendor_dir=tmp_path / "vendor", testing=True
+        )
         assert work.id in get_service(second).list_works()
         page = second.test_client().get("/").get_data(as_text=True)
         assert "持久作品" in page
@@ -171,7 +187,9 @@ class TestPages:
 
     def test_index_with_empty_work(self, app: Flask, client: FlaskClient) -> None:
         """A work without movements still renders the index."""
-        work = get_service(app).create_work("空作品", "plain", "C", with_movements=False)
+        work = get_service(app).create_work(
+            "空作品", "plain", "C", with_movements=False
+        )
         response = client.get("/")
         assert response.status_code == _HTTP_OK
         assert work.title in response.get_data(as_text=True)
@@ -182,7 +200,9 @@ class TestPages:
         page = client.get("/").get_data(as_text=True)
         assert 'chip soft">Impressionist</span>' in page
 
-    def test_index_legacy_work_defaults_to_baroque(self, app: Flask, client: FlaskClient) -> None:
+    def test_index_legacy_work_defaults_to_baroque(
+        self, app: Flask, client: FlaskClient
+    ) -> None:
         """A work without a stored style is labelled Baroque."""
         service = get_service(app)
         work = service.create_work("Legacy", "plain", "C")
@@ -191,7 +211,9 @@ class TestPages:
         page = client.get("/").get_data(as_text=True)
         assert 'chip soft">Baroque</span>' in page
 
-    def test_index_marks_interrupted_generation(self, app: Flask, client: FlaskClient) -> None:
+    def test_index_marks_interrupted_generation(
+        self, app: Flask, client: FlaskClient
+    ) -> None:
         """An interrupted generation is marked in the index."""
         service = get_service(app)
         work = service.create_work("中断作品", "plain", "C", with_movements=False)
@@ -200,7 +222,9 @@ class TestPages:
         page = client.get("/").get_data(as_text=True)
         assert "Interrupted" in page
 
-    def test_index_marks_failed_generation(self, app: Flask, client: FlaskClient) -> None:
+    def test_index_marks_failed_generation(
+        self, app: Flask, client: FlaskClient
+    ) -> None:
         """A generation stopped by an error is marked in the index."""
         service = get_service(app)
         work = service.create_work("失败作品", "plain", "C", with_movements=False)
@@ -209,7 +233,9 @@ class TestPages:
         page = client.get("/").get_data(as_text=True)
         assert "Failed" in page
 
-    def test_index_marks_running_generation(self, app: Flask, client: FlaskClient) -> None:
+    def test_index_marks_running_generation(
+        self, app: Flask, client: FlaskClient
+    ) -> None:
         """A generation still running is marked in the index."""
         service = get_service(app)
         work = service.create_work("生成中作品", "plain", "C", with_movements=False)
@@ -217,9 +243,13 @@ class TestPages:
         page = client.get("/").get_data(as_text=True)
         assert "Running" in page
 
-    def test_work_without_movements_redirects(self, app: Flask, client: FlaskClient) -> None:
+    def test_work_without_movements_redirects(
+        self, app: Flask, client: FlaskClient
+    ) -> None:
         """A work without movements redirects to the index."""
-        work = get_service(app).create_work("空作品", "plain", "C", with_movements=False)
+        work = get_service(app).create_work(
+            "空作品", "plain", "C", with_movements=False
+        )
         assert client.get(f"/works/{work.id}").status_code == _HTTP_REDIRECT
 
     def test_work_with_review(self, app: Flask, client: FlaskClient) -> None:
@@ -246,7 +276,9 @@ class TestPages:
         assert response.get_data()
         response.close()
 
-    def test_favicon_missing(self, client: FlaskClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_favicon_missing(
+        self, client: FlaskClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """A missing favicon yields a 404."""
         monkeypatch.setattr("app.routes.favicon_icon", lambda: None)
         assert client.get("/favicon.ico").status_code == _HTTP_NOT_FOUND
@@ -308,21 +340,27 @@ class TestApi:
     def test_check(self, app: Flask, client: FlaskClient) -> None:
         """The check endpoint reports the empty score."""
         work_id, movement_id = make_work(app)
-        data = client.post(f"/api/works/{work_id}/movements/{movement_id}/check").get_json()
+        data = client.post(
+            f"/api/works/{work_id}/movements/{movement_id}/check"
+        ).get_json()
         assert data["ok"] is False
         assert any(item["rule_id"] == "empty" for item in data["violations"])
 
     def test_finalize(self, app: Flask, client: FlaskClient) -> None:
         """Finalisation returns a result."""
         work_id, movement_id = make_work(app)
-        data = client.post(f"/api/works/{work_id}/movements/{movement_id}/finalize").get_json()
+        data = client.post(
+            f"/api/works/{work_id}/movements/{movement_id}/finalize"
+        ).get_json()
         assert "ok" in data
 
     def test_rollback_json(self, app: Flask, client: FlaskClient) -> None:
         """Rollback accepts JSON."""
         service = get_service(app)
         work_id, movement_id = make_work(app)
-        service.edit_measure(work_id, movement_id, 1, "soprano", theme_xml(), check=False)
+        service.edit_measure(
+            work_id, movement_id, 1, "soprano", theme_xml(), check=False
+        )
         data = client.post(
             f"/api/works/{work_id}/movements/{movement_id}/rollback",
             json={"seq": 0},
@@ -357,7 +395,9 @@ class TestApi:
         ).get_json()
         assert data["ok"] is True
 
-    def test_agent(self, app: Flask, client: FlaskClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_agent(
+        self, app: Flask, client: FlaskClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """The agent endpoint runs a session."""
         monkeypatch.setattr("app.routes.create_chat_model", FakeChatModel)
         work_id, movement_id = make_work(app)
@@ -371,12 +411,16 @@ class TestApi:
     def test_export_musicxml(self, app: Flask, client: FlaskClient) -> None:
         """MusicXML export returns a file."""
         work_id, movement_id = make_work(app)
-        response = client.get(f"/works/{work_id}/movements/{movement_id}/export/musicxml")
+        response = client.get(
+            f"/works/{work_id}/movements/{movement_id}/export/musicxml"
+        )
         assert response.status_code == _HTTP_OK
         assert response.get_data()
         response.close()
 
-    def test_export_musicxml_merged_movements(self, app: Flask, client: FlaskClient) -> None:
+    def test_export_musicxml_merged_movements(
+        self, app: Flask, client: FlaskClient
+    ) -> None:
         """A composed work exports its merged score."""
         service = get_service(app)
         work = service.create_work("Demo", "plain", "C", with_movements=False)
@@ -459,18 +503,24 @@ class TestApi:
     def test_export_all_unsupported(self, app: Flask, client: FlaskClient) -> None:
         """Unknown work-level formats are rejected."""
         work_id, _movement_id = make_work(app)
-        assert client.get(f"/works/{work_id}/export/ogg").status_code == _HTTP_BAD_REQUEST
+        assert (
+            client.get(f"/works/{work_id}/export/ogg").status_code == _HTTP_BAD_REQUEST
+        )
 
 
 class TestConfigApi:
     """LLM configuration endpoints."""
 
-    def test_get_config(self, client: FlaskClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_get_config(
+        self, client: FlaskClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """The config endpoint returns the effective configuration."""
         monkeypatch.setattr("app.routes.current_config", lambda: {"model": "m"})
         assert client.get("/api/config").get_json() == {"model": "m"}
 
-    def test_set_config(self, client: FlaskClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_set_config(
+        self, client: FlaskClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Posting configuration values persists them."""
         saved: dict[str, object] = {}
 
@@ -495,7 +545,9 @@ class TestConfigApi:
         assert client.get("/api/llm-status").get_json() == {"status": "ok"}
         assert client.get("/api/llm-status").get_json() == {"status": "ok"}
 
-    def test_llm_ping(self, client: FlaskClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_llm_ping(
+        self, client: FlaskClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """The ping endpoint forces a fresh probe."""
         monkeypatch.setattr("app.routes.check_connection", lambda: "error")
         assert client.post("/api/llm-ping").get_json() == {"status": "error"}
@@ -601,7 +653,8 @@ class TestJobs:
     def test_run_unknown_work(self, client: FlaskClient) -> None:
         """Continuing a missing work is a 404."""
         assert (
-            client.post("/api/works/nope/movements/m01/run", json={}).status_code == _HTTP_NOT_FOUND
+            client.post("/api/works/nope/movements/m01/run", json={}).status_code
+            == _HTTP_NOT_FOUND
         )
 
     def test_run_existing_work(
