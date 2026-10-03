@@ -135,7 +135,10 @@ def first_melody(score: stream.Score) -> tuple[str, list[ThemeNote]]:
     """
     for part in score.parts:
         notes = [
-            ThemeNote(pitch=element.nameWithOctave, quarter_length=float(element.quarterLength))
+            ThemeNote(
+                pitch=element.nameWithOctave,
+                quarter_length=float(element.quarterLength),
+            )
             for element in part.flatten().notes
             if isinstance(element, m21note.Note)
         ]

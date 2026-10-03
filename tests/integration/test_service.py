@@ -27,7 +27,9 @@ _INTERRUPTED_WORKS = 2
 def melody_xml(notes: list[tuple[str, float]], voice: str = "soprano") -> str:
     """Build a single-voice melody as MusicXML."""
     score = new_score(key="C", time_signature="4/4", tempo_bpm=84, voices=[voice])
-    ScoreEditor(score).write_line(voice, 1, [ThemeNote(pitch, length) for pitch, length in notes])
+    ScoreEditor(score).write_line(
+        voice, 1, [ThemeNote(pitch, length) for pitch, length in notes]
+    )
     return to_musicxml(score)
 
 
@@ -95,13 +97,17 @@ class TestSubmitTheme:
         work = service.create_work("Demo", "plain", "C")
         movement = work.movements[0]
         result = service.submit_theme(
-            work.id, movement.id, melody_xml([("C5", 1.0), ("D5", 1.0), ("E5", 1.0), ("F5", 1.0)])
+            work.id,
+            movement.id,
+            melody_xml([("C5", 1.0), ("D5", 1.0), ("E5", 1.0), ("F5", 1.0)]),
         )
         assert result.ok
         assert result.theme_id == 1
         assert result.full_musicxml is not None
 
-    def test_first_theme_starts_at_first_measure(self, service: CompositionService) -> None:
+    def test_first_theme_starts_at_first_measure(
+        self, service: CompositionService
+    ) -> None:
         """The first theme fills measure 1 instead of leaving an empty opening."""
         work = service.create_work("Demo", "plain", "C")
         movement = work.movements[0]
@@ -120,7 +126,9 @@ class TestSubmitTheme:
     def test_empty_theme(self, service: CompositionService) -> None:
         """A theme without notes is rejected."""
         work = service.create_work("Demo", "plain", "C")
-        empty = new_score(key="C", time_signature="4/4", tempo_bpm=84, voices=["soprano"])
+        empty = new_score(
+            key="C", time_signature="4/4", tempo_bpm=84, voices=["soprano"]
+        )
         result = service.submit_theme(work.id, work.movements[0].id, to_musicxml(empty))
         assert not result.ok
         assert result.error_code == "BAD_PARAM"
@@ -187,12 +195,18 @@ class TestSubmitTheme:
         assert not result.ok
         assert result.error_code == "BAD_PARAM"
 
-    def test_change_key_retunes_existing_parts(self, service: CompositionService) -> None:
+    def test_change_key_retunes_existing_parts(
+        self, service: CompositionService
+    ) -> None:
         """A later theme can change the key and retune the existing parts."""
         work = service.create_work("Demo", "plain", "C")
         movement = work.movements[0]
-        service.submit_theme(work.id, movement.id, melody_xml([("C5", 1.0)]), key="C", check=False)
-        service.submit_theme(work.id, movement.id, melody_xml([("D5", 1.0)]), key="G", check=False)
+        service.submit_theme(
+            work.id, movement.id, melody_xml([("C5", 1.0)]), key="C", check=False
+        )
+        service.submit_theme(
+            work.id, movement.id, melody_xml([("D5", 1.0)]), key="G", check=False
+        )
         score = service.current_score(work.id, movement.id)
         keys = list(score.recurse().getElementsByClass("Key"))
         assert keys
@@ -206,7 +220,9 @@ class TestApplyTechnique:
         """A valid technique produces a full score."""
         work = service.create_work("Demo", "plain", "C")
         movement = work.movements[0]
-        theme = service.submit_theme(work.id, movement.id, melody_xml([("C5", 1.0), ("D5", 1.0)]))
+        theme = service.submit_theme(
+            work.id, movement.id, melody_xml([("C5", 1.0), ("D5", 1.0)])
+        )
         result = service.apply_technique(
             work.id,
             movement.id,
@@ -226,7 +242,9 @@ class TestApplyTechnique:
         work = service.create_work("Demo", "plain", "C")
         movement = work.movements[0]
         theme = service.submit_theme(
-            work.id, movement.id, melody_xml([("C5", 1.0), ("D5", 1.0), ("E5", 1.0), ("F5", 1.0)])
+            work.id,
+            movement.id,
+            melody_xml([("C5", 1.0), ("D5", 1.0), ("E5", 1.0), ("F5", 1.0)]),
         )
         result = service.apply_technique(
             work.id,
@@ -287,7 +305,9 @@ class TestApplyTechnique:
     def test_cross_movement_imitation(self, service: CompositionService) -> None:
         """A movement can apply a technique to an earlier movement's theme."""
         work_id, first_id, second_id = self._two_movements(service)
-        theme = service.submit_theme(work_id, first_id, melody_xml([("C5", 1.0), ("D5", 1.0)]))
+        theme = service.submit_theme(
+            work_id, first_id, melody_xml([("C5", 1.0), ("D5", 1.0)])
+        )
         result = service.apply_technique(
             work_id,
             second_id,
@@ -319,7 +339,12 @@ class TestCheckAndFinalize:
         work = service.create_work("Demo", "plain", "C")
         movement_id = work.movements[0].id
         service.edit_measure(
-            work.id, movement_id, 1, "soprano", melody_xml([("C5", 1.0), ("D5", 1.0)]), check=False
+            work.id,
+            movement_id,
+            1,
+            "soprano",
+            melody_xml([("C5", 1.0), ("D5", 1.0)]),
+            check=False,
         )
         assert not service.finalize(work.id, movement_id).ok
 
@@ -369,14 +394,20 @@ class TestCheckAndFinalize:
     def test_rollback_missing(self, service: CompositionService) -> None:
         """Rolling back to a missing revision fails."""
         work = service.create_work("Demo", "plain", "C")
-        assert service.rollback(work.id, work.movements[0].id, 99).error_code == "BAD_PARAM"
+        assert (
+            service.rollback(work.id, work.movements[0].id, 99).error_code
+            == "BAD_PARAM"
+        )
 
     def test_record_audit(self, service: CompositionService) -> None:
         """Audition notes are journalled and move the work to revising."""
         work = service.create_work("Demo", "plain", "C")
         service.record_audit(work.id, work.movements[0].id, "需要更多模仿")
         assert service.get_work(work.id).status is WorkStatus.REVISING
-        assert any(item["event"] == "audit_note" for item in service.store.load_journal(work.id))
+        assert any(
+            item["event"] == "audit_note"
+            for item in service.store.load_journal(work.id)
+        )
 
     def test_create_multi_movement(self, service: CompositionService) -> None:
         """Multi-movement genres create several movements."""
@@ -422,7 +453,9 @@ class TestInstruments:
     ) -> None:
         """A part that fails the symbolic check is rejected."""
         work = service.create_work("Demo", "symphony", "C")
-        failing = CheckReport([CheckViolation("r", Severity.ERROR, 1, None, None, "k", "m", "s")])
+        failing = CheckReport(
+            [CheckViolation("r", Severity.ERROR, 1, None, None, "k", "m", "s")]
+        )
         monkeypatch.setattr(service, "_check", lambda *_args, **_kwargs: failing)
         result = service.add_part(work.id, work.movements[0].id, "flute", "Flute")
         assert not result.ok
@@ -446,7 +479,9 @@ class TestInstruments:
         work = service.create_work("Demo", "symphony", "C")
         movement_id = work.movements[0].id
         service.add_part(work.id, movement_id, "flute", "Flute", check=False)
-        failing = CheckReport([CheckViolation("r", Severity.ERROR, 1, None, None, "k", "m", "s")])
+        failing = CheckReport(
+            [CheckViolation("r", Severity.ERROR, 1, None, None, "k", "m", "s")]
+        )
         monkeypatch.setattr(service, "_check", lambda *_args, **_kwargs: failing)
         result = service.remove_part(work.id, movement_id, "flute")
         assert not result.ok
@@ -490,7 +525,9 @@ class TestInstruments:
             ("tempo", "90"),
         ]
         for mark, value in marks:
-            result = service.annotate(work.id, movement_id, 1, "soprano", mark, value, check=False)
+            result = service.annotate(
+                work.id, movement_id, 1, "soprano", mark, value, check=False
+            )
             assert result.ok, mark
         xml = service.current_musicxml(work.id, movement_id)
         assert "dolce" in xml
@@ -505,7 +542,9 @@ class TestInstruments:
         """Unknown voices, measures, marks and values are rejected."""
         work = service.create_work("Demo", "plain", "C")
         movement_id = work.movements[0].id
-        service.submit_theme(work.id, movement_id, melody_xml([("C5", 1.0)]), check=False)
+        service.submit_theme(
+            work.id, movement_id, melody_xml([("C5", 1.0)]), check=False
+        )
         assert (
             service.annotate(
                 work.id, movement_id, 1, "ghost", "dynamic", "f", check=False
@@ -519,7 +558,9 @@ class TestInstruments:
             == "BAD_PARAM"
         )
         assert (
-            service.annotate(work.id, movement_id, 1, "soprano", "nope", "", check=False).error_code
+            service.annotate(
+                work.id, movement_id, 1, "soprano", "nope", "", check=False
+            ).error_code
             == "BAD_PARAM"
         )
         assert (
@@ -529,7 +570,9 @@ class TestInstruments:
             == "BAD_PARAM"
         )
         assert (
-            service.annotate(work.id, movement_id, 1, "soprano", "slur", "", check=False).error_code
+            service.annotate(
+                work.id, movement_id, 1, "soprano", "slur", "", check=False
+            ).error_code
             == "BAD_PARAM"
         )
 
@@ -539,8 +582,12 @@ class TestInstruments:
         """A mark that fails the symbolic check returns the report."""
         work = service.create_work("Demo", "plain", "C")
         movement_id = work.movements[0].id
-        service.submit_theme(work.id, movement_id, melody_xml([("C5", 1.0)]), check=False)
-        failing = CheckReport([CheckViolation("r", Severity.ERROR, 1, None, None, "k", "m", "s")])
+        service.submit_theme(
+            work.id, movement_id, melody_xml([("C5", 1.0)]), check=False
+        )
+        failing = CheckReport(
+            [CheckViolation("r", Severity.ERROR, 1, None, None, "k", "m", "s")]
+        )
         monkeypatch.setattr(service, "_check", lambda *_args, **_kwargs: failing)
         result = service.annotate(work.id, movement_id, 1, "soprano", "dynamic", "f")
         assert not result.ok
@@ -552,7 +599,9 @@ class TestInstruments:
         """A tempo change that fails the symbolic check returns the report."""
         work = service.create_work("Demo", "symphony", "C")
         movement_id = work.movements[0].id
-        failing = CheckReport([CheckViolation("r", Severity.ERROR, 1, None, None, "k", "m", "s")])
+        failing = CheckReport(
+            [CheckViolation("r", Severity.ERROR, 1, None, None, "k", "m", "s")]
+        )
         monkeypatch.setattr(service, "_check", lambda *_args, **_kwargs: failing)
         result = service.set_tempo(work.id, movement_id, _SLOW_TEMPO)
         assert not result.ok
@@ -588,7 +637,9 @@ class TestArchitecture:
         """A measure is replaced for one voice and the full score is returned."""
         work = service.create_work("Demo", "plain", "C")
         movement_id = work.movements[0].id
-        service.submit_theme(work.id, movement_id, melody_xml([("C5", 1.0)]), check=False)
+        service.submit_theme(
+            work.id, movement_id, melody_xml([("C5", 1.0)]), check=False
+        )
         result = service.edit_measure(
             work.id, movement_id, 1, "soprano", melody_xml([("G5", 1.0)]), check=False
         )
@@ -640,14 +691,24 @@ class TestArchitecture:
         """A measure can be inserted in every voice."""
         work = service.create_work("Demo", "plain", "C")
         movement_id = work.movements[0].id
-        service.submit_theme(work.id, movement_id, melody_xml([("C5", 1.0)]), check=False)
+        service.submit_theme(
+            work.id, movement_id, melody_xml([("C5", 1.0)]), check=False
+        )
         before = len(
-            list(service.current_score(work.id, movement_id).parts[0].getElementsByClass("Measure"))
+            list(
+                service.current_score(work.id, movement_id)
+                .parts[0]
+                .getElementsByClass("Measure")
+            )
         )
         result = service.insert_measure(work.id, movement_id, 1, check=False)
         assert result.ok
         after = len(
-            list(service.current_score(work.id, movement_id).parts[0].getElementsByClass("Measure"))
+            list(
+                service.current_score(work.id, movement_id)
+                .parts[0]
+                .getElementsByClass("Measure")
+            )
         )
         assert after == before + 1
 
@@ -655,7 +716,9 @@ class TestArchitecture:
         """An inserted measure can be filled in one voice."""
         work = service.create_work("Demo", "plain", "C")
         movement_id = work.movements[0].id
-        service.submit_theme(work.id, movement_id, melody_xml([("C5", 1.0)]), check=False)
+        service.submit_theme(
+            work.id, movement_id, melody_xml([("C5", 1.0)]), check=False
+        )
         result = service.insert_measure(
             work.id,
             movement_id,
@@ -673,7 +736,9 @@ class TestArchitecture:
         work = service.create_work("Demo", "plain", "C")
         movement_id = work.movements[0].id
         assert service.insert_measure(work.id, movement_id, 1).error_code == "BAD_PARAM"
-        service.submit_theme(work.id, movement_id, melody_xml([("C5", 1.0)]), check=False)
+        service.submit_theme(
+            work.id, movement_id, melody_xml([("C5", 1.0)]), check=False
+        )
         assert (
             service.insert_measure(
                 work.id, movement_id, 1, musicxml=melody_xml([("D5", 1.0)])
@@ -687,7 +752,12 @@ class TestArchitecture:
             == "BAD_PARAM"
         )
         empty = service.insert_measure(
-            work.id, movement_id, 1, voice="soprano", musicxml=melody_xml([]), check=False
+            work.id,
+            movement_id,
+            1,
+            voice="soprano",
+            musicxml=melody_xml([]),
+            check=False,
         )
         assert empty.ok
 
@@ -700,7 +770,8 @@ class TestArchitecture:
         )
         assert service.delete_measure(work.id, movement_id, 1, check=False).ok
         assert (
-            service.delete_measure(work.id, movement_id, 99, check=False).error_code == "BAD_PARAM"
+            service.delete_measure(work.id, movement_id, 99, check=False).error_code
+            == "BAD_PARAM"
         )
 
     def test_insert_measure_failing_check(
@@ -709,8 +780,12 @@ class TestArchitecture:
         """An inserted measure that fails the checker returns the report."""
         work = service.create_work("Demo", "plain", "C")
         movement_id = work.movements[0].id
-        service.submit_theme(work.id, movement_id, melody_xml([("C5", 1.0)]), check=False)
-        failing = CheckReport([CheckViolation("r", Severity.ERROR, 1, None, None, "k", "m", "s")])
+        service.submit_theme(
+            work.id, movement_id, melody_xml([("C5", 1.0)]), check=False
+        )
+        failing = CheckReport(
+            [CheckViolation("r", Severity.ERROR, 1, None, None, "k", "m", "s")]
+        )
         monkeypatch.setattr(service, "_check", lambda *_args, **_kwargs: failing)
         result = service.insert_measure(work.id, movement_id, 1)
         assert not result.ok
@@ -725,7 +800,9 @@ class TestArchitecture:
         service.submit_theme(
             work.id, movement_id, melody_xml([("C5", 1.0), ("D5", 1.0)]), check=False
         )
-        failing = CheckReport([CheckViolation("r", Severity.ERROR, 1, None, None, "k", "m", "s")])
+        failing = CheckReport(
+            [CheckViolation("r", Severity.ERROR, 1, None, None, "k", "m", "s")]
+        )
         monkeypatch.setattr(service, "_check", lambda *_args, **_kwargs: failing)
         result = service.delete_measure(work.id, movement_id, 1)
         assert not result.ok
@@ -850,11 +927,15 @@ class TestStyleAndExemption:
             },
         )
         loaded = service.get_work(work.id)
-        assert service._exempt_scopes(loaded, loaded.movements[0]) == [("soprano", 1, 2)]
+        assert service._exempt_scopes(loaded, loaded.movements[0]) == [
+            ("soprano", 1, 2)
+        ]
 
     def test_filter_exemptions(self) -> None:
         """Waived violations are dropped from a report."""
-        violation = CheckViolation("crossing", Severity.ERROR, 1, "soprano", "alto", "k", "m", "s")
+        violation = CheckViolation(
+            "crossing", Severity.ERROR, 1, "soprano", "alto", "k", "m", "s"
+        )
         report = CheckReport(violations=[violation])
         assert _filter_exemptions(report, [("soprano", 1, 1)]).violations == []
         assert _filter_exemptions(report, []).violations == [violation]
@@ -862,5 +943,7 @@ class TestStyleAndExemption:
 
     def test_exempt_scope_bounds(self) -> None:
         """A violation outside the scope is not waived."""
-        violation = CheckViolation("crossing", Severity.ERROR, 5, "soprano", None, "k", "m", "s")
+        violation = CheckViolation(
+            "crossing", Severity.ERROR, 5, "soprano", None, "k", "m", "s"
+        )
         assert not _in_exempt_scope(violation, [("soprano", 1, 2)])

@@ -11,7 +11,16 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from music21 import articulations, chord, dynamics, expressions, meter, spanner, stream, tempo
+from music21 import (
+    articulations,
+    chord,
+    dynamics,
+    expressions,
+    meter,
+    spanner,
+    stream,
+    tempo,
+)
 from music21 import key as m21key
 from music21 import note as m21note
 from music21 import pitch as m21pitch
@@ -220,9 +229,7 @@ class ScoreEditor:
                 return True
         return False
 
-    def annotate(  # noqa: PLR0912
-        self, voice: str, measure: int, mark: str, value: str = ""
-    ) -> bool:
+    def annotate(self, voice: str, measure: int, mark: str, value: str = "") -> bool:
         """Add an expressive mark to one measure of a voice.
 
         Supported marks are ``dynamic`` (value like ``"f"``), ``text`` (an

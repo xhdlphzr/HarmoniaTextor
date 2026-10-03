@@ -29,7 +29,13 @@ class TestBuiltinKits:
         """The default and full ids are stable."""
         assert DEFAULT_STYLE_ID == "baroque"
         assert FULL_STYLE_ID == "full"
-        assert set(BUILTIN_KITS) == {"full", "baroque", "classical", "romantic", "impressionist"}
+        assert set(BUILTIN_KITS) == {
+            "full",
+            "baroque",
+            "classical",
+            "romantic",
+            "impressionist",
+        }
 
     def test_full_preset(self) -> None:
         """The full preset carries every rule and technique."""

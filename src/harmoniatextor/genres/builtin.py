@@ -27,7 +27,9 @@ class PlainGenre(Genre):
         self, tonic: str, measure_count: int, *, complete: bool = False
     ) -> CheckerContext:
         """Build a strict single-movement checker context."""
-        return self._final_context(tonic, measure_count, enforce=True, complete=complete)
+        return self._final_context(
+            tonic, measure_count, enforce=True, complete=complete
+        )
 
 
 class SonataGenre(Genre):
@@ -45,7 +47,9 @@ class SonataGenre(Genre):
         self, tonic: str, measure_count: int, *, complete: bool = False
     ) -> CheckerContext:
         """Build a sonata checker context."""
-        return self._final_context(tonic, measure_count, enforce=False, complete=complete)
+        return self._final_context(
+            tonic, measure_count, enforce=False, complete=complete
+        )
 
 
 class ConcertoGenre(Genre):
@@ -56,7 +60,10 @@ class ConcertoGenre(Genre):
     movement_specs = (
         MovementSpec(name="第一乐章 · 快板", tempo=120, voice_profile="solo_tutti"),
         MovementSpec(
-            name="第二乐章 · 广板", time_signature="3/4", tempo=54, voice_profile="solo_tutti"
+            name="第二乐章 · 广板",
+            time_signature="3/4",
+            tempo=54,
+            voice_profile="solo_tutti",
         ),
         MovementSpec(name="第三乐章 · 急板", tempo=144, voice_profile="solo_tutti"),
     )
@@ -65,7 +72,9 @@ class ConcertoGenre(Genre):
         self, tonic: str, measure_count: int, *, complete: bool = False
     ) -> CheckerContext:
         """Build a concerto checker context."""
-        return self._final_context(tonic, measure_count, enforce=False, complete=complete)
+        return self._final_context(
+            tonic, measure_count, enforce=False, complete=complete
+        )
 
 
 class SymphonyGenre(Genre):
@@ -76,10 +85,16 @@ class SymphonyGenre(Genre):
     movement_specs = (
         MovementSpec(name="第一乐章 · 快板", tempo=120, voice_profile="orchestra"),
         MovementSpec(
-            name="第二乐章 · 行板", time_signature="3/4", tempo=66, voice_profile="orchestra"
+            name="第二乐章 · 行板",
+            time_signature="3/4",
+            tempo=66,
+            voice_profile="orchestra",
         ),
         MovementSpec(
-            name="第三乐章 · 小步舞曲", time_signature="3/4", tempo=108, voice_profile="orchestra"
+            name="第三乐章 · 小步舞曲",
+            time_signature="3/4",
+            tempo=108,
+            voice_profile="orchestra",
         ),
         MovementSpec(name="第四乐章 · 快板", tempo=132, voice_profile="orchestra"),
     )
@@ -88,4 +103,6 @@ class SymphonyGenre(Genre):
         self, tonic: str, measure_count: int, *, complete: bool = False
     ) -> CheckerContext:
         """Build a symphony checker context."""
-        return self._final_context(tonic, measure_count, enforce=False, complete=complete)
+        return self._final_context(
+            tonic, measure_count, enforce=False, complete=complete
+        )

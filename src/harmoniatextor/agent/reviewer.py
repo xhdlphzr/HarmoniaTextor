@@ -13,7 +13,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import (
+    BaseMessage,
+    HumanMessage,
+    SystemMessage,
+    ToolMessage,
+)
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -83,7 +88,7 @@ class _ReviewParams(BaseModel):
     )
 
 
-def _submit_review(passed: bool, suggestions: str = "") -> str:  # noqa: ARG001
+def _submit_review(passed: bool, suggestions: str = "") -> str:
     """Record the reviewer verdict.
 
     Args:
@@ -140,7 +145,7 @@ class ReviewerAI:
         self.chat_model = chat_model
         self.context_window = context_window
 
-    def review(  # noqa: PLR0913
+    def review(
         self,
         *,
         goal: str,
@@ -164,7 +169,9 @@ class ReviewerAI:
             The review verdict.
         """
         messages: list[BaseMessage] = [
-            SystemMessage(content=f"{_system_text(style_name, rules)}\n当前体裁:{genre_name}。"),
+            SystemMessage(
+                content=f"{_system_text(style_name, rules)}\n当前体裁:{genre_name}。"
+            ),
             HumanMessage(
                 content=(
                     f"【人类创作要求】\n{goal}\n\n"

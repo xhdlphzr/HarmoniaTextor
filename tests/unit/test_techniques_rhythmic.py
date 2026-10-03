@@ -11,10 +11,16 @@ from music21 import stream
 
 from harmoniatextor.domain.models import Theme, ThemeNote
 from harmoniatextor.score.streamops import ScoreEditor
-from harmoniatextor.techniques import TechniqueContext, TechniqueError, build_default_registry
+from harmoniatextor.techniques import (
+    TechniqueContext,
+    TechniqueError,
+    build_default_registry,
+)
 
 
-def apply(technique_id: str, score: stream.Score, themes: dict[int, Theme], **params: Any) -> Any:
+def apply(
+    technique_id: str, score: stream.Score, themes: dict[int, Theme], **params: Any
+) -> Any:
     """Apply a technique by identifier."""
     technique = REGISTRY.get(technique_id)
     context = TechniqueContext(score=score, themes=themes)
@@ -166,7 +172,9 @@ class TestRhythmic:
         """A measure's downbeat is stretched while the bar length is preserved."""
         editor = ScoreEditor(score4)
         editor.write_line(
-            "soprano", 1, [ThemeNote("C5", 1.0), ThemeNote("D5", 1.0), ThemeNote("E5", 2.0)]
+            "soprano",
+            1,
+            [ThemeNote("C5", 1.0), ThemeNote("D5", 1.0), ThemeNote("E5", 2.0)],
         )
         apply("rubato", score4, {}, measure_range={"start": 1, "end": 1})
 

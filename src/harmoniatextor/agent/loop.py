@@ -37,7 +37,11 @@ from harmoniatextor.agent.compression import (
     ensure_tool_responses,
     message_text,
 )
-from harmoniatextor.agent.prompts import STEP1_INSTRUCTION, STEP2_INSTRUCTION, system_prompt
+from harmoniatextor.agent.prompts import (
+    STEP1_INSTRUCTION,
+    STEP2_INSTRUCTION,
+    system_prompt,
+)
 from harmoniatextor.agent.reviewer import ReviewerAI, ReviewResult
 from harmoniatextor.agent.tools import build_tools
 from harmoniatextor.checker.engine import format_feedback
@@ -91,7 +95,7 @@ class AgentLoop:
         techniques: Technique registry used to build tools.
     """
 
-    def __init__(  # noqa: PLR0913
+    def __init__(
         self,
         service: CompositionService,
         chat_model: BaseChatModel,
@@ -121,7 +125,7 @@ class AgentLoop:
         self.context_window = context_window
         self.techniques = techniques
 
-    def run(  # noqa: PLR0913
+    def run(
         self,
         work_id: str,
         movement_id: str,
@@ -162,7 +166,9 @@ class AgentLoop:
         style = self.service.style_for(work)
         rules = self.service.effective_rules(work)
         techniques = (
-            self.techniques if self.techniques is not None else (self.service.techniques_for(work))
+            self.techniques
+            if self.techniques is not None
+            else (self.service.techniques_for(work))
         )
         tools = build_tools(self.service, work_id, movement_id, techniques)
         mapping = {tool.name: tool for tool in tools}
@@ -179,7 +185,9 @@ class AgentLoop:
         else:
             stored_plan = self.service.latest_plan(work_id)
             if stored_plan:
-                messages.append(SystemMessage(content="已有的创作规划:\n" + stored_plan))
+                messages.append(
+                    SystemMessage(content="已有的创作规划:\n" + stored_plan)
+                )
         steps = 0
         reviews = 0
         while self.max_steps is None or steps < self.max_steps:
@@ -209,13 +217,20 @@ class AgentLoop:
                 feedback = "符号层仍未通过,请继续修正:\n" + format_feedback(report)
                 _emit(
                     on_event,
-                    {"kind": "feedback", "layer": "symbolic", "step": steps, "text": feedback},
+                    {
+                        "kind": "feedback",
+                        "layer": "symbolic",
+                        "step": steps,
+                        "text": feedback,
+                    },
                 )
                 messages.append(HumanMessage(content=feedback))
                 continue
             if self.reviewer is None:
                 return AgentRunResult(True, steps, text, messages, plan=plan_text)
-            review = self._review(work_id, movement_id, goal, genre.display_name, on_event)
+            review = self._review(
+                work_id, movement_id, goal, genre.display_name, on_event
+            )
             if review.passed:
                 return AgentRunResult(
                     True,
@@ -240,7 +255,12 @@ class AgentLoop:
             feedback = "检查AI未通过,请根据以下意见继续修改:\n" + review.suggestions
             _emit(
                 on_event,
-                {"kind": "feedback", "layer": "reviewer", "step": steps, "text": feedback},
+                {
+                    "kind": "feedback",
+                    "layer": "reviewer",
+                    "step": steps,
+                    "text": feedback,
+                },
             )
             messages.append(HumanMessage(content=feedback))
         return AgentRunResult(False, steps, "", messages, plan=plan_text)
@@ -295,7 +315,9 @@ class AgentLoop:
             messages,
             context_window=self.context_window,
             artifact_label="当前完整 MusicXML",
-            artifact_provider=lambda: self.service.current_musicxml(work_id, movement_id),
+            artifact_provider=lambda: self.service.current_musicxml(
+                work_id, movement_id
+            ),
             pinned_provider=lambda: self.service.latest_plan(work_id) or "",
         )
         if compressed:
@@ -337,7 +359,11 @@ class AgentLoop:
         )
         _emit(
             on_event,
-            {"kind": "review", "passed": result.passed, "suggestions": result.suggestions},
+            {
+                "kind": "review",
+                "passed": result.passed,
+                "suggestions": result.suggestions,
+            },
         )
         return result
 
@@ -360,7 +386,7 @@ def execute_call(mapping: dict[str, BaseTool], call: ToolCall) -> ToolMessage:
     args = call.get("args", {})
     try:
         output = tool.invoke(args)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - hand any tool failure back to the model
         output = f"tool error: {exc}"
     return ToolMessage(content=str(output), tool_call_id=call_id)
 
@@ -395,10 +421,18 @@ def run_tool_calls(
         name = str(call.get("name", ""))
         _emit(
             on_event,
-            {"kind": "tool_call", "step": steps, "tool": name, "args": call.get("args", {})},
+            {
+                "kind": "tool_call",
+                "step": steps,
+                "tool": name,
+                "args": call.get("args", {}),
+            },
         )
         message = execute_call(mapping, call)
-        _emit(on_event, {"kind": "tool_result", "step": steps, **_summarize(name, message)})
+        _emit(
+            on_event,
+            {"kind": "tool_result", "step": steps, **_summarize(name, message)},
+        )
         messages.append(message)
     for call in invalid:
         name = str(call.get("name", ""))
@@ -412,7 +446,10 @@ def run_tool_calls(
             ),
             tool_call_id=str(call.get("id", "")),
         )
-        _emit(on_event, {"kind": "tool_result", "step": steps, **_summarize(name, message)})
+        _emit(
+            on_event,
+            {"kind": "tool_result", "step": steps, **_summarize(name, message)},
+        )
         messages.append(message)
     return True
 
@@ -438,7 +475,11 @@ def _summarize(name: str, message: ToolMessage) -> dict[str, Any]:
     Returns:
         A dictionary with ``tool``, ``ok``, ``message`` and ``violations``.
     """
-    payload: dict[str, Any] = {"tool": name, "ok": None, "message": str(message.content)[:400]}
+    payload: dict[str, Any] = {
+        "tool": name,
+        "ok": None,
+        "message": str(message.content)[:400],
+    }
     try:
         data = json.loads(str(message.content))
     except json.JSONDecodeError, TypeError:

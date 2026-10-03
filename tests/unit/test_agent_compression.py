@@ -58,7 +58,9 @@ def invalid_call(name: str, call_id: str = "x1", error: str = "bad json") -> AIM
     """Build an assistant message with an unparseable tool call."""
     return AIMessage(
         content="",
-        invalid_tool_calls=[invalid_tool_call(name=name, args="{bad", id=call_id, error=error)],
+        invalid_tool_calls=[
+            invalid_tool_call(name=name, args="{bad", id=call_id, error=error)
+        ],
     )
 
 
@@ -152,7 +154,9 @@ class TestCompression:
 
     def test_message_text_content(self) -> None:
         """Visible content is preferred over reasoning."""
-        message = AIMessage(content="可见文字", additional_kwargs={"reasoning_content": "思考"})
+        message = AIMessage(
+            content="可见文字", additional_kwargs={"reasoning_content": "思考"}
+        )
         assert message_text(message) == "可见文字"
 
     def test_message_text_reasoning_fallback(self) -> None:
@@ -178,25 +182,33 @@ class TestCompression:
     def test_token_count_fallback(self) -> None:
         """The character heuristic is used without a counter."""
         model = _NoCountModel()
-        heuristic = token_count(cast("BaseChatModel", model), [HumanMessage(content="a" * 40)])
+        heuristic = token_count(
+            cast("BaseChatModel", model), [HumanMessage(content="a" * 40)]
+        )
         assert heuristic >= _HEURISTIC_MIN
 
     def test_token_count_broken(self) -> None:
         """A failing counter falls back to the heuristic."""
         model = _BrokenCountModel()
-        heuristic = token_count(cast("BaseChatModel", model), [HumanMessage(content="a" * 40)])
+        heuristic = token_count(
+            cast("BaseChatModel", model), [HumanMessage(content="a" * 40)]
+        )
         assert heuristic >= _HEURISTIC_MIN
 
     def test_token_count_tokenizer(self) -> None:
         """A per-text tokenizer is used when the full-message counter is absent."""
         model = _TokenizerModel()
-        counted = token_count(cast("BaseChatModel", model), [HumanMessage(content="你好")])
+        counted = token_count(
+            cast("BaseChatModel", model), [HumanMessage(content="你好")]
+        )
         assert counted == _TOKENIZER_PER_TEXT + 1
 
     def test_token_count_broken_tokenizer(self) -> None:
         """A failing tokenizer falls back to the heuristic."""
         model = _BrokenTokenizerModel()
-        heuristic = token_count(cast("BaseChatModel", model), [HumanMessage(content="a" * 40)])
+        heuristic = token_count(
+            cast("BaseChatModel", model), [HumanMessage(content="a" * 40)]
+        )
         assert heuristic >= _HEURISTIC_MIN
 
     def test_token_count_tokenizer_with_calls(self) -> None:
@@ -221,7 +233,10 @@ class TestCompression:
     def test_compress_with_system(self) -> None:
         """A long conversation is folded into the system message."""
         model = _SummarizerModel(tokens=10_000)
-        messages: list[BaseMessage] = [SystemMessage(content="sys"), HumanMessage(content="hi")]
+        messages: list[BaseMessage] = [
+            SystemMessage(content="sys"),
+            HumanMessage(content="hi"),
+        ]
         assert compress_messages(
             cast("BaseChatModel", model),
             messages,
@@ -239,7 +254,10 @@ class TestCompression:
     def test_compress_pins_plan(self) -> None:
         """Pinned text is kept verbatim in the system message."""
         model = _SummarizerModel(tokens=10_000)
-        messages: list[BaseMessage] = [SystemMessage(content="sys"), HumanMessage(content="hi")]
+        messages: list[BaseMessage] = [
+            SystemMessage(content="sys"),
+            HumanMessage(content="hi"),
+        ]
         assert compress_messages(
             cast("BaseChatModel", model),
             messages,

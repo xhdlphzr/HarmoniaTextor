@@ -19,7 +19,9 @@ class TestTechniquesBase:
 
     def test_context_defaults(self) -> None:
         """The context defaults to a plain, four-part texture."""
-        score = new_score(key="C", time_signature="4/4", tempo_bpm=80, voices=["soprano"])
+        score = new_score(
+            key="C", time_signature="4/4", tempo_bpm=80, voices=["soprano"]
+        )
         context = TechniqueContext(score=score, themes={})
         assert context.genre == "plain"
         assert context.voice_profile == "four_part"
@@ -33,7 +35,9 @@ class TestTechniquesBase:
 
     def test_result(self) -> None:
         """A result wraps the new score and warnings."""
-        score = new_score(key="C", time_signature="4/4", tempo_bpm=80, voices=["soprano"])
+        score = new_score(
+            key="C", time_signature="4/4", tempo_bpm=80, voices=["soprano"]
+        )
         result = TechniqueResult(score=score)
         assert result.score is score
         assert result.warnings == []

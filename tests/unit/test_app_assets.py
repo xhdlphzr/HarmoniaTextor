@@ -23,7 +23,9 @@ class TestAssets:
         assert directory.name == "assets"
         assert (directory / "Franx.png").exists()
 
-    def test_assets_dir_frozen(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_assets_dir_frozen(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         """When frozen the assets live inside the bundle directory."""
         monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path), raising=False)
         assert assets.assets_dir() == tmp_path / "assets"
@@ -34,7 +36,9 @@ class TestAssets:
         assert icon is not None
         assert icon.name == "Franx.png"
 
-    def test_favicon_icon_missing(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_favicon_icon_missing(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         """A missing favicon returns None."""
         monkeypatch.setattr(assets, "assets_dir", lambda: tmp_path)
         assert assets.favicon_icon() is None

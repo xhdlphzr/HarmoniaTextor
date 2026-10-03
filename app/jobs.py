@@ -117,7 +117,7 @@ class JobManager:
         """
         try:
             result = target(job.emit)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - surface any job failure to the client
             job.emit({"kind": "error", "message": str(exc)})
             job.finish("error", {"message": str(exc)})
             return

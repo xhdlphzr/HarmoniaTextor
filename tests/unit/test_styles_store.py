@@ -27,7 +27,9 @@ def _kit() -> StyleKit:
 class TestStyleKitStore:
     """Custom-kit JSON persistence."""
 
-    def test_default_root(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_default_root(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Without a root the configuration directory is used."""
         monkeypatch.setattr(config, "config_dir", lambda: tmp_path)
         assert StyleKitStore().root == tmp_path

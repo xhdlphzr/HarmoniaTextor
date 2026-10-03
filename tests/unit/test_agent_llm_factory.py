@@ -17,7 +17,7 @@ class TestLLMFactory:
     @pytest.fixture(autouse=True)
     def _no_config(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Isolate the factory from the user's real config file."""
-        monkeypatch.setattr("harmoniatextor.agent.llm_factory.load_config", lambda: {})
+        monkeypatch.setattr("harmoniatextor.agent.llm_factory.load_config", dict)
 
     def test_explicit_args(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Explicit arguments are forwarded."""
@@ -28,7 +28,9 @@ class TestLLMFactory:
             return "model"
 
         monkeypatch.setattr("harmoniatextor.agent.llm_factory.ChatOpenAI", fake)
-        created = cast("object", create_chat_model(model="m", base_url="u", api_key="k"))
+        created = cast(
+            "object", create_chat_model(model="m", base_url="u", api_key="k")
+        )
         assert created == "model"
         assert captured["model"] == "m"
 
@@ -40,12 +42,18 @@ class TestLLMFactory:
         captured: dict[str, Any] = {}
 
         def fake(**kwargs: Any) -> str:
-            captured.update({key: kwargs[key] for key in ("model", "base_url", "api_key")})
+            captured.update(
+                {key: kwargs[key] for key in ("model", "base_url", "api_key")}
+            )
             return "model"
 
         monkeypatch.setattr("harmoniatextor.agent.llm_factory.ChatOpenAI", fake)
         create_chat_model()
-        assert captured == {"model": "env-model", "base_url": "env-url", "api_key": "env-key"}
+        assert captured == {
+            "model": "env-model",
+            "base_url": "env-url",
+            "api_key": "env-key",
+        }
 
     def test_openai_key_fallback(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """OPENAI_API_KEY is used when LLM_API_KEY is absent."""

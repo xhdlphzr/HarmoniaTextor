@@ -41,7 +41,9 @@ class AlbertiBassTechnique(Technique[AlbertiBassParams]):
     summary = "Fill a voice with an Alberti low-high-middle-high broken-chord figure."
     params_model = AlbertiBassParams
 
-    def apply(self, ctx: TechniqueContext, params: AlbertiBassParams) -> TechniqueResult:
+    def apply(
+        self, ctx: TechniqueContext, params: AlbertiBassParams
+    ) -> TechniqueResult:
         """Write the Alberti figure measure by measure."""
         editor = ScoreEditor(ctx.score)
         bar = editor.bar_length()
@@ -70,7 +72,9 @@ class BrokenChordTechnique(Technique[BrokenChordParams]):
     summary = "Arpeggiate a chord through a measure range in a single voice."
     params_model = BrokenChordParams
 
-    def apply(self, ctx: TechniqueContext, params: BrokenChordParams) -> TechniqueResult:
+    def apply(
+        self, ctx: TechniqueContext, params: BrokenChordParams
+    ) -> TechniqueResult:
         """Write the arpeggio."""
         editor = ScoreEditor(ctx.score)
         bar = editor.bar_length()
@@ -102,7 +106,9 @@ class ParallelChordsTechnique(Technique[ParallelChordsParams]):
     summary = "Move a chord shape in parallel by a fixed diatonic interval."
     params_model = ParallelChordsParams
 
-    def apply(self, ctx: TechniqueContext, params: ParallelChordsParams) -> TechniqueResult:
+    def apply(
+        self, ctx: TechniqueContext, params: ParallelChordsParams
+    ) -> TechniqueResult:
         """Place the parallel chords."""
         editor = ScoreEditor(ctx.score)
         bar = editor.bar_length()
@@ -111,11 +117,15 @@ class ParallelChordsTechnique(Technique[ParallelChordsParams]):
         warnings: list[str] = []
         count = params.repetitions
         if count > span:
-            warnings.append("parallel chords ran out of measures; extra statements were dropped")
+            warnings.append(
+                "parallel chords ran out of measures; extra statements were dropped"
+            )
             count = span
         current = chord_pitches(params.key, params.chord)
         for index in range(count):
-            editor.place_chord(params.voice, params.measure_range.start + index, 0.0, current, bar)
+            editor.place_chord(
+                params.voice, params.measure_range.start + index, 0.0, current, bar
+            )
             current = [transpose_note(pitch, interval) for pitch in current]
         return TechniqueResult(ctx.score, warnings)
 
@@ -126,7 +136,9 @@ class PlaningTechnique(Technique[PlaningParams]):
     id = "planing"
     name = "平行进行"
     category = TechniqueCategory.TEXTURE
-    summary = "Slide a stacked triad or seventh chord up the scale, one step per measure."
+    summary = (
+        "Slide a stacked triad or seventh chord up the scale, one step per measure."
+    )
     params_model = PlaningParams
 
     def apply(self, ctx: TechniqueContext, params: PlaningParams) -> TechniqueResult:
@@ -138,6 +150,8 @@ class PlaningTechnique(Technique[PlaningParams]):
         current = chord_pitches(params.key, figure)
         span = params.measure_range.end - params.measure_range.start + 1
         for index in range(span):
-            editor.place_chord(params.voice, params.measure_range.start + index, 0.0, current, bar)
+            editor.place_chord(
+                params.voice, params.measure_range.start + index, 0.0, current, bar
+            )
             current = [transpose_note(pitch, interval) for pitch in current]
         return TechniqueResult(ctx.score)

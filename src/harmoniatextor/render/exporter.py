@@ -117,12 +117,16 @@ class ExportService:
         """
         title = self._title(work_id)
         try:
-            movement = self.service.get_movement(self.service.get_work(work_id), movement_id)
+            movement = self.service.get_movement(
+                self.service.get_work(work_id), movement_id
+            )
         except KeyError:
             return title
         return safe_filename(f"{title}-{movement.name}", f"{work_id}-{movement_id}")
 
-    def export(self, work_id: str, movement_id: str, out_dir: Path, fmt: str) -> ExportResult:
+    def export(
+        self, work_id: str, movement_id: str, out_dir: Path, fmt: str
+    ) -> ExportResult:
         """Export one movement in the requested format.
 
         Args:
@@ -221,7 +225,9 @@ class ExportService:
             return ExportResult(ok=True, path=path)
         return ExportResult(ok=False, error=f"unsupported format: {fmt}")
 
-    def export_musicxml(self, work_id: str, movement_id: str, out_dir: Path) -> ExportResult:
+    def export_musicxml(
+        self, work_id: str, movement_id: str, out_dir: Path
+    ) -> ExportResult:
         """Export the current score as MusicXML.
 
         Args:
@@ -234,10 +240,14 @@ class ExportService:
         """
         out_dir.mkdir(parents=True, exist_ok=True)
         path = out_dir / f"{self._movement_stem(work_id, movement_id)}.musicxml"
-        path.write_text(to_musicxml(self._score(work_id, movement_id)), encoding="utf-8")
+        path.write_text(
+            to_musicxml(self._score(work_id, movement_id)), encoding="utf-8"
+        )
         return ExportResult(ok=True, path=path)
 
-    def export_midi(self, work_id: str, movement_id: str, out_dir: Path) -> ExportResult:
+    def export_midi(
+        self, work_id: str, movement_id: str, out_dir: Path
+    ) -> ExportResult:
         """Export the current score as a MIDI file.
 
         Args:

@@ -34,7 +34,16 @@ _MAJOR: dict[int, tuple[int, int]] = {
     6: (9, 5),
     7: (11, 6),
 }
-_QUALITY: dict[int, str] = {1: "P", 4: "P", 5: "P", 8: "P", 2: "M", 3: "M", 6: "M", 7: "M"}
+_QUALITY: dict[int, str] = {
+    1: "P",
+    4: "P",
+    5: "P",
+    8: "P",
+    2: "M",
+    3: "M",
+    6: "M",
+    7: "M",
+}
 _MAX_DIATONIC = 7
 
 

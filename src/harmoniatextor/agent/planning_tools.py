@@ -80,7 +80,9 @@ def build_planning_tools(service: CompositionService, work_id: str) -> list[Base
         movement_id = _movement_id(service, work_id, movement)
         if movement_id is None:
             return _payload(
-                ToolResult(False, error_code="BAD_PARAM", message=f"乐章不存在:{movement}")
+                ToolResult(
+                    False, error_code="BAD_PARAM", message=f"乐章不存在:{movement}"
+                )
             )
         return _payload(service.set_movement_prompt(work_id, movement_id, prompt))
 

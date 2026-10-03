@@ -9,7 +9,11 @@ from typing import Any
 import pytest
 from music21 import stream
 
-from harmoniatextor.techniques import TechniqueContext, TechniqueError, build_default_registry
+from harmoniatextor.techniques import (
+    TechniqueContext,
+    TechniqueError,
+    build_default_registry,
+)
 
 REGISTRY = build_default_registry()
 

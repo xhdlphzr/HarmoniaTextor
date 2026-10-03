@@ -49,7 +49,10 @@ def merge_scores(xmls: list[str]) -> str:
     parts: dict[str, stream.Part] = {}
     for xml in xmls:
         movement = from_musicxml(xml)
-        columns = [(part, list(part.getElementsByClass(stream.Measure))) for part in movement.parts]
+        columns = [
+            (part, list(part.getElementsByClass(stream.Measure)))
+            for part in movement.parts
+        ]
         total = max((len(measures) for _, measures in columns), default=0)
         for part, measures in columns:
             voice = str(part.id or part.partName)
@@ -79,5 +82,7 @@ def _renumber(merged: stream.Score) -> None:
         merged: The merged score, modified in place.
     """
     for part in merged.parts:
-        for number, measure in enumerate(part.getElementsByClass(stream.Measure), start=1):
+        for number, measure in enumerate(
+            part.getElementsByClass(stream.Measure), start=1
+        ):
             measure.number = number

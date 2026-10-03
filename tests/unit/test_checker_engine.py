@@ -14,7 +14,9 @@ from harmoniatextor.domain.models import CheckReport, CheckViolation
 from harmoniatextor.score.streamops import ScoreEditor
 
 
-def place(score: stream.Score, voice: str, offset: float, pitch: str, length: float = 1.0) -> None:
+def place(
+    score: stream.Score, voice: str, offset: float, pitch: str, length: float = 1.0
+) -> None:
     """Place a note at a global offset (assumes 4/4)."""
     measure = int(offset // 4) + 1
     inner = offset - (measure - 1) * 4
@@ -33,9 +35,12 @@ class TestEngine:
         """A disabled rule does not run."""
         place(score4, "soprano", 0.0, "C5")
         place(score4, "alto", 0.0, "C3")
-        engine = CheckEngine(profile=ValidationProfile({"spacing": RuleSetting(enabled=False)}))
+        engine = CheckEngine(
+            profile=ValidationProfile({"spacing": RuleSetting(enabled=False)})
+        )
         assert not any(
-            item.rule_id == "spacing" for item in engine.run(score4, CheckerContext()).violations
+            item.rule_id == "spacing"
+            for item in engine.run(score4, CheckerContext()).violations
         )
 
     def test_profile_overrides_severity(self, score4: stream.Score) -> None:
@@ -43,7 +48,9 @@ class TestEngine:
         place(score4, "soprano", 0.0, "C5")
         place(score4, "alto", 0.0, "C3")
         engine = CheckEngine(
-            profile=ValidationProfile({"spacing": RuleSetting(severity=Severity.WARNING)})
+            profile=ValidationProfile(
+                {"spacing": RuleSetting(severity=Severity.WARNING)}
+            )
         )
         report = engine.run(score4, CheckerContext())
         assert report.ok
@@ -61,7 +68,14 @@ class TestEngine:
     def test_feedback_errors(self) -> None:
         """Errors are rendered with guidance."""
         error = CheckViolation(
-            "pf5th", Severity.ERROR, 3, "soprano", "alto", "parallel_fifth", "平行五度", "x"
+            "pf5th",
+            Severity.ERROR,
+            3,
+            "soprano",
+            "alto",
+            "parallel_fifth",
+            "平行五度",
+            "x",
         )
         text = format_feedback(CheckReport(violations=[error]))
         assert "检查不通过" in text

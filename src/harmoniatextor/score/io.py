@@ -79,7 +79,7 @@ def make_instrument(name: str) -> instrument.Instrument:
     """
     try:
         found = instrument.fromString(name)
-    except Exception:
+    except Exception:  # noqa: BLE001 - music21 raises many types for bad names
         return instrument.Piano()  # type: ignore[no-untyped-call]  # music21
     if found is None:
         return instrument.Piano()  # type: ignore[no-untyped-call]  # music21

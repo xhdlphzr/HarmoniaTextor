@@ -34,26 +34,37 @@ class TestExportService:
         assert exporter.export_musicxml(work.id, movement_id, tmp_path / "out").ok
         assert exporter.export_midi(work.id, movement_id, tmp_path / "out").ok
         for fmt in ("m4a", "mp3"):
-            result = getattr(exporter, f"export_{fmt}")(work.id, movement_id, tmp_path / "out")
+            result = getattr(exporter, f"export_{fmt}")(
+                work.id, movement_id, tmp_path / "out"
+            )
             assert not result.ok
             assert result.error
         assert not exporter.features().audio_available
 
     def test_export_audio_success(
-        self, service: CompositionService, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+        self,
+        service: CompositionService,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Audio export succeeds when synthesis is available."""
         work = service.create_work("Demo", "plain", "C")
         movement_id = work.movements[0].id
         exporter = ExportService(service, tmp_path / "vendor")
 
-        def fake_synth(_score: object, out_path: Path, _features: object, _fmt: str) -> Path:
+        def fake_synth(
+            _score: object, out_path: Path, _features: object, _fmt: str
+        ) -> Path:
             out_path.write_text("audio")
             return out_path
 
-        monkeypatch.setattr("harmoniatextor.render.exporter.synthesize_audio", fake_synth)
+        monkeypatch.setattr(
+            "harmoniatextor.render.exporter.synthesize_audio", fake_synth
+        )
         for fmt in ("m4a", "mp3"):
-            result = getattr(exporter, f"export_{fmt}")(work.id, movement_id, tmp_path / "out")
+            result = getattr(exporter, f"export_{fmt}")(
+                work.id, movement_id, tmp_path / "out"
+            )
             assert result.ok
             assert result.path is not None
             assert result.path.suffix == f".{fmt}"
@@ -66,7 +77,9 @@ class TestExportService:
         assert exporter.export(work.id, movement_id, tmp_path / "out", "musicxml").ok
         assert not exporter.export(work.id, movement_id, tmp_path / "out", "ogg").ok
 
-    def test_export_work_single(self, service: CompositionService, tmp_path: Path) -> None:
+    def test_export_work_single(
+        self, service: CompositionService, tmp_path: Path
+    ) -> None:
         """A single-movement work yields one file."""
         work = service.create_work("Demo", "plain", "C")
         exporter = ExportService(service, tmp_path / "vendor")
@@ -84,7 +97,9 @@ class TestExportService:
         assert result.path is not None
         assert result.path.suffix == ".zip"
 
-    def test_export_work_error(self, service: CompositionService, tmp_path: Path) -> None:
+    def test_export_work_error(
+        self, service: CompositionService, tmp_path: Path
+    ) -> None:
         """A failing movement aborts the work export."""
         work = service.create_work("Demo", "sonata", "C")
         exporter = ExportService(service, tmp_path / "vendor")
@@ -120,20 +135,28 @@ class TestExportService:
         assert result.path is not None
         assert result.path.name == "Demo.musicxml"
 
-    def test_export_uses_sanitised_title(self, service: CompositionService, tmp_path: Path) -> None:
+    def test_export_uses_sanitised_title(
+        self, service: CompositionService, tmp_path: Path
+    ) -> None:
         """Exported files use the sanitised work title."""
         work = service.create_work("我的作品:第一首/测试", "plain", "C")
         exporter = ExportService(service, tmp_path / "vendor")
-        result = exporter.export_musicxml(work.id, work.movements[0].id, tmp_path / "out")
+        result = exporter.export_musicxml(
+            work.id, work.movements[0].id, tmp_path / "out"
+        )
         assert result.ok
         assert result.path is not None
         assert "我的作品第一首测试" in result.path.name
         assert all(char not in result.path.name for char in '<>:"/\\|?*')
 
-    def test_export_work_uses_title(self, service: CompositionService, tmp_path: Path) -> None:
+    def test_export_work_uses_title(
+        self, service: CompositionService, tmp_path: Path
+    ) -> None:
         """The merged work export is named after the title."""
         work = service.create_work("标题:测试", "plain", "C")
-        service.submit_theme(work.id, work.movements[0].id, _movement_xml(), check=False)
+        service.submit_theme(
+            work.id, work.movements[0].id, _movement_xml(), check=False
+        )
         exporter = ExportService(service, tmp_path / "vendor")
         result = exporter.export_work(work.id, "musicxml", tmp_path / "out")
         assert result.ok
@@ -145,7 +168,9 @@ class TestExportService:
     ) -> None:
         """An unknown movement still exports under the work title."""
         work = service.create_work("标题", "plain", "C")
-        service.submit_theme(work.id, work.movements[0].id, _movement_xml(), check=False)
+        service.submit_theme(
+            work.id, work.movements[0].id, _movement_xml(), check=False
+        )
         exporter = ExportService(service, tmp_path / "vendor")
         result = exporter.export_musicxml(work.id, "nope", tmp_path / "out")
         assert result.ok
@@ -153,7 +178,10 @@ class TestExportService:
         assert result.path.name == "标题.musicxml"
 
     def test_export_work_movements_formats(
-        self, service: CompositionService, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+        self,
+        service: CompositionService,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Merged MIDI, audio and unsupported exports are handled."""
         work_id = self._movement_work(service)
@@ -165,11 +193,15 @@ class TestExportService:
         assert not exporter.export_work(work_id, "m4a", tmp_path / "out").ok
         assert not exporter.export_work(work_id, "ogg", tmp_path / "out").ok
 
-        def fake_synth(_score: object, out_path: Path, _features: object, _fmt: str) -> Path:
+        def fake_synth(
+            _score: object, out_path: Path, _features: object, _fmt: str
+        ) -> Path:
             out_path.write_text("audio")
             return out_path
 
-        monkeypatch.setattr("harmoniatextor.render.exporter.synthesize_audio", fake_synth)
+        monkeypatch.setattr(
+            "harmoniatextor.render.exporter.synthesize_audio", fake_synth
+        )
         audio = exporter.export_work(work_id, "mp3", tmp_path / "out")
         assert audio.ok
         assert audio.path is not None

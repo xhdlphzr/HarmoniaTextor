@@ -93,7 +93,9 @@ class TestGenres:
             def checker_context(
                 self, tonic: str, measure_count: int, *, complete: bool = False
             ) -> CheckerContext:
-                return self._final_context(tonic, measure_count, enforce=True, complete=complete)
+                return self._final_context(
+                    tonic, measure_count, enforce=True, complete=complete
+                )
 
         movement = Custom().initialize_work("w", "C")[0]
         assert movement.key.raw == "G"

@@ -11,7 +11,16 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
-from flask import Flask, Response, jsonify, redirect, render_template, request, send_file, url_for
+from flask import (
+    Flask,
+    Response,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    send_file,
+    url_for,
+)
 
 from app.assets import favicon_icon
 from app.context import get_export_service, get_service
@@ -79,9 +88,15 @@ def _register_pages(app: Flask) -> None:
             style_kits=service.styles.all(),
             default_style=service.styles.resolve(None).id,
             builtin_style_ids={kit.id for kit in service.styles.builtins.values()},
-            rule_options=[{"id": rule.rule_id, "name": rule.name} for rule in BUILTIN_RULES],
+            rule_options=[
+                {"id": rule.rule_id, "name": rule.name} for rule in BUILTIN_RULES
+            ],
             technique_options=[
-                {"id": technique.id, "name": technique.name, "category": technique.category.value}
+                {
+                    "id": technique.id,
+                    "name": technique.name,
+                    "category": technique.category.value,
+                }
                 for technique in service.techniques.all()
             ],
         )
@@ -192,7 +207,9 @@ def _register_kits(app: Flask) -> None:
     @app.get("/api/kits")
     def list_kits() -> Response:
         """Return every style kit."""
-        return jsonify({"kits": [kit.to_dict() for kit in get_service(app).styles.all()]})
+        return jsonify(
+            {"kits": [kit.to_dict() for kit in get_service(app).styles.all()]}
+        )
 
     @app.post("/api/kits")
     def create_kit() -> Any:
@@ -252,7 +269,9 @@ def _register_jobs(app: Flask) -> None:
         service = get_service(app)
         work = service.create_work(title, genre, style=style, with_movements=False)
         job = _start_architecture_job(app, service, work.id, prompt)
-        return jsonify({"ok": True, "job_id": job.id, "work_id": work.id, "movement_id": "m01"})
+        return jsonify(
+            {"ok": True, "job_id": job.id, "work_id": work.id, "movement_id": "m01"}
+        )
 
     @app.post("/api/works/<work_id>/movements/<movement_id>/run")
     def run_work(work_id: str, movement_id: str) -> Any:
@@ -266,10 +285,20 @@ def _register_jobs(app: Flask) -> None:
         except FileNotFoundError:
             return jsonify({"ok": False, "error": "unknown work"}), 404
         job = _start_agent_job(
-            app, service, work_id, movement_id, prompt, feedback=str(feedback) if feedback else None
+            app,
+            service,
+            work_id,
+            movement_id,
+            prompt,
+            feedback=str(feedback) if feedback else None,
         )
         return jsonify(
-            {"ok": True, "job_id": job.id, "work_id": work_id, "movement_id": movement_id}
+            {
+                "ok": True,
+                "job_id": job.id,
+                "work_id": work_id,
+                "movement_id": movement_id,
+            }
         )
 
     @app.get("/api/jobs/<job_id>/events")
@@ -321,7 +350,7 @@ def refresh_llm_status(app: Flask) -> str:
     return state["status"]
 
 
-def _start_agent_job(  # noqa: PLR0913, PLR0917
+def _start_agent_job(
     app: Flask,
     service: Any,
     work_id: str,
@@ -359,12 +388,20 @@ def _start_agent_job(  # noqa: PLR0913, PLR0917
                 context_window=window,
             )
             result = loop.run(
-                work_id, movement_id, prompt, feedback=feedback, on_event=emit, plan=plan
+                work_id,
+                movement_id,
+                prompt,
+                feedback=feedback,
+                on_event=emit,
+                plan=plan,
             )
             service.ensure_title(work_id)
             if result.review_passed is not None:
                 service.record_review(
-                    work_id, movement_id, result.review_passed, result.review_suggestions
+                    work_id,
+                    movement_id,
+                    result.review_passed,
+                    result.review_suggestions,
                 )
             report = service.check(work_id, movement_id)
             finished = True
@@ -405,7 +442,9 @@ def _start_architecture_job(app: Flask, service: Any, work_id: str, prompt: str)
     def target(emit: EventCallback) -> dict[str, Any]:
         finished = False
         try:
-            plan = Architect(service, create_chat_model()).plan(work_id, prompt, on_event=emit)
+            plan = Architect(service, create_chat_model()).plan(
+                work_id, prompt, on_event=emit
+            )
             window = context_window_tokens()
             composer = MovementComposer(
                 service,
@@ -419,11 +458,20 @@ def _start_architecture_job(app: Flask, service: Any, work_id: str, prompt: str)
             movement_id = movements[0].id if movements else "m01"
             if outcome.review_passed is not None:
                 service.record_review(
-                    work_id, movement_id, outcome.review_passed, outcome.review_suggestions
+                    work_id,
+                    movement_id,
+                    outcome.review_passed,
+                    outcome.review_suggestions,
                 )
             reports = [service.check(work_id, movement.id) for movement in movements]
-            violations = [item for report in reports for item in report.to_dict()["violations"]]
-            ok = bool(reports) and all(report.ok for report in reports) and outcome.completed
+            violations = [
+                item for report in reports for item in report.to_dict()["violations"]
+            ]
+            ok = (
+                bool(reports)
+                and all(report.ok for report in reports)
+                and outcome.completed
+            )
             finished = True
             return {
                 "work_id": work_id,
@@ -498,7 +546,9 @@ def _register_api(app: Flask) -> None:
             fallback = service.current_musicxml(work_id, movement_id)
             return Response(fallback, mimetype=mimetype)
         except Exception:
-            app.logger.exception("score rendering failed for %s/%s", work_id, movement_id)
+            app.logger.exception(
+                "score rendering failed for %s/%s", work_id, movement_id
+            )
             return Response("", mimetype=mimetype)
 
     @app.post("/api/works/<work_id>/movements/<movement_id>/check")
@@ -516,7 +566,11 @@ def _register_api(app: Flask) -> None:
     @app.post("/api/works/<work_id>/movements/<movement_id>/rollback")
     def rollback(work_id: str, movement_id: str) -> Response:
         """Roll a movement back to an earlier revision."""
-        raw = request.json.get("seq", 0) if request.is_json else request.form.get("seq", 0)
+        raw = (
+            request.json.get("seq", 0)
+            if request.is_json
+            else request.form.get("seq", 0)
+        )
         result = get_service(app).rollback(work_id, movement_id, int(raw))
         return jsonify(_result_payload(result))
 

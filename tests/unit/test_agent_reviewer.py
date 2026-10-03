@@ -36,7 +36,9 @@ def invalid_call(name: str, call_id: str = "x1", error: str = "bad json") -> AIM
     """Build an assistant message with an unparseable tool call."""
     return AIMessage(
         content="",
-        invalid_tool_calls=[invalid_tool_call(name=name, args="{bad", id=call_id, error=error)],
+        invalid_tool_calls=[
+            invalid_tool_call(name=name, args="{bad", id=call_id, error=error)
+        ],
     )
 
 
@@ -93,7 +95,9 @@ def assert_no_dangling_tool_calls(messages: list[BaseMessage]) -> None:
             while scan < len(messages) and isinstance(messages[scan], ToolMessage):
                 answered.add(str(getattr(messages[scan], "tool_call_id", "")))
                 scan += 1
-            assert needed <= answered, f"dangling tool calls at {index}: {needed - answered}"
+            assert needed <= answered, (
+                f"dangling tool calls at {index}: {needed - answered}"
+            )
         index += 1
 
 
@@ -102,7 +106,9 @@ class TestReviewer:
 
     def test_pass(self) -> None:
         """A passing verdict is returned."""
-        model = _ReviewModel([tool_call("submit_review", {"passed": True, "suggestions": ""})])
+        model = _ReviewModel(
+            [tool_call("submit_review", {"passed": True, "suggestions": ""})]
+        )
         result = ReviewerAI(cast("BaseChatModel", model)).review(
             goal="g",
             genre_name="赋格",
@@ -115,7 +121,9 @@ class TestReviewer:
 
     def test_reject(self) -> None:
         """A rejection carries its suggestions."""
-        model = _ReviewModel([tool_call("submit_review", {"passed": False, "suggestions": "问题"})])
+        model = _ReviewModel(
+            [tool_call("submit_review", {"passed": False, "suggestions": "问题"})]
+        )
         result = ReviewerAI(cast("BaseChatModel", model)).review(
             goal="g",
             genre_name="赋格",

@@ -215,7 +215,9 @@ class HiddenOctavesRule(CheckRule):
 
     def run(self, score: stream.Score, _ctx: CheckerContext) -> list[CheckViolation]:
         """Detect hidden octaves."""
-        return _hidden_perfect(self, score, _PERFECT_OCTAVE, "hidden_octave", "隐伏八度")
+        return _hidden_perfect(
+            self, score, _PERFECT_OCTAVE, "hidden_octave", "隐伏八度"
+        )
 
 
 def _hidden_perfect(
@@ -347,7 +349,9 @@ class FinalOuterIntervalRule(CheckRule):
     def run(self, score: stream.Score, _ctx: CheckerContext) -> list[CheckViolation]:
         """Check the final sonority."""
         order = voice_order(score)
-        slices = [item for item in build_slices(score) if len(item.events) >= _MIN_VOICES]
+        slices = [
+            item for item in build_slices(score) if len(item.events) >= _MIN_VOICES
+        ]
         if not slices:
             return []
         last = slices[-1]
@@ -466,7 +470,11 @@ class ChordOmissionRule(CheckRule):
         tonic = tonic_pc(ctx.tonic)
         leading = (tonic + 11) % 12
         for item in build_slices(score):
-            voices = [voice for voice, event in item.events.items() if event.midi % 12 == leading]
+            voices = [
+                voice
+                for voice, event in item.events.items()
+                if event.midi % 12 == leading
+            ]
             if len(voices) >= _MIN_VOICES:
                 violations.append(
                     _violation(
@@ -475,7 +483,9 @@ class ChordOmissionRule(CheckRule):
                         ViolationData(
                             kind="doubled_leading_tone",
                             message=f"小节 {item.measure}:导音被重复({'、'.join(voices)})。",
-                            snippet=" / ".join(item.events[voice].pitch for voice in voices),
+                            snippet=" / ".join(
+                                item.events[voice].pitch for voice in voices
+                            ),
                             voice_a=voices[0],
                             voice_b=voices[1],
                         ),
@@ -499,11 +509,15 @@ class DiminishedIntervalRule(CheckRule):
             for voice, event in item.events.items():
                 by_voice.setdefault(voice, []).append(event)
         for voice, events in by_voice.items():
-            for first, second, third in zip(events, events[1:], events[2:], strict=False):
+            for first, second, third in zip(
+                events, events[1:], events[2:], strict=False
+            ):
                 leap = second.midi - first.midi
                 if abs(leap) in {_TRITONE, _DIMINISHED_SEVENTH}:
                     resolution = third.midi - second.midi
-                    resolved = abs(resolution) <= _STEP and (resolution > 0) != (leap > 0)
+                    resolved = abs(resolution) <= _STEP and (resolution > 0) != (
+                        leap > 0
+                    )
                     if not resolved:
                         violations.append(
                             CheckViolation(
@@ -613,7 +627,9 @@ class FixedVoiceCountRule(CheckRule):
             return []
         last_measure = slices[-1].measure
         window = min(8, last_measure)
-        opening = {voice for item in slices if item.measure <= window for voice in item.events}
+        opening = {
+            voice for item in slices if item.measure <= window for voice in item.events
+        }
         closing = {
             voice
             for item in slices

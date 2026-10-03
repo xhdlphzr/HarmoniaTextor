@@ -53,12 +53,17 @@ def _load(language: str) -> dict[str, str]:
     Returns:
         A mapping of message id to localised text.
     """
-    raw: Any = yaml.safe_load((i18n_dir() / f"{language}.yaml").read_text(encoding="utf-8")) or {}
+    raw: Any = (
+        yaml.safe_load((i18n_dir() / f"{language}.yaml").read_text(encoding="utf-8"))
+        or {}
+    )
     return {str(key): str(value) for key, value in raw.items()}
 
 
 #: Language code -> (message id -> localised text).
-CATALOG: dict[str, dict[str, str]] = {language: _load(language) for language in LANGUAGES}
+CATALOG: dict[str, dict[str, str]] = {
+    language: _load(language) for language in LANGUAGES
+}
 
 
 def normalize_language(value: Any) -> str:

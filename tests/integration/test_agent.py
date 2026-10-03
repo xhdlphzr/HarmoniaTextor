@@ -106,7 +106,9 @@ def invalid_call(name: str, call_id: str = "x1", error: str = "bad json") -> AIM
     """Build an assistant message with an unparseable tool call."""
     return AIMessage(
         content="",
-        invalid_tool_calls=[invalid_tool_call(name=name, args="{bad", id=call_id, error=error)],
+        invalid_tool_calls=[
+            invalid_tool_call(name=name, args="{bad", id=call_id, error=error)
+        ],
     )
 
 
@@ -129,7 +131,9 @@ def assert_no_dangling_tool_calls(messages: list[BaseMessage]) -> None:
             while scan < len(messages) and isinstance(messages[scan], ToolMessage):
                 answered.add(str(getattr(messages[scan], "tool_call_id", "")))
                 scan += 1
-            assert needed <= answered, f"dangling tool calls at {index}: {needed - answered}"
+            assert needed <= answered, (
+                f"dangling tool calls at {index}: {needed - answered}"
+            )
         index += 1
 
 
@@ -174,7 +178,9 @@ class RecordingChatModel(ValidatingChatModel):
 def theme_xml() -> str:
     """Build a simple theme melody."""
     score = new_score(key="C", time_signature="4/4", tempo_bpm=84, voices=["soprano"])
-    ScoreEditor(score).write_line("soprano", 1, [ThemeNote("C5", 1.0), ThemeNote("D5", 1.0)])
+    ScoreEditor(score).write_line(
+        "soprano", 1, [ThemeNote("C5", 1.0), ThemeNote("D5", 1.0)]
+    )
     return to_musicxml(score)
 
 
@@ -197,7 +203,9 @@ def prepared(service: CompositionService) -> tuple[CompositionService, str, str,
 class TestTools:
     """Tool construction and payloads."""
 
-    def test_build_tools(self, prepared: tuple[CompositionService, str, str, int]) -> None:
+    def test_build_tools(
+        self, prepared: tuple[CompositionService, str, str, int]
+    ) -> None:
         """Control tools plus 25 technique tools are built."""
         service, work_id, movement_id, _ = prepared
         tools = build_tools(service, work_id, movement_id)
@@ -220,7 +228,9 @@ class TestTools:
         payload = result_payload(ToolResult(True, full_musicxml="<x/>"))
         assert "full_musicxml" not in payload
 
-    def test_movement_tools_keep_composition_set(self, service: CompositionService) -> None:
+    def test_movement_tools_keep_composition_set(
+        self, service: CompositionService
+    ) -> None:
         """A movement session keeps themes, edits and every technique."""
         work = service.create_work("Demo", "plain", "C", with_movements=False)
         service.add_movement(work.id)
@@ -241,11 +251,15 @@ class TestTools:
             build_default_registry().ids()
         )
 
-    def test_invoke_control_tools(self, prepared: tuple[CompositionService, str, str, int]) -> None:
+    def test_invoke_control_tools(
+        self, prepared: tuple[CompositionService, str, str, int]
+    ) -> None:
         """The submission and edit tools execute through the service."""
         service, work_id, movement_id, _ = prepared
         tools = {tool.name: tool for tool in build_tools(service, work_id, movement_id)}
-        submitted = tools["submit_theme"].invoke({"musicxml": theme_xml(), "instrument": "Soprano"})
+        submitted = tools["submit_theme"].invoke(
+            {"musicxml": theme_xml(), "instrument": "Soprano"}
+        )
         assert "theme_id" in submitted
         added = tools["add_part"].invoke({"voice": "flute", "instrument": "Flute"})
         assert "ok" in added
@@ -253,7 +267,9 @@ class TestTools:
         assert "ok" in removed
         tempo = tools["set_tempo"].invoke({"bpm": 100})
         assert "ok" in tempo
-        edited = tools["edit"].invoke({"measure": 1, "voice": "soprano", "musicxml": theme_xml()})
+        edited = tools["edit"].invoke(
+            {"measure": 1, "voice": "soprano", "musicxml": theme_xml()}
+        )
         assert "full_musicxml" not in edited
         marked = tools["annotate"].invoke(
             {"measure": 1, "voice": "soprano", "mark": "dynamic", "value": "f"}
@@ -268,16 +284,22 @@ class TestTools:
 
     def test_payload_with_report(self) -> None:
         """Payloads include violations from the report."""
-        report = CheckReport([CheckViolation("r", Severity.ERROR, 1, None, None, "k", "m", "s")])
+        report = CheckReport(
+            [CheckViolation("r", Severity.ERROR, 1, None, None, "k", "m", "s")]
+        )
         payload = result_payload(ToolResult(False, report=report))
         assert "violations" in payload
 
-    def test_tools_defer_checking(self, prepared: tuple[CompositionService, str, str, int]) -> None:
+    def test_tools_defer_checking(
+        self, prepared: tuple[CompositionService, str, str, int]
+    ) -> None:
         """Agent tools defer the symbolic check to the review step."""
         service, work_id, movement_id, _ = prepared
         tools = {tool.name: tool for tool in build_tools(service, work_id, movement_id)}
         payload = json.loads(
-            tools["submit_theme"].invoke({"musicxml": theme_xml(), "instrument": "Soprano"})
+            tools["submit_theme"].invoke(
+                {"musicxml": theme_xml(), "instrument": "Soprano"}
+            )
         )
         assert payload["ok"] is True
         assert "violations" not in payload
@@ -287,7 +309,9 @@ class TestTools:
 class TestAgentLoop:
     """The bounded tool-calling loop."""
 
-    def test_completes_after_tool(self, prepared: tuple[CompositionService, str, str, int]) -> None:
+    def test_completes_after_tool(
+        self, prepared: tuple[CompositionService, str, str, int]
+    ) -> None:
         """A tool call followed by text completes the run."""
         service, work_id, movement_id, theme_id = prepared
         model = ScriptedChatModel(
@@ -310,25 +334,35 @@ class TestAgentLoop:
         assert outcome.completed
         assert outcome.final_text == "完成"
 
-    def test_unknown_tool(self, prepared: tuple[CompositionService, str, str, int]) -> None:
+    def test_unknown_tool(
+        self, prepared: tuple[CompositionService, str, str, int]
+    ) -> None:
         """Unknown tools are reported back."""
         service, work_id, movement_id, _ = prepared
         model = ScriptedChatModel(
             responses=[tool_call("does_not_exist", {}), AIMessage(content="done")]
         )
-        outcome = AgentLoop(service, cast("BaseChatModel", model)).run(work_id, movement_id, "goal")
+        outcome = AgentLoop(service, cast("BaseChatModel", model)).run(
+            work_id, movement_id, "goal"
+        )
         assert outcome.completed
 
-    def test_tool_error(self, prepared: tuple[CompositionService, str, str, int]) -> None:
+    def test_tool_error(
+        self, prepared: tuple[CompositionService, str, str, int]
+    ) -> None:
         """Tool errors are reported back."""
         service, work_id, movement_id, _ = prepared
         model = ScriptedChatModel(
             responses=[tool_call("technique_imitation", {}), AIMessage(content="done")]
         )
-        outcome = AgentLoop(service, cast("BaseChatModel", model)).run(work_id, movement_id, "goal")
+        outcome = AgentLoop(service, cast("BaseChatModel", model)).run(
+            work_id, movement_id, "goal"
+        )
         assert outcome.completed
 
-    def test_max_steps(self, prepared: tuple[CompositionService, str, str, int]) -> None:
+    def test_max_steps(
+        self, prepared: tuple[CompositionService, str, str, int]
+    ) -> None:
         """The loop stops at the step budget."""
         service, work_id, movement_id, theme_id = prepared
         call = tool_call(
@@ -341,11 +375,17 @@ class TestAgentLoop:
         )
         assert not outcome.completed
 
-    def test_list_content(self, prepared: tuple[CompositionService, str, str, int]) -> None:
+    def test_list_content(
+        self, prepared: tuple[CompositionService, str, str, int]
+    ) -> None:
         """List content is flattened to text."""
         service, work_id, movement_id, _ = prepared
-        model = ScriptedChatModel(responses=[AIMessage(content=[{"type": "text", "text": "hi"}])])
-        outcome = AgentLoop(service, cast("BaseChatModel", model)).run(work_id, movement_id, "goal")
+        model = ScriptedChatModel(
+            responses=[AIMessage(content=[{"type": "text", "text": "hi"}])]
+        )
+        outcome = AgentLoop(service, cast("BaseChatModel", model)).run(
+            work_id, movement_id, "goal"
+        )
         assert outcome.final_text == "hi"
 
     def test_content_text_scalar(self) -> None:
@@ -365,7 +405,9 @@ class TestAgentLoop:
         """A failing check re-prompts the model automatically."""
         work = service.create_work("Demo", "plain", "C")
         movement_id = work.movements[0].id
-        failing = CheckReport([CheckViolation("r", Severity.ERROR, 1, None, None, "k", "m", "s")])
+        failing = CheckReport(
+            [CheckViolation("r", Severity.ERROR, 1, None, None, "k", "m", "s")]
+        )
         reports = [failing, CheckReport([])]
         calls: list[int] = []
 
@@ -375,7 +417,9 @@ class TestAgentLoop:
 
         service.check = fake_check  # type: ignore[method-assign]
         events: list[dict[str, Any]] = []
-        model = ScriptedChatModel(responses=[AIMessage(content="a"), AIMessage(content="b")])
+        model = ScriptedChatModel(
+            responses=[AIMessage(content="a"), AIMessage(content="b")]
+        )
         outcome = AgentLoop(service, cast("BaseChatModel", model)).run(
             work.id, movement_id, "goal", on_event=events.append
         )
@@ -388,7 +432,9 @@ class TestAgentLoop:
         """A failing check stops immediately when auto-continue is disabled."""
         work = service.create_work("Demo", "plain", "C")
         movement_id = work.movements[0].id
-        failing = CheckReport([CheckViolation("r", Severity.ERROR, 1, None, None, "k", "m", "s")])
+        failing = CheckReport(
+            [CheckViolation("r", Severity.ERROR, 1, None, None, "k", "m", "s")]
+        )
 
         def fake_check(*_args: object, **_kwargs: object) -> CheckReport:
             return failing
@@ -400,7 +446,9 @@ class TestAgentLoop:
         )
         assert not outcome.completed
 
-    def test_plan_phase(self, prepared: tuple[CompositionService, str, str, int]) -> None:
+    def test_plan_phase(
+        self, prepared: tuple[CompositionService, str, str, int]
+    ) -> None:
         """Step 1 plans instruments and arcs before composing."""
         service, work_id, movement_id, _ = prepared
         model = ScriptedChatModel(
@@ -417,12 +465,16 @@ class TestAgentLoop:
         assert any(event["kind"] == "plan" for event in events)
         assert service.latest_plan(work_id) == "规划:钢琴情感由平静到激昂"
 
-    def test_stored_plan_injected(self, prepared: tuple[CompositionService, str, str, int]) -> None:
+    def test_stored_plan_injected(
+        self, prepared: tuple[CompositionService, str, str, int]
+    ) -> None:
         """An existing plan is injected when not planning again."""
         service, work_id, movement_id, _ = prepared
         service.record_plan(work_id, movement_id, "旧规划")
         model = ScriptedChatModel(responses=[AIMessage(content="完成")])
-        outcome = AgentLoop(service, cast("BaseChatModel", model)).run(work_id, movement_id, "goal")
+        outcome = AgentLoop(service, cast("BaseChatModel", model)).run(
+            work_id, movement_id, "goal"
+        )
         assert outcome.completed
 
 
@@ -482,7 +534,9 @@ class _ReviewerStub:
 class TestAgentLoopReview:
     """The reviewer cycle inside the composer loop."""
 
-    def test_review_pass(self, prepared: tuple[CompositionService, str, str, int]) -> None:
+    def test_review_pass(
+        self, prepared: tuple[CompositionService, str, str, int]
+    ) -> None:
         """A passing reviewer completes the run."""
         service, work_id, movement_id, _ = prepared
         model = ScriptedChatModel(responses=[AIMessage(content="完成")])
@@ -500,7 +554,9 @@ class TestAgentLoopReview:
     ) -> None:
         """A rejection re-prompts the same session and can pass later."""
         service, work_id, movement_id, _ = prepared
-        model = ScriptedChatModel(responses=[AIMessage(content="a"), AIMessage(content="b")])
+        model = ScriptedChatModel(
+            responses=[AIMessage(content="a"), AIMessage(content="b")]
+        )
         stub = _ReviewerStub([ReviewResult(False, "问题"), ReviewResult(True)])
         outcome = AgentLoop(
             service, cast("BaseChatModel", model), reviewer=cast("ReviewerAI", stub)
@@ -508,7 +564,9 @@ class TestAgentLoopReview:
         assert outcome.completed
         assert stub.calls == _REVIEW_ROUNDS
 
-    def test_review_gives_up(self, prepared: tuple[CompositionService, str, str, int]) -> None:
+    def test_review_gives_up(
+        self, prepared: tuple[CompositionService, str, str, int]
+    ) -> None:
         """Repeated rejections stop at the review budget."""
         service, work_id, movement_id, _ = prepared
         model = ScriptedChatModel(responses=[AIMessage(content="x")] * 4)
@@ -522,16 +580,18 @@ class TestAgentLoopReview:
         assert not outcome.completed
         assert outcome.review_passed is False
 
-    def test_compression_event(self, prepared: tuple[CompositionService, str, str, int]) -> None:
+    def test_compression_event(
+        self, prepared: tuple[CompositionService, str, str, int]
+    ) -> None:
         """A tiny context window triggers compression mid-run."""
         service, work_id, movement_id, _ = prepared
         model = ValidatingChatModel(
             responses=[AIMessage(content="摘要"), AIMessage(content="完成")]
         )
         events: list[dict[str, Any]] = []
-        outcome = AgentLoop(service, cast("BaseChatModel", model), context_window=0).run(
-            work_id, movement_id, "goal", on_event=events.append
-        )
+        outcome = AgentLoop(
+            service, cast("BaseChatModel", model), context_window=0
+        ).run(work_id, movement_id, "goal", on_event=events.append)
         assert outcome.completed
         assert any(event["kind"] == "compress" for event in events)
 
@@ -604,7 +664,9 @@ class TestPlanningTools:
         work = service.create_work("Demo", "plain", "C", with_movements=False)
         tools = {tool.name: tool for tool in build_planning_tools(service, work.id)}
         assert (
-            json.loads(tools["set_movement_prompt"].invoke({"movement": 9, "prompt": "x"}))["ok"]
+            json.loads(
+                tools["set_movement_prompt"].invoke({"movement": 9, "prompt": "x"})
+            )["ok"]
             is False
         )
 
@@ -708,7 +770,9 @@ class TestArchitect:
         """The planner stops at its step budget."""
         work = service.create_work("Demo", "plain", "C", with_movements=False)
         model = ScriptedChatModel(responses=[AIMessage(content="done")])
-        result = Architect(service, cast("BaseChatModel", model), max_steps=1).plan(work.id, "goal")
+        result = Architect(service, cast("BaseChatModel", model), max_steps=1).plan(
+            work.id, "goal"
+        )
         assert not result.completed
 
 
@@ -732,12 +796,20 @@ class TestMovementComposer:
             responses=[
                 tool_call(
                     "submit_theme",
-                    {"musicxml": theme_xml(), "voice": "soprano", "instrument": "Soprano"},
+                    {
+                        "musicxml": theme_xml(),
+                        "voice": "soprano",
+                        "instrument": "Soprano",
+                    },
                 ),
                 AIMessage(content="done"),
                 tool_call(
                     "submit_theme",
-                    {"musicxml": theme_xml(), "voice": "soprano", "instrument": "Soprano"},
+                    {
+                        "musicxml": theme_xml(),
+                        "voice": "soprano",
+                        "instrument": "Soprano",
+                    },
                 ),
                 AIMessage(content="done"),
             ]
@@ -757,7 +829,9 @@ class TestMovementComposer:
     def test_movement_check_retries(self, service: CompositionService) -> None:
         """A movement that fails the symbolic check is retried."""
         work_id = two_movement_work(service)
-        failing = CheckReport([CheckViolation("r", Severity.ERROR, 1, None, None, "k", "m", "s")])
+        failing = CheckReport(
+            [CheckViolation("r", Severity.ERROR, 1, None, None, "k", "m", "s")]
+        )
         reports = [failing, CheckReport([]), CheckReport([])]
         calls: list[int] = []
 
@@ -770,17 +844,29 @@ class TestMovementComposer:
             responses=[
                 tool_call(
                     "submit_theme",
-                    {"musicxml": theme_xml(), "voice": "soprano", "instrument": "Soprano"},
+                    {
+                        "musicxml": theme_xml(),
+                        "voice": "soprano",
+                        "instrument": "Soprano",
+                    },
                 ),
                 AIMessage(content="done"),
                 tool_call(
                     "submit_theme",
-                    {"musicxml": theme_xml(), "voice": "soprano", "instrument": "Soprano"},
+                    {
+                        "musicxml": theme_xml(),
+                        "voice": "soprano",
+                        "instrument": "Soprano",
+                    },
                 ),
                 AIMessage(content="done"),
                 tool_call(
                     "submit_theme",
-                    {"musicxml": theme_xml(), "voice": "soprano", "instrument": "Soprano"},
+                    {
+                        "musicxml": theme_xml(),
+                        "voice": "soprano",
+                        "instrument": "Soprano",
+                    },
                 ),
                 AIMessage(content="done"),
             ]
@@ -792,7 +878,9 @@ class TestMovementComposer:
         assert result.completed
         assert len(calls) > 1
         assert any(
-            event["kind"] == "feedback" and event["layer"] == "symbolic" and event["text"]
+            event["kind"] == "feedback"
+            and event["layer"] == "symbolic"
+            and event["text"]
             for event in events
         )
 
@@ -805,12 +893,20 @@ class TestMovementComposer:
             responses=[
                 tool_call(
                     "submit_theme",
-                    {"musicxml": theme_xml(), "voice": "soprano", "instrument": "Soprano"},
+                    {
+                        "musicxml": theme_xml(),
+                        "voice": "soprano",
+                        "instrument": "Soprano",
+                    },
                 ),
                 AIMessage(content="done"),
                 tool_call(
                     "submit_theme",
-                    {"musicxml": theme_xml(), "voice": "soprano", "instrument": "Soprano"},
+                    {
+                        "musicxml": theme_xml(),
+                        "voice": "soprano",
+                        "instrument": "Soprano",
+                    },
                 ),
                 AIMessage(content="done"),
             ]
@@ -823,7 +919,9 @@ class TestMovementComposer:
         assert result.completed
         assert result.review_passed is True
         assert any(
-            event["kind"] == "feedback" and event["layer"] == "reviewer" and "改改" in event["text"]
+            event["kind"] == "feedback"
+            and event["layer"] == "reviewer"
+            and "改改" in event["text"]
             for event in events
         )
 
@@ -836,12 +934,20 @@ class TestMovementComposer:
             responses=[
                 tool_call(
                     "submit_theme",
-                    {"musicxml": theme_xml(), "voice": "soprano", "instrument": "Soprano"},
+                    {
+                        "musicxml": theme_xml(),
+                        "voice": "soprano",
+                        "instrument": "Soprano",
+                    },
                 ),
                 AIMessage(content="done"),
                 tool_call(
                     "submit_theme",
-                    {"musicxml": theme_xml(), "voice": "soprano", "instrument": "Soprano"},
+                    {
+                        "musicxml": theme_xml(),
+                        "voice": "soprano",
+                        "instrument": "Soprano",
+                    },
                 ),
                 AIMessage(content="done"),
             ]
@@ -864,19 +970,30 @@ class TestMovementComposer:
             responses=[
                 tool_call(
                     "submit_theme",
-                    {"musicxml": theme_xml(), "voice": "soprano", "instrument": "Soprano"},
+                    {
+                        "musicxml": theme_xml(),
+                        "voice": "soprano",
+                        "instrument": "Soprano",
+                    },
                 ),
                 AIMessage(content="done"),
                 tool_call(
                     "submit_theme",
-                    {"musicxml": theme_xml(), "voice": "soprano", "instrument": "Soprano"},
+                    {
+                        "musicxml": theme_xml(),
+                        "voice": "soprano",
+                        "instrument": "Soprano",
+                    },
                 ),
                 AIMessage(content="done"),
             ]
         )
         stub = _ReviewerStub([ReviewResult(False, "no")])
         result = MovementComposer(
-            service, cast("BaseChatModel", model), reviewer=cast("ReviewerAI", stub), max_reviews=1
+            service,
+            cast("BaseChatModel", model),
+            reviewer=cast("ReviewerAI", stub),
+            max_reviews=1,
         ).compose(work.id, "goal")
         assert not result.completed
         assert result.review_passed is False
@@ -891,7 +1008,9 @@ class TestMovementComposer:
         service.set_movement_prompt(work.id, "m02", "p2")
         service.submit_theme(work.id, "m01", note_xml("A5"), check=False)
         movement = service.get_work(work.id).movements[1]
-        composer = MovementComposer(service, cast("BaseChatModel", ScriptedChatModel(responses=[])))
+        composer = MovementComposer(
+            service, cast("BaseChatModel", ScriptedChatModel(responses=[]))
+        )
         text = composer._instruction(work.id, movement, "goal")
         assert "此前已出现的主题" in text
         assert "A5" in text
@@ -902,7 +1021,9 @@ class TestMovementComposer:
         work = service.create_work("Demo", "plain", "C", with_movements=False)
         service.add_movement(work.id)
         service.submit_theme(work.id, "m01", theme_xml(), check=False)
-        composer = MovementComposer(service, cast("BaseChatModel", ScriptedChatModel(responses=[])))
+        composer = MovementComposer(
+            service, cast("BaseChatModel", ScriptedChatModel(responses=[]))
+        )
         movement = service.get_work(work.id).movements[0]
         assert composer._movement_report(work.id, movement).ok
 
@@ -914,36 +1035,56 @@ class TestMovementComposer:
                 AIMessage(content="我完成了"),
                 tool_call(
                     "submit_theme",
-                    {"musicxml": theme_xml(), "voice": "soprano", "instrument": "Soprano"},
+                    {
+                        "musicxml": theme_xml(),
+                        "voice": "soprano",
+                        "instrument": "Soprano",
+                    },
                 ),
                 AIMessage(content="好了"),
                 tool_call(
                     "submit_theme",
-                    {"musicxml": theme_xml(), "voice": "soprano", "instrument": "Soprano"},
+                    {
+                        "musicxml": theme_xml(),
+                        "voice": "soprano",
+                        "instrument": "Soprano",
+                    },
                 ),
                 AIMessage(content="好了"),
             ]
         )
-        result = MovementComposer(service, cast("BaseChatModel", model)).compose(work_id, "goal")
+        result = MovementComposer(service, cast("BaseChatModel", model)).compose(
+            work_id, "goal"
+        )
         assert result.completed
         assert all(
             service._has_notes(work_id, movement.id)
             for movement in service.get_work(work_id).movements
         )
 
-    def test_review_runs_before_next_movement(self, service: CompositionService) -> None:
+    def test_review_runs_before_next_movement(
+        self, service: CompositionService
+    ) -> None:
         """Each movement is reviewed before the next one is composed."""
         work_id = two_movement_work(service)
         model = ValidatingChatModel(
             responses=[
                 tool_call(
                     "submit_theme",
-                    {"musicxml": theme_xml(), "voice": "soprano", "instrument": "Soprano"},
+                    {
+                        "musicxml": theme_xml(),
+                        "voice": "soprano",
+                        "instrument": "Soprano",
+                    },
                 ),
                 AIMessage(content="a"),
                 tool_call(
                     "submit_theme",
-                    {"musicxml": theme_xml(), "voice": "soprano", "instrument": "Soprano"},
+                    {
+                        "musicxml": theme_xml(),
+                        "voice": "soprano",
+                        "instrument": "Soprano",
+                    },
                 ),
                 AIMessage(content="b"),
             ]
@@ -960,7 +1101,9 @@ class TestMovementComposer:
         starts = [index for index, kind in enumerate(kinds) if kind == "movement_start"]
         assert kinds.index("review_start") < starts[1]
 
-    def test_compress_reinjects_movement_instruction(self, service: CompositionService) -> None:
+    def test_compress_reinjects_movement_instruction(
+        self, service: CompositionService
+    ) -> None:
         """Compressing a movement session re-injects the movement instruction."""
         work = service.create_work("Demo", "plain", "C", with_movements=False)
         service.add_movement(work.id)
@@ -968,7 +1111,9 @@ class TestMovementComposer:
         service.submit_theme(work.id, "m01", theme_xml(), check=False)
         movement = service.get_work(work.id).movements[0]
         model = ScriptedChatModel(responses=[AIMessage(content="摘要")])
-        composer = MovementComposer(service, cast("BaseChatModel", model), context_window=0)
+        composer = MovementComposer(
+            service, cast("BaseChatModel", model), context_window=0
+        )
         messages: list[BaseMessage] = [HumanMessage(content="旧对话")]
         events: list[dict[str, Any]] = []
         composer._compress(work.id, movement, "goal", events.append, messages)

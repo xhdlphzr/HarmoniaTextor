@@ -49,11 +49,15 @@ class TestCheckConnection:
 
     def test_ok(self) -> None:
         """A reachable endpoint reports ok."""
-        assert health.check_connection({"api_key": "k"}, _model(fail=False)) == health.OK
+        assert (
+            health.check_connection({"api_key": "k"}, _model(fail=False)) == health.OK
+        )
 
     def test_error(self) -> None:
         """A failing request reports error."""
-        assert health.check_connection({"api_key": "k"}, _model(fail=True)) == health.ERROR
+        assert (
+            health.check_connection({"api_key": "k"}, _model(fail=True)) == health.ERROR
+        )
 
     def test_defaults_to_current(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Without a mapping the effective configuration is used."""
