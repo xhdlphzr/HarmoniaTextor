@@ -12,6 +12,7 @@
 "config.title": "API settings"
 "config.saved_to": "Saved to"
 "config.base_url": "Base URL"
+"config.api_key": "API Key"
 "config.model": "Model"
 "config.context_limit": "Context limit (k tokens)"
 "common.language": "Language"
@@ -22,6 +23,7 @@
 
 "llm.ping": "Check connection"
 "llm.failed": "Connection failed"
+"llm.label": "AI"
 
 "style.label": "Style kit"
 "style.custom": "Custom..."
@@ -83,10 +85,6 @@
 "checker.passed": "✔ Reviewer passed"
 "checker.rejected": "✘ Reviewer rejected"
 "checker.empty": "No review yet; run a generation or revision to see it."
-"composer.prompt_hint": "Describe the classical piece you want; Enter inserts a newline, the box scrolls after 13 lines."
-"composer.prompt_placeholder_work": "Enter your composition prompt…"
-"composer.prompt_default": "Compose a fugue."
-"composer.run": "Run one round"
 "audition.title": "Audition notes"
 "audition.placeholder": "Write your listening notes and feedback…"
 "audition.submit": "Submit note"

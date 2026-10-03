@@ -32,7 +32,7 @@ SPDX-License-Identifier: MIT
           >
             &#8635;
           </button>
-          <span class="llm-label">AI</span>
+          <span class="llm-label">{{ t('llm.label') }}</span>
           <span class="llm-dot llm-dot-checking" id="llm-status-dot"></span>
           <span class="llm-status-text" id="llm-status-text"></span>
         </span>
@@ -57,7 +57,7 @@ SPDX-License-Identifier: MIT
           <input type="text" id="cfg-base-url" placeholder="https://api.openai.com/v1" />
         </label>
         <label>
-          <span>API Key</span>
+          <span>{{ t('config.api_key') }}</span>
           <input type="password" id="cfg-api-key" placeholder="sk-..." />
         </label>
         <label>

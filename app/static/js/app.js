@@ -394,7 +394,7 @@ SPDX-License-Identifier: MIT
 
   /* --------------------------------------------------- llm connectivity */
 
-  const LLM_BUTTONS = ["generate-btn", "agent-btn", "feedback-btn"];
+  const LLM_BUTTONS = ["generate-btn", "feedback-btn"];
   let llmConnected = false;
 
   function applyLlmButtons() {
@@ -561,7 +561,7 @@ SPDX-License-Identifier: MIT
                 tool: toolLabel(event.tool),
                 measure: item.measure,
                 who,
-                message: item.message_zh,
+                message: item.message,
               }),
               "bad"
             );
@@ -651,7 +651,7 @@ SPDX-License-Identifier: MIT
               t("progress.violation", {
                 measure: item.measure,
                 who,
-                message: item.message_zh,
+                message: item.message,
               }),
               "bad"
             );
@@ -810,7 +810,7 @@ SPDX-License-Identifier: MIT
         li.textContent = t("progress.violation", {
           measure: item.measure,
           who,
-          message: item.message_zh,
+          message: item.message,
         });
         list.appendChild(li);
       });
@@ -1231,7 +1231,7 @@ SPDX-License-Identifier: MIT
         li.textContent = t("progress.violation", {
           measure: item.measure,
           who,
-          message: item.message_zh,
+          message: item.message,
         });
         list.appendChild(li);
       });

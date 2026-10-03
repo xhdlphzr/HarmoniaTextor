@@ -90,7 +90,7 @@ class CheckViolation:
         voice_a: First involved voice, if any.
         voice_b: Second involved voice, if any.
         kind: Machine-readable category.
-        message_zh: Human/LLM readable Chinese explanation.
+        message: Human-readable English explanation.
         snippet: Short musical description of the offending spot.
     """
 
@@ -100,7 +100,7 @@ class CheckViolation:
     voice_a: str | None
     voice_b: str | None
     kind: str
-    message_zh: str
+    message: str
     snippet: str
 
 
@@ -116,21 +116,37 @@ class CheckReport:
 
     @property
     def errors(self) -> list[CheckViolation]:
-        """Return only error-severity violations."""
+        """Return only error-severity violations.
+
+        Returns:
+            The errors result.
+        """
         return [item for item in self.violations if item.severity is Severity.ERROR]
 
     @property
     def warnings(self) -> list[CheckViolation]:
-        """Return only warning-severity violations."""
+        """Return only warning-severity violations.
+
+        Returns:
+            The warnings result.
+        """
         return [item for item in self.violations if item.severity is Severity.WARNING]
 
     @property
     def ok(self) -> bool:
-        """Whether the score passed (no error-severity violations)."""
+        """Whether the score passed (no error-severity violations).
+
+        Returns:
+            Whether the condition holds.
+        """
         return not self.errors
 
     def to_dict(self) -> dict[str, Any]:
-        """Serialise the report to a JSON-friendly dictionary."""
+        """Serialise the report to a JSON-friendly dictionary.
+
+        Returns:
+            The resulting mapping.
+        """
         return {
             "ok": self.ok,
             "violations": [
@@ -141,7 +157,7 @@ class CheckReport:
                     "voice_a": item.voice_a,
                     "voice_b": item.voice_b,
                     "kind": item.kind,
-                    "message_zh": item.message_zh,
+                    "message": item.message,
                     "snippet": item.snippet,
                 }
                 for item in self.violations

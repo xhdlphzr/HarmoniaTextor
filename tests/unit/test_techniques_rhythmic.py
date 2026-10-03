@@ -21,7 +21,17 @@ from harmoniatextor.techniques import (
 def apply(
     technique_id: str, score: stream.Score, themes: dict[int, Theme], **params: Any
 ) -> Any:
-    """Apply a technique by identifier."""
+    """Apply a technique by identifier.
+
+    Args:
+        technique_id: The technique id.
+        score: The score to inspect.
+        themes: The themes.
+        params: Validated parameters.
+
+    Returns:
+        The result.
+    """
     technique = REGISTRY.get(technique_id)
     context = TechniqueContext(score=score, themes=themes)
     return technique.apply(context, technique.params_model(**params))
@@ -34,7 +44,12 @@ class TestRhythmic:
     """Rhythmic techniques."""
 
     def test_syncopation(self, score4: stream.Score, theme: Theme) -> None:
-        """A syncopated pattern is applied."""
+        """A syncopated pattern is applied.
+
+        Args:
+            score4: An empty four-voice score.
+            theme: A sample theme.
+        """
         apply(
             "syncopation",
             score4,
@@ -44,7 +59,12 @@ class TestRhythmic:
         )
 
     def test_syncopation_bad_token(self, score4: stream.Score, theme: Theme) -> None:
-        """Unknown tokens raise."""
+        """Unknown tokens raise.
+
+        Args:
+            score4: An empty four-voice score.
+            theme: A sample theme.
+        """
         with pytest.raises(TechniqueError, match="unknown rhythm token"):
             apply(
                 "syncopation",
@@ -56,7 +76,11 @@ class TestRhythmic:
             )
 
     def test_rhythmic_independence(self, score4: stream.Score) -> None:
-        """Paired voices are offset."""
+        """Paired voices are offset.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         ScoreEditor(score4).write_line("alto", 1, [ThemeNote("E4", 1.0)])
         result = apply(
             "rhythmic_independence",
@@ -68,7 +92,11 @@ class TestRhythmic:
         assert result.score is score4
 
     def test_rhythmic_independence_empty(self, score4: stream.Score) -> None:
-        """Empty voices produce a warning."""
+        """Empty voices produce a warning.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         result = apply(
             "rhythmic_independence",
             score4,
@@ -79,7 +107,11 @@ class TestRhythmic:
         assert result.warnings
 
     def test_counter_rhythm(self, score4: stream.Score) -> None:
-        """A counter rhythm subdivides the counter voice."""
+        """A counter rhythm subdivides the counter voice.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         ScoreEditor(score4).write_line("alto", 1, [ThemeNote("E4", 1.0)])
         apply(
             "counter_rhythm",
@@ -91,7 +123,11 @@ class TestRhythmic:
         )
 
     def test_counter_rhythm_bad_ratio(self, score4: stream.Score) -> None:
-        """Malformed ratios raise."""
+        """Malformed ratios raise.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         with pytest.raises(TechniqueError, match="invalid ratio"):
             apply(
                 "counter_rhythm",
@@ -104,7 +140,11 @@ class TestRhythmic:
             )
 
     def test_counter_rhythm_empty(self, score4: stream.Score) -> None:
-        """An empty counter voice yields a warning."""
+        """An empty counter voice yields a warning.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         result = apply(
             "counter_rhythm",
             score4,
@@ -116,7 +156,11 @@ class TestRhythmic:
         assert result.warnings
 
     def test_voice_motion_parallel(self, score4: stream.Score) -> None:
-        """Parallel motion is forced."""
+        """Parallel motion is forced.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         editor = ScoreEditor(score4)
         editor.write_line("soprano", 1, [ThemeNote("C5", 1.0), ThemeNote("D5", 1.0)])
         editor.write_line("alto", 1, [ThemeNote("E4", 1.0), ThemeNote("F4", 1.0)])
@@ -130,7 +174,11 @@ class TestRhythmic:
         )
 
     def test_voice_motion_contrary(self, score4: stream.Score) -> None:
-        """Contrary motion is forced."""
+        """Contrary motion is forced.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         editor = ScoreEditor(score4)
         editor.write_line("soprano", 1, [ThemeNote("C5", 1.0), ThemeNote("D5", 1.0)])
         editor.write_line("alto", 1, [ThemeNote("E4", 1.0), ThemeNote("F4", 1.0)])
@@ -144,7 +192,11 @@ class TestRhythmic:
         )
 
     def test_voice_motion_oblique(self, score4: stream.Score) -> None:
-        """Oblique motion is forced."""
+        """Oblique motion is forced.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         editor = ScoreEditor(score4)
         editor.write_line("soprano", 1, [ThemeNote("C5", 1.0), ThemeNote("D5", 1.0)])
         editor.write_line("alto", 1, [ThemeNote("E4", 1.0), ThemeNote("F4", 1.0)])
@@ -158,7 +210,11 @@ class TestRhythmic:
         )
 
     def test_voice_motion_missing(self, score4: stream.Score) -> None:
-        """A pair without material yields a warning."""
+        """A pair without material yields a warning.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         result = apply(
             "voice_motion",
             score4,
@@ -169,7 +225,11 @@ class TestRhythmic:
         assert result.warnings
 
     def test_rubato(self, score4: stream.Score) -> None:
-        """A measure's downbeat is stretched while the bar length is preserved."""
+        """A measure's downbeat is stretched while the bar length is preserved.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         editor = ScoreEditor(score4)
         editor.write_line(
             "soprano",
@@ -179,6 +239,10 @@ class TestRhythmic:
         apply("rubato", score4, {}, measure_range={"start": 1, "end": 1})
 
     def test_rubato_single_note(self, score4: stream.Score) -> None:
-        """A measure with a single note is left untouched."""
+        """A measure with a single note is left untouched.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         ScoreEditor(score4).write_line("soprano", 1, [ThemeNote("C5", 4.0)])
         apply("rubato", score4, {}, measure_range={"start": 1, "end": 1})

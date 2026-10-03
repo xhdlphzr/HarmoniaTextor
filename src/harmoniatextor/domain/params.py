@@ -89,7 +89,14 @@ class MeasureRange(_Params):
 
     @model_validator(mode="after")
     def _check_order(self) -> MeasureRange:
-        """Ensure ``start`` does not exceed ``end``."""
+        """Ensure ``start`` does not exceed ``end``.
+
+        Returns:
+            The check order result.
+
+        Raises:
+            ValueError: When the operation cannot proceed.
+        """
         if self.start > self.end:
             raise ValueError("measure range start must not exceed end")
         return self
@@ -130,7 +137,14 @@ class MeasurePosition(_Params):
     @field_validator("measure_position")
     @classmethod
     def _validate_position(cls, value: str) -> str:
-        """Validate the position string eagerly."""
+        """Validate the position string eagerly.
+
+        Args:
+            value: Raw value.
+
+        Returns:
+            The resulting text.
+        """
         parse_measure_position(value)
         return value
 
@@ -218,7 +232,14 @@ class VoiceExchangeParams(_Params):
 
     @model_validator(mode="after")
     def _check_targets(self) -> VoiceExchangeParams:
-        """Require either two themes or two voices."""
+        """Require either two themes or two voices.
+
+        Returns:
+            The check targets result.
+
+        Raises:
+            ValueError: When the operation cannot proceed.
+        """
         has_themes = self.theme_id_1 is not None and self.theme_id_2 is not None
         has_voices = self.voice_1 is not None and self.voice_2 is not None
         if not has_themes and not has_voices:

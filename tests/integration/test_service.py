@@ -16,6 +16,7 @@ from harmoniatextor.service.service import (
     CompositionService,
     _filter_exemptions,
     _in_exempt_scope,
+    _revision_seq,
 )
 
 _SYMPHONY_MOVEMENTS = 4
@@ -25,7 +26,15 @@ _INTERRUPTED_WORKS = 2
 
 
 def melody_xml(notes: list[tuple[str, float]], voice: str = "soprano") -> str:
-    """Build a single-voice melody as MusicXML."""
+    """Build a single-voice melody as MusicXML.
+
+    Args:
+        notes: The notes.
+        voice: Voice slot name.
+
+    Returns:
+        The resulting text.
+    """
     score = new_score(key="C", time_signature="4/4", tempo_bpm=84, voices=[voice])
     ScoreEditor(score).write_line(
         voice, 1, [ThemeNote(pitch, length) for pitch, length in notes]
@@ -34,7 +43,11 @@ def melody_xml(notes: list[tuple[str, float]], voice: str = "soprano") -> str:
 
 
 def cadence_xml() -> str:
-    """Build a four-voice authentic cadence that passes every rule."""
+    """Build a four-voice authentic cadence that passes every rule.
+
+    Returns:
+        The resulting text.
+    """
     score = new_score(
         key="C",
         time_signature="4/4",
@@ -53,14 +66,25 @@ class TestCreation:
     """Work creation and lookup."""
 
     def test_create_work(self, service: CompositionService) -> None:
-        """Creating a work yields movements and an initial revision."""
+        """Creating a work yields movements and an initial revision.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C")
         assert work.id in service.list_works()
         assert service.get_work(work.id).title == "Demo"
         assert service.current_score(work.id, work.movements[0].id) is not None
 
     def test_get_movement_missing(self, service: CompositionService) -> None:
-        """Unknown movements raise KeyError."""
+        """Unknown movements raise KeyError.
+
+        Args:
+            service: The composition service.
+
+        Raises:
+            AssertionError: When the operation cannot proceed.
+        """
         work = service.create_work("Demo", "plain", "C")
         try:
             service.get_movement(work, "m99")
@@ -69,20 +93,32 @@ class TestCreation:
         raise AssertionError("expected KeyError")
 
     def test_set_title(self, service: CompositionService) -> None:
-        """The title tool updates the work."""
+        """The title tool updates the work.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C")
         result = service.set_title(work.id, "新标题")
         assert result.ok
         assert service.get_work(work.id).title == "新标题"
 
     def test_ensure_title_keeps_existing(self, service: CompositionService) -> None:
-        """An existing title is preserved."""
+        """An existing title is preserved.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C")
         service.set_title(work.id, "已命名")
         assert service.ensure_title(work.id) == "已命名"
 
     def test_ensure_title_defaults_to_genre(self, service: CompositionService) -> None:
-        """A default title falls back to the genre name."""
+        """A default title falls back to the genre name.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work(DEFAULT_TITLE, "plain", "C")
         expected = service.genres.get("plain").display_name
         assert service.ensure_title(work.id) == expected
@@ -93,7 +129,11 @@ class TestSubmitTheme:
     """Theme submission."""
 
     def test_success(self, service: CompositionService) -> None:
-        """A clean theme is registered with an increasing id."""
+        """A clean theme is registered with an increasing id.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C")
         movement = work.movements[0]
         result = service.submit_theme(
@@ -108,7 +148,11 @@ class TestSubmitTheme:
     def test_first_theme_starts_at_first_measure(
         self, service: CompositionService
     ) -> None:
-        """The first theme fills measure 1 instead of leaving an empty opening."""
+        """The first theme fills measure 1 instead of leaving an empty opening.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C")
         movement = work.movements[0]
         result = service.submit_theme(work.id, movement.id, melody_xml([("C5", 1.0)]))
@@ -117,14 +161,22 @@ class TestSubmitTheme:
         assert theme.start_measure == 1
 
     def test_bad_xml(self, service: CompositionService) -> None:
-        """Malformed MusicXML is rejected."""
+        """Malformed MusicXML is rejected.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C")
         result = service.submit_theme(work.id, work.movements[0].id, "not xml <<<")
         assert not result.ok
         assert result.error_code == "BAD_PARAM"
 
     def test_empty_theme(self, service: CompositionService) -> None:
-        """A theme without notes is rejected."""
+        """A theme without notes is rejected.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C")
         empty = new_score(
             key="C", time_signature="4/4", tempo_bpm=84, voices=["soprano"]
@@ -134,7 +186,11 @@ class TestSubmitTheme:
         assert result.error_code == "BAD_PARAM"
 
     def test_check_failure(self, service: CompositionService) -> None:
-        """A non-compliant theme fails the symbolic check."""
+        """A non-compliant theme fails the symbolic check.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C")
         result = service.submit_theme(
             work.id,
@@ -145,7 +201,11 @@ class TestSubmitTheme:
         assert result.report is not None
 
     def test_deferred_check(self, service: CompositionService) -> None:
-        """Deferring the check skips the report but still records the theme."""
+        """Deferring the check skips the report but still records the theme.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C")
         result = service.submit_theme(
             work.id,
@@ -158,7 +218,11 @@ class TestSubmitTheme:
         assert result.theme_id == 1
 
     def test_choose_major_key(self, service: CompositionService) -> None:
-        """The composer sets the major key when submitting the first theme."""
+        """The composer sets the major key when submitting the first theme.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain")
         result = service.submit_theme(
             work.id,
@@ -173,7 +237,11 @@ class TestSubmitTheme:
         assert reloaded.movements[0].key.is_major
 
     def test_choose_minor_key(self, service: CompositionService) -> None:
-        """A lower-case key selects the minor mode."""
+        """A lower-case key selects the minor mode.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain")
         result = service.submit_theme(
             work.id,
@@ -187,7 +255,11 @@ class TestSubmitTheme:
         assert not reloaded.movements[0].key.is_major
 
     def test_bad_key(self, service: CompositionService) -> None:
-        """An invalid key is rejected before anything is written."""
+        """An invalid key is rejected before anything is written.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain")
         result = service.submit_theme(
             work.id, work.movements[0].id, melody_xml([("C5", 1.0)]), key="H"
@@ -198,7 +270,11 @@ class TestSubmitTheme:
     def test_change_key_retunes_existing_parts(
         self, service: CompositionService
     ) -> None:
-        """A later theme can change the key and retune the existing parts."""
+        """A later theme can change the key and retune the existing parts.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C")
         movement = work.movements[0]
         service.submit_theme(
@@ -217,7 +293,11 @@ class TestApplyTechnique:
     """Technique application."""
 
     def test_success(self, service: CompositionService) -> None:
-        """A valid technique produces a full score."""
+        """A valid technique produces a full score.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C")
         movement = work.movements[0]
         theme = service.submit_theme(
@@ -233,12 +313,17 @@ class TestApplyTechnique:
                 "delay_measures": 1,
                 "interval": 5,
             },
+            check=False,
         )
         assert result.ok
         assert result.full_musicxml is not None
 
     def test_check_failure(self, service: CompositionService) -> None:
-        """A technique whose result violates the rules is rejected."""
+        """A technique whose result violates the rules is rejected.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C")
         movement = work.movements[0]
         theme = service.submit_theme(
@@ -261,19 +346,31 @@ class TestApplyTechnique:
         assert result.report is not None
 
     def test_unknown_technique(self, service: CompositionService) -> None:
-        """Unknown techniques are rejected."""
+        """Unknown techniques are rejected.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C")
         result = service.apply_technique(work.id, work.movements[0].id, "nope", {})
         assert result.error_code == "BAD_PARAM"
 
     def test_invalid_params(self, service: CompositionService) -> None:
-        """Invalid parameters are rejected."""
+        """Invalid parameters are rejected.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C")
         result = service.apply_technique(work.id, work.movements[0].id, "imitation", {})
         assert result.error_code == "BAD_PARAM"
 
     def test_missing_theme(self, service: CompositionService) -> None:
-        """A missing theme raises a technique error."""
+        """A missing theme raises a technique error.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C")
         result = service.apply_technique(
             work.id,
@@ -291,7 +388,11 @@ class TestApplyTechnique:
         return work.id, first.id, second.id
 
     def test_themes_visible_across_movements(self, service: CompositionService) -> None:
-        """Later movements can reference earlier movements' themes."""
+        """Later movements can reference earlier movements' themes.
+
+        Args:
+            service: The composition service.
+        """
         work_id, first_id, second_id = self._two_movements(service)
         first = service.submit_theme(work_id, first_id, melody_xml([("C5", 1.0)]))
         second = service.submit_theme(work_id, first_id, melody_xml([("D5", 1.0)]))
@@ -303,7 +404,11 @@ class TestApplyTechnique:
         assert service.store.load_themes(work_id, first_id)[2].start_measure > 1
 
     def test_cross_movement_imitation(self, service: CompositionService) -> None:
-        """A movement can apply a technique to an earlier movement's theme."""
+        """A movement can apply a technique to an earlier movement's theme.
+
+        Args:
+            service: The composition service.
+        """
         work_id, first_id, second_id = self._two_movements(service)
         theme = service.submit_theme(
             work_id, first_id, melody_xml([("C5", 1.0), ("D5", 1.0)])
@@ -328,14 +433,22 @@ class TestCheckAndFinalize:
     """Checking, finalisation and rollback."""
 
     def test_check(self, service: CompositionService) -> None:
-        """An empty score is rejected by the symbolic layer."""
+        """An empty score is rejected by the symbolic layer.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C")
         report = service.check(work.id, work.movements[0].id)
         assert not report.ok
         assert "empty" in [item.rule_id for item in report.errors]
 
     def test_finalize_failure(self, service: CompositionService) -> None:
-        """A draft without a cadence cannot be finalised."""
+        """A draft without a cadence cannot be finalised.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C")
         movement_id = work.movements[0].id
         service.edit_measure(
@@ -349,7 +462,11 @@ class TestCheckAndFinalize:
         assert not service.finalize(work.id, movement_id).ok
 
     def test_finalize_success(self, service: CompositionService) -> None:
-        """A proper cadence can be finalised."""
+        """A proper cadence can be finalised.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C")
         movement_id = work.movements[0].id
         lines = {
@@ -366,8 +483,42 @@ class TestCheckAndFinalize:
         assert result.ok
         assert service.get_work(work.id).status is WorkStatus.FINAL
 
+    def test_finalize_requires_all_movements(
+        self, service: CompositionService, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A multi-movement work is final only once every movement is.
+
+        Args:
+            service: The composition service.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
+        work = service.create_work("Demo", "sonata", "C")
+        monkeypatch.setattr(service, "_check", lambda *args, **kwargs: CheckReport())
+        for movement in work.movements[:-1]:
+            assert service.finalize(work.id, movement.id).ok
+        assert service.get_work(work.id).status is not WorkStatus.FINAL
+        service.finalize(work.id, work.movements[-1].id)
+        assert service.get_work(work.id).status is WorkStatus.FINAL
+
+    def test_finalized_movements_tracking(self, service: CompositionService) -> None:
+        """Finalised movements are derived from the journal.
+
+        Args:
+            service: The composition service.
+        """
+        work = service.create_work("Demo", "sonata", "C")
+        assert service._finalized_movements(work.id) == set()
+        service.store.append_journal(
+            work.id, {"event": "movement_finalized", "movement": "m01"}
+        )
+        assert service._finalized_movements(work.id) == {"m01"}
+
     def test_rollback(self, service: CompositionService) -> None:
-        """Rolling back restores an earlier revision."""
+        """Rolling back restores an earlier revision.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C")
         movement_id = work.movements[0].id
         service.edit_measure(
@@ -378,7 +529,11 @@ class TestCheckAndFinalize:
         assert result.full_musicxml is not None
 
     def test_rollback_changes_current_score(self, service: CompositionService) -> None:
-        """Rolling back makes the earlier revision the authoritative score."""
+        """Rolling back makes the earlier revision the authoritative score.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C")
         movement_id = work.movements[0].id
         service.edit_measure(
@@ -392,7 +547,11 @@ class TestCheckAndFinalize:
         assert [note.nameWithOctave for note in current.recurse().notes] == ["C5"]
 
     def test_rollback_missing(self, service: CompositionService) -> None:
-        """Rolling back to a missing revision fails."""
+        """Rolling back to a missing revision fails.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C")
         assert (
             service.rollback(work.id, work.movements[0].id, 99).error_code
@@ -400,7 +559,11 @@ class TestCheckAndFinalize:
         )
 
     def test_record_audit(self, service: CompositionService) -> None:
-        """Audition notes are journalled and move the work to revising."""
+        """Audition notes are journalled and move the work to revising.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C")
         service.record_audit(work.id, work.movements[0].id, "需要更多模仿")
         assert service.get_work(work.id).status is WorkStatus.REVISING
@@ -410,7 +573,11 @@ class TestCheckAndFinalize:
         )
 
     def test_create_multi_movement(self, service: CompositionService) -> None:
-        """Multi-movement genres create several movements."""
+        """Multi-movement genres create several movements.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Symphony", "symphony", "C")
         assert len(work.movements) == _SYMPHONY_MOVEMENTS
         assert service.current_score(work.id, work.movements[1].id) is not None
@@ -420,7 +587,11 @@ class TestInstruments:
     """Instrument-aware parts."""
 
     def test_submit_theme_with_instrument(self, service: CompositionService) -> None:
-        """A theme can target a voice slot and instrument."""
+        """A theme can target a voice slot and instrument.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "symphony", "C")
         movement = work.movements[0]
         result = service.submit_theme(
@@ -438,7 +609,11 @@ class TestInstruments:
         assert themes[result.theme_id].voice == "violin1"
 
     def test_add_part_and_duplicate(self, service: CompositionService) -> None:
-        """A new instrument part can be added once."""
+        """A new instrument part can be added once.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "symphony", "C")
         movement = work.movements[0]
         first = service.add_part(work.id, movement.id, "flute", "Flute", check=False)
@@ -451,7 +626,12 @@ class TestInstruments:
     def test_add_part_check_failure(
         self, service: CompositionService, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """A part that fails the symbolic check is rejected."""
+        """A part that fails the symbolic check is rejected.
+
+        Args:
+            service: The composition service.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         work = service.create_work("Demo", "symphony", "C")
         failing = CheckReport(
             [CheckViolation("r", Severity.ERROR, 1, None, None, "k", "m", "s")]
@@ -462,7 +642,11 @@ class TestInstruments:
         assert result.report is failing
 
     def test_remove_part(self, service: CompositionService) -> None:
-        """A voice can be removed, and a missing voice is rejected."""
+        """A voice can be removed, and a missing voice is rejected.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "symphony", "C")
         movement_id = work.movements[0].id
         service.add_part(work.id, movement_id, "flute", "Flute", check=False)
@@ -475,7 +659,12 @@ class TestInstruments:
     def test_remove_part_check_failure(
         self, service: CompositionService, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """A removal that fails the symbolic check returns the report."""
+        """A removal that fails the symbolic check returns the report.
+
+        Args:
+            service: The composition service.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         work = service.create_work("Demo", "symphony", "C")
         movement_id = work.movements[0].id
         service.add_part(work.id, movement_id, "flute", "Flute", check=False)
@@ -488,7 +677,11 @@ class TestInstruments:
         assert result.report is failing
 
     def test_set_tempo(self, service: CompositionService) -> None:
-        """The movement tempo is updated and reaches the score."""
+        """The movement tempo is updated and reaches the score.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "symphony", "C")
         movement_id = work.movements[0].id
         service.add_part(work.id, movement_id, "flute", "Flute", check=False)
@@ -499,14 +692,22 @@ class TestInstruments:
         )
 
     def test_set_tempo_partless(self, service: CompositionService) -> None:
-        """Tempo can be set before any voice exists."""
+        """Tempo can be set before any voice exists.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "symphony", "C")
         movement_id = work.movements[0].id
         assert service.set_tempo(work.id, movement_id, _SLOW_TEMPO, check=False).ok
         assert service.get_work(work.id).movements[0].tempo == _SLOW_TEMPO
 
     def test_annotate_marks(self, service: CompositionService) -> None:
-        """Every supported expressive mark can be added."""
+        """Every supported expressive mark can be added.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C")
         movement_id = work.movements[0].id
         service.submit_theme(
@@ -539,7 +740,11 @@ class TestInstruments:
         assert "staccato" in xml
 
     def test_annotate_errors(self, service: CompositionService) -> None:
-        """Unknown voices, measures, marks and values are rejected."""
+        """Unknown voices, measures, marks and values are rejected.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C")
         movement_id = work.movements[0].id
         service.submit_theme(
@@ -579,7 +784,12 @@ class TestInstruments:
     def test_annotate_check_failure(
         self, service: CompositionService, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """A mark that fails the symbolic check returns the report."""
+        """A mark that fails the symbolic check returns the report.
+
+        Args:
+            service: The composition service.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         work = service.create_work("Demo", "plain", "C")
         movement_id = work.movements[0].id
         service.submit_theme(
@@ -596,7 +806,12 @@ class TestInstruments:
     def test_set_tempo_check_failure(
         self, service: CompositionService, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """A tempo change that fails the symbolic check returns the report."""
+        """A tempo change that fails the symbolic check returns the report.
+
+        Args:
+            service: The composition service.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         work = service.create_work("Demo", "symphony", "C")
         movement_id = work.movements[0].id
         failing = CheckReport(
@@ -612,7 +827,11 @@ class TestReviewJournal:
     """Reviewer verdict persistence."""
 
     def test_record_and_latest_review(self, service: CompositionService) -> None:
-        """Reviewer verdicts are journaled and the latest can be read."""
+        """Reviewer verdicts are journaled and the latest can be read.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain")
         assert service.latest_review(work.id) is None
         service.record_review(work.id, work.movements[0].id, False, "问题")
@@ -626,7 +845,11 @@ class TestArchitecture:
     """Per-movement planning and merging."""
 
     def test_add_movement(self, service: CompositionService) -> None:
-        """A movement is appended and numbered without any template."""
+        """A movement is appended and numbered without any template.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C", with_movements=False)
         result = service.add_movement(work.id)
         assert result.ok
@@ -634,7 +857,11 @@ class TestArchitecture:
         assert service.get_work(work.id).movements[0].name
 
     def test_edit_measure(self, service: CompositionService) -> None:
-        """A measure is replaced for one voice and the full score is returned."""
+        """A measure is replaced for one voice and the full score is returned.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C")
         movement_id = work.movements[0].id
         service.submit_theme(
@@ -652,7 +879,11 @@ class TestArchitecture:
         assert "G5" in notes
 
     def test_edit_measure_errors(self, service: CompositionService) -> None:
-        """Bad fragments are rejected; empty fragments clear; voices are created on demand."""
+        """Bad fragments are rejected; empty fragments clear; voices are created on demand.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C")
         movement_id = work.movements[0].id
         assert (
@@ -676,7 +907,11 @@ class TestArchitecture:
         )
 
     def test_edit_measure_failing_check(self, service: CompositionService) -> None:
-        """An edit that introduces a violation returns the report."""
+        """An edit that introduces a violation returns the report.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C")
         movement_id = work.movements[0].id
         soprano = melody_xml([("C5", 1.0), ("D5", 1.0)])
@@ -688,7 +923,11 @@ class TestArchitecture:
         assert result.report is not None
 
     def test_insert_measure(self, service: CompositionService) -> None:
-        """A measure can be inserted in every voice."""
+        """A measure can be inserted in every voice.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C")
         movement_id = work.movements[0].id
         service.submit_theme(
@@ -713,7 +952,11 @@ class TestArchitecture:
         assert after == before + 1
 
     def test_insert_measure_filled(self, service: CompositionService) -> None:
-        """An inserted measure can be filled in one voice."""
+        """An inserted measure can be filled in one voice.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C")
         movement_id = work.movements[0].id
         service.submit_theme(
@@ -732,7 +975,11 @@ class TestArchitecture:
         assert ScoreEditor(score).read_line("soprano", 1, 1) == [ThemeNote("D5", 1.0)]
 
     def test_insert_measure_errors(self, service: CompositionService) -> None:
-        """Insertion validates the voice and the fragment."""
+        """Insertion validates the voice and the fragment.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C")
         movement_id = work.movements[0].id
         assert service.insert_measure(work.id, movement_id, 1).error_code == "BAD_PARAM"
@@ -762,7 +1009,11 @@ class TestArchitecture:
         assert empty.ok
 
     def test_delete_measure(self, service: CompositionService) -> None:
-        """A measure can be deleted from every voice."""
+        """A measure can be deleted from every voice.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C")
         movement_id = work.movements[0].id
         service.submit_theme(
@@ -777,7 +1028,12 @@ class TestArchitecture:
     def test_insert_measure_failing_check(
         self, service: CompositionService, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """An inserted measure that fails the checker returns the report."""
+        """An inserted measure that fails the checker returns the report.
+
+        Args:
+            service: The composition service.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         work = service.create_work("Demo", "plain", "C")
         movement_id = work.movements[0].id
         service.submit_theme(
@@ -794,7 +1050,12 @@ class TestArchitecture:
     def test_delete_measure_failing_check(
         self, service: CompositionService, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """A deleted measure that fails the checker returns the report."""
+        """A deleted measure that fails the checker returns the report.
+
+        Args:
+            service: The composition service.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         work = service.create_work("Demo", "plain", "C")
         movement_id = work.movements[0].id
         service.submit_theme(
@@ -809,7 +1070,11 @@ class TestArchitecture:
         assert result.report is not None
 
     def test_prompts_and_missing(self, service: CompositionService) -> None:
-        """Coverage tracks movements without a prompt."""
+        """Coverage tracks movements without a prompt.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C", with_movements=False)
         service.add_movement(work.id)
         assert len(service.missing_movement_prompts(work.id)) == 1
@@ -818,7 +1083,11 @@ class TestArchitecture:
         assert not service.set_movement_prompt(work.id, "nope", "x").ok
 
     def test_movement_score_and_merge(self, service: CompositionService) -> None:
-        """Composed movements merge into one work."""
+        """Composed movements merge into one work.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C", with_movements=False)
         service.add_movement(work.id)
         service.add_movement(work.id)
@@ -828,14 +1097,22 @@ class TestArchitecture:
         assert service.merged_musicxml(work.id)
 
     def test_merged_empty(self, service: CompositionService) -> None:
-        """A work without composed movements merges to nothing."""
+        """A work without composed movements merges to nothing.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C", with_movements=False)
         assert service.merged_musicxml(work.id) == ""
         service.add_movement(work.id)
         assert service.merged_musicxml(work.id) == ""
 
     def test_movement_target_composition(self, service: CompositionService) -> None:
-        """Movements are first-class composition targets with an empty start."""
+        """Movements are first-class composition targets with an empty start.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C", with_movements=False)
         service.add_movement(work.id)
         assert service.current_musicxml(work.id, "m01") == ""
@@ -849,13 +1126,21 @@ class TestArchitecture:
             service.current_musicxml(work.id, "nope")
 
     def test_history_is_newest_first(self, service: CompositionService) -> None:
-        """Works are listed in strict reverse-chronological order."""
+        """Works are listed in strict reverse-chronological order.
+
+        Args:
+            service: The composition service.
+        """
         service.create_work("First", "plain", "C")
         second = service.create_work("Second", "plain", "C")
         assert service.list_works()[0] == second.id
 
     def test_generation_lifecycle(self, service: CompositionService) -> None:
-        """A generation run is recorded as started then finished or failed."""
+        """A generation run is recorded as started then finished or failed.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C")
         assert service.latest_generation_state(work.id) is None
         service.start_generation(work.id, "写一段")
@@ -867,7 +1152,11 @@ class TestArchitecture:
         assert service.latest_generation_state(work.id) == "generation_failed"
 
     def test_interrupt_stale_generations(self, service: CompositionService) -> None:
-        """Runs without a completion tag (killed or failed) are interrupted."""
+        """Runs without a completion tag (killed or failed) are interrupted.
+
+        Args:
+            service: The composition service.
+        """
         stale = service.create_work("Stale", "plain", "C")
         crashed = service.create_work("Crashed", "plain", "C")
         done = service.create_work("Done", "plain", "C")
@@ -887,32 +1176,52 @@ class TestStyleAndExemption:
     """Style kits and the free-voice-leading exemption."""
 
     def test_style_snapshot(self, service: CompositionService) -> None:
-        """A created work stores a style snapshot."""
+        """A created work stores a style snapshot.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C", style="impressionist")
         assert work.style is not None
         assert work.style.id == "impressionist"
         assert work.style.brief
 
     def test_legacy_style_defaults(self, service: CompositionService) -> None:
-        """A work without a snapshot falls back to the default kit."""
+        """A work without a snapshot falls back to the default kit.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C")
         work.style = None
         assert service.style_for(work).id == "baroque"
 
     def test_effective_rules(self, service: CompositionService) -> None:
-        """The effective rules come from the style."""
+        """The effective rules come from the style.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C", style="impressionist")
         assert service.effective_rules(work) == frozenset({"empty", "voices"})
 
     def test_techniques_for(self, service: CompositionService) -> None:
-        """The technique registry is limited to the style."""
+        """The technique registry is limited to the style.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C", style="impressionist")
         ids = service.techniques_for(work).ids()
         assert "planing" in ids
         assert "functional_cycle" not in ids
 
     def test_free_voice_leading_scope(self, service: CompositionService) -> None:
-        """Invoking the exemption records its scope."""
+        """Invoking the exemption records its scope once the score is canonical.
+
+        Args:
+            service: The composition service.
+        """
         work = service.create_work("Demo", "plain", "C", style="full")
         movement = work.movements[0]
         service.set_tempo(work.id, movement.id, 100, check=False)
@@ -926,10 +1235,60 @@ class TestStyleAndExemption:
                 "reason": "为了音乐表现需要自由进行",
             },
         )
+        service.submit_theme(
+            work.id,
+            movement.id,
+            melody_xml([("C5", 1.0), ("D5", 1.0), ("E5", 1.0), ("F5", 1.0)]),
+        )
         loaded = service.get_work(work.id)
         assert service._exempt_scopes(loaded, loaded.movements[0]) == [
             ("soprano", 1, 2)
         ]
+
+    def test_exemption_respects_rollback(self, service: CompositionService) -> None:
+        """An exemption on a discarded revision no longer applies after rollback.
+
+        Args:
+            service: The composition service.
+        """
+        work = service.create_work("Demo", "plain", "C", style="full")
+        movement = work.movements[0]
+        service.set_tempo(work.id, movement.id, 100, check=False)
+        service.apply_technique(
+            work.id,
+            movement.id,
+            "free_voice_leading",
+            {
+                "voice": "soprano",
+                "measure_range": {"start": 1, "end": 2},
+                "reason": "为了音乐表现需要自由进行",
+            },
+        )
+        service.submit_theme(
+            work.id,
+            movement.id,
+            melody_xml([("C5", 1.0), ("D5", 1.0), ("E5", 1.0), ("F5", 1.0)]),
+        )
+        service.rollback(work.id, movement.id, 0)
+        rolled = service.get_work(work.id)
+        assert service._exempt_scopes(rolled, rolled.movements[0]) == []
+
+    def test_revision_parent_follows_rollback(
+        self, service: CompositionService
+    ) -> None:
+        """A revision created after a rollback descends from the restored one.
+
+        Args:
+            service: The composition service.
+        """
+        work = service.create_work("Demo", "plain", "C")
+        movement = work.movements[0]
+        service.set_tempo(work.id, movement.id, 100, check=False)
+        service.set_tempo(work.id, movement.id, 110, check=False)
+        service.rollback(work.id, movement.id, 0)
+        service.set_tempo(work.id, movement.id, 120, check=False)
+        meta = service.store.load_revision_meta(work.id, movement.id)
+        assert meta[2]["parent_seq"] == 0
 
     def test_filter_exemptions(self) -> None:
         """Waived violations are dropped from a report."""
@@ -947,3 +1306,9 @@ class TestStyleAndExemption:
             "crossing", Severity.ERROR, 5, "soprano", None, "k", "m", "s"
         )
         assert not _in_exempt_scope(violation, [("soprano", 1, 2)])
+
+    def test_revision_seq_parsing(self) -> None:
+        """Revision ids parse into their sequence number."""
+        assert _revision_seq("r-m01-3") == 3
+        assert _revision_seq("") is None
+        assert _revision_seq("garbage") is None

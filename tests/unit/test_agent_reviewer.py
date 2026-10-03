@@ -25,7 +25,16 @@ _RULES = frozenset({"pf5th", "empty", "voices"})
 
 
 def tool_call(name: str, args: dict[str, Any], call_id: str = "c1") -> AIMessage:
-    """Build an assistant message requesting a tool."""
+    """Build an assistant message requesting a tool.
+
+    Args:
+        name: The name.
+        args: The args.
+        call_id: The call id.
+
+    Returns:
+        The tool call result.
+    """
     return AIMessage(
         content="",
         tool_calls=[{"name": name, "args": args, "id": call_id, "type": "tool_call"}],
@@ -33,7 +42,16 @@ def tool_call(name: str, args: dict[str, Any], call_id: str = "c1") -> AIMessage
 
 
 def invalid_call(name: str, call_id: str = "x1", error: str = "bad json") -> AIMessage:
-    """Build an assistant message with an unparseable tool call."""
+    """Build an assistant message with an unparseable tool call.
+
+    Args:
+        name: The name.
+        call_id: The call id.
+        error: The error.
+
+    Returns:
+        The invalid call result.
+    """
     return AIMessage(
         content="",
         invalid_tool_calls=[
@@ -69,7 +87,15 @@ class _ReviewModel:
         return self
 
     def invoke(self, messages: list[BaseMessage], **_kwargs: object) -> AIMessage:
-        """Validate the request then return the next scripted response."""
+        """Validate the request then return the next scripted response.
+
+        Args:
+            messages: Conversation messages.
+            _kwargs: The kwargs.
+
+        Returns:
+            The invoke result.
+        """
         assert_no_dangling_tool_calls(messages)
         response = self.responses[min(self.cursor, len(self.responses) - 1)]
         self.cursor += 1
@@ -79,9 +105,12 @@ class _ReviewModel:
 def assert_no_dangling_tool_calls(messages: list[BaseMessage]) -> None:
     """Assert every assistant tool call (valid or invalid) has a response.
 
-    ``langchain_openai`` serialises both ``tool_calls`` and
-    ``invalid_tool_calls`` into the request's ``tool_calls`` field, so a
-    matching tool response is required for either kind.
+        ``langchain_openai`` serialises both ``tool_calls`` and
+        ``invalid_tool_calls`` into the request's ``tool_calls`` field, so a
+        matching tool response is required for either kind.
+
+    Args:
+        messages: Conversation messages.
     """
     index = 0
     while index < len(messages):
@@ -200,6 +229,6 @@ class TestReviewer:
     def test_system_excludes_symbolic_rules(self) -> None:
         """The reviewer is told not to re-check symbolic-layer rules."""
         text = _system_text("巴洛克", _RULES)
-        assert "平行五度" in text
+        assert "Parallel fifths" in text
         assert "以这些规则为由打回" in text
         assert "符号层" in text

@@ -26,7 +26,16 @@ class PlainGenre(Genre):
     def checker_context(
         self, tonic: str, measure_count: int, *, complete: bool = False
     ) -> CheckerContext:
-        """Build a strict single-movement checker context."""
+        """Build a strict single-movement checker context.
+
+        Args:
+            tonic: Home key.
+            measure_count: The measure count.
+            complete: The complete.
+
+        Returns:
+            The checker context result.
+        """
         return self._final_context(
             tonic, measure_count, enforce=True, complete=complete
         )
@@ -46,7 +55,16 @@ class SonataGenre(Genre):
     def checker_context(
         self, tonic: str, measure_count: int, *, complete: bool = False
     ) -> CheckerContext:
-        """Build a sonata checker context."""
+        """Build a sonata checker context.
+
+        Args:
+            tonic: Home key.
+            measure_count: The measure count.
+            complete: The complete.
+
+        Returns:
+            The checker context result.
+        """
         return self._final_context(
             tonic, measure_count, enforce=False, complete=complete
         )
@@ -71,7 +89,16 @@ class ConcertoGenre(Genre):
     def checker_context(
         self, tonic: str, measure_count: int, *, complete: bool = False
     ) -> CheckerContext:
-        """Build a concerto checker context."""
+        """Build a concerto checker context.
+
+        Args:
+            tonic: Home key.
+            measure_count: The measure count.
+            complete: The complete.
+
+        Returns:
+            The checker context result.
+        """
         return self._final_context(
             tonic, measure_count, enforce=False, complete=complete
         )
@@ -102,7 +129,16 @@ class SymphonyGenre(Genre):
     def checker_context(
         self, tonic: str, measure_count: int, *, complete: bool = False
     ) -> CheckerContext:
-        """Build a symphony checker context."""
+        """Build a symphony checker context.
+
+        Args:
+            tonic: Home key.
+            measure_count: The measure count.
+            complete: The complete.
+
+        Returns:
+            The checker context result.
+        """
         return self._final_context(
             tonic, measure_count, enforce=False, complete=complete
         )

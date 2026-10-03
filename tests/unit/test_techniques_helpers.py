@@ -21,7 +21,11 @@ class TestHelpers:
     """Shared helper behaviour."""
 
     def test_get_theme_missing(self, score4: stream.Score) -> None:
-        """A missing theme raises."""
+        """A missing theme raises.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         with pytest.raises(TechniqueError, match="does not exist"):
             get_theme(TechniqueContext(score=score4, themes={}), 9)
 

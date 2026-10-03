@@ -47,7 +47,16 @@ _TOKENIZER_PER_TEXT = 3
 
 
 def tool_call(name: str, args: dict[str, Any], call_id: str = "c1") -> AIMessage:
-    """Build an assistant message requesting a tool."""
+    """Build an assistant message requesting a tool.
+
+    Args:
+        name: The name.
+        args: The args.
+        call_id: The call id.
+
+    Returns:
+        The tool call result.
+    """
     return AIMessage(
         content="",
         tool_calls=[{"name": name, "args": args, "id": call_id, "type": "tool_call"}],
@@ -55,7 +64,16 @@ def tool_call(name: str, args: dict[str, Any], call_id: str = "c1") -> AIMessage
 
 
 def invalid_call(name: str, call_id: str = "x1", error: str = "bad json") -> AIMessage:
-    """Build an assistant message with an unparseable tool call."""
+    """Build an assistant message with an unparseable tool call.
+
+    Args:
+        name: The name.
+        call_id: The call id.
+        error: The error.
+
+    Returns:
+        The invalid call result.
+    """
     return AIMessage(
         content="",
         invalid_tool_calls=[
@@ -79,11 +97,26 @@ class _SummarizerModel:
         self.invocations = 0
 
     def get_num_tokens_from_messages(self, _messages: object) -> int:
-        """Return the configured token count."""
+        """Return the configured token count.
+
+        Args:
+            _messages: The messages.
+
+        Returns:
+            The resulting number.
+        """
         return self.tokens
 
     def invoke(self, _messages: object, **_kwargs: object) -> AIMessage:
-        """Return the configured summary."""
+        """Return the configured summary.
+
+        Args:
+            _messages: The messages.
+            _kwargs: The kwargs.
+
+        Returns:
+            The invoke result.
+        """
         self.invocations += 1
         return AIMessage(content=self.content)
 
@@ -92,7 +125,15 @@ class _NoCountModel:
     """A model double without a token counter."""
 
     def invoke(self, _messages: object, **_kwargs: object) -> AIMessage:
-        """Return a summary."""
+        """Return a summary.
+
+        Args:
+            _messages: The messages.
+            _kwargs: The kwargs.
+
+        Returns:
+            The invoke result.
+        """
         return AIMessage(content="摘要")
 
 
@@ -100,11 +141,29 @@ class _BrokenCountModel:
     """A model double whose token counter fails."""
 
     def get_num_tokens_from_messages(self, _messages: object) -> int:
-        """Raise to exercise the fallback path."""
+        """Raise to exercise the fallback path.
+
+        Args:
+            _messages: The messages.
+
+        Returns:
+            The resulting number.
+
+        Raises:
+            RuntimeError: When the operation cannot proceed.
+        """
         raise RuntimeError("no counter")
 
     def invoke(self, _messages: object, **_kwargs: object) -> AIMessage:
-        """Return a summary."""
+        """Return a summary.
+
+        Args:
+            _messages: The messages.
+            _kwargs: The kwargs.
+
+        Returns:
+            The invoke result.
+        """
         return AIMessage(content="摘要")
 
 
@@ -112,11 +171,26 @@ class _TokenizerModel:
     """A model double exposing only a per-text tokenizer."""
 
     def get_num_tokens(self, _text: str) -> int:
-        """Return a fixed per-text token count."""
+        """Return a fixed per-text token count.
+
+        Args:
+            _text: The text.
+
+        Returns:
+            The resulting number.
+        """
         return _TOKENIZER_PER_TEXT
 
     def invoke(self, _messages: object, **_kwargs: object) -> AIMessage:
-        """Return a summary."""
+        """Return a summary.
+
+        Args:
+            _messages: The messages.
+            _kwargs: The kwargs.
+
+        Returns:
+            The invoke result.
+        """
         return AIMessage(content="摘要")
 
 
@@ -124,15 +198,43 @@ class _BrokenTokenizerModel:
     """A model double whose every tokenizer fails."""
 
     def get_num_tokens_from_messages(self, _messages: object) -> int:
-        """Raise to skip the full-message counter."""
+        """Raise to skip the full-message counter.
+
+        Args:
+            _messages: The messages.
+
+        Returns:
+            The resulting number.
+
+        Raises:
+            RuntimeError: When the operation cannot proceed.
+        """
         raise RuntimeError("no counter")
 
     def get_num_tokens(self, _text: str) -> int:
-        """Raise to force the heuristic."""
+        """Raise to force the heuristic.
+
+        Args:
+            _text: The text.
+
+        Returns:
+            The resulting number.
+
+        Raises:
+            RuntimeError: When the operation cannot proceed.
+        """
         raise RuntimeError("no tokenizer")
 
     def invoke(self, _messages: object, **_kwargs: object) -> AIMessage:
-        """Return a summary."""
+        """Return a summary.
+
+        Args:
+            _messages: The messages.
+            _kwargs: The kwargs.
+
+        Returns:
+            The invoke result.
+        """
         return AIMessage(content="摘要")
 
 

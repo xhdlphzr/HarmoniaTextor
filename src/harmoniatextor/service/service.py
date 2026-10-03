@@ -122,6 +122,24 @@ def _filter_exemptions(
     return CheckReport(violations=kept)
 
 
+def _revision_seq(revision_id: str) -> int | None:
+    """Return the sequence number encoded in a revision id.
+
+    Args:
+        revision_id: Revision identifier such as ``"r-m01-3"``.
+
+    Returns:
+        The sequence number, or ``None`` when the id is empty or malformed.
+    """
+    if not revision_id:
+        return None
+    _, _, tail = revision_id.rpartition("-")
+    try:
+        return int(tail)
+    except ValueError:
+        return None
+
+
 @dataclass(slots=True)
 class ToolResult:
     """Result of a composition tool invocation.
@@ -163,7 +181,11 @@ class RevisionOrigin:
 
 
 def _now() -> str:
-    """Return the current UTC timestamp in ISO format."""
+    """Return the current UTC timestamp in ISO format.
+
+    Returns:
+        The resulting text.
+    """
     return datetime.now(UTC).isoformat()
 
 
@@ -661,13 +683,33 @@ class CompositionService:
         report = self._check(work, movement, score, complete=True)
         if not report.ok:
             return ToolResult(False, message=format_feedback(report), report=report)
-        work.status = WorkStatus.FINAL
-        work.updated_at = _now()
-        self.store.save_work(work)
         self.store.append_journal(
             work_id, {"event": "finalize", "movement": movement_id}
         )
+        self.store.append_journal(
+            work_id, {"event": "movement_finalized", "movement": movement_id}
+        )
+        finalized = self._finalized_movements(work_id)
+        if all(item.id in finalized for item in work.movements):
+            work.status = WorkStatus.FINAL
+        work.updated_at = _now()
+        self.store.save_work(work)
         return ToolResult(True, message="乐章已定稿。", report=report)
+
+    def _finalized_movements(self, work_id: str) -> set[str]:
+        """Return the movements of a work that have been finalised.
+
+        Args:
+            work_id: Work identifier.
+
+        Returns:
+            Movement identifiers with a ``movement_finalized`` journal event.
+        """
+        return {
+            str(event.get("movement"))
+            for event in self.store.load_journal(work_id)
+            if event.get("event") == "movement_finalized"
+        }
 
     def submit_theme(
         self,
@@ -1412,9 +1454,16 @@ class CompositionService:
             ``(voice, start, end)`` tuples collected from the movement's
             revisions.
         """
+        canonical = _revision_seq(movement.canonical_revision)
+        if canonical is None:
+            return []
         scopes: list[tuple[str, int, int]] = []
         for meta in self.store.load_revision_meta(work.id, movement.id):
             if meta.get("technique") != _FREE_VOICE_LEADING:
+                continue
+            # Only exemptions on the current canonical chain apply, so rolling
+            # back past the exemption restores the strict rules.
+            if int(meta.get("seq", 0)) > canonical:
                 continue
             params = meta.get("params") or {}
             voice = params.get("voice")
@@ -1484,6 +1533,7 @@ class CompositionService:
         meta = self.store.load_revision_meta(work.id, target_id)
         seq = len(meta)
         ok = report.ok if report is not None else True
+        parent_seq = _revision_seq(movement.canonical_revision)
         revision = Revision(
             id=f"r-{target_id}-{seq}",
             seq=seq,
@@ -1494,7 +1544,7 @@ class CompositionService:
             params=origin.params,
             check=report,
             ok=ok,
-            parent_seq=seq - 1 if seq else None,
+            parent_seq=parent_seq,
         )
         self.store.save_revision_for(work.id, revision)
         work.updated_at = _now()

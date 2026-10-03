@@ -22,10 +22,16 @@ SPDX-FileCopyrightText = "2026 xhdlphzr"
 SPDX-License-Identifier = "CC-BY-NC-ND-4.0"
 
 [[annotations]]
-path = "app/static/fonts/**"
+path = "app/static/fonts/alex-brush/**"
 precedence = "override"
 SPDX-FileCopyrightText = "2011 The Alex Brush Project Authors (https://github.com/googlefonts/alex-brush)"
-SPDX-License-Identifier = "OFL-1.1"
+SPDX-License-Identifier = "LicenseRef-OFL-1.1-The-Alex-Brush-Project-Authors"
+
+[[annotations]]
+path = "app/static/fonts/noto/**"
+precedence = "override"
+SPDX-FileCopyrightText = "2012 Google Inc. All Rights Reserved."
+SPDX-License-Identifier = "LicenseRef-OFL-1.1-Google-Inc"
 
 [[annotations]]
 path = "app/static/vendor/**"

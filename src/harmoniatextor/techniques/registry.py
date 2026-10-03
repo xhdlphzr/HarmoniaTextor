@@ -158,11 +158,22 @@ class TechniqueRegistry:
         return list(self._items.values())
 
     def __contains__(self, technique_id: object) -> bool:
-        """Return whether an identifier is registered."""
+        """Return whether an identifier is registered.
+
+        Args:
+            technique_id: The technique id.
+
+        Returns:
+            Whether the condition holds.
+        """
         return technique_id in self._items
 
     def __len__(self) -> int:
-        """Return the number of registered techniques."""
+        """Return the number of registered techniques.
+
+        Returns:
+            The resulting number.
+        """
         return len(self._items)
 
 

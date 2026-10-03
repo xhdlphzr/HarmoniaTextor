@@ -12,6 +12,7 @@
 "config.title": "API 设置"
 "config.saved_to": "配置保存在"
 "config.base_url": "接口地址"
+"config.api_key": "API 密钥"
 "config.model": "模型"
 "config.context_limit": "上下文上限（k token）"
 "common.language": "语言"
@@ -22,6 +23,7 @@
 
 "llm.ping": "检查连接"
 "llm.failed": "连接失败"
+"llm.label": "AI"
 
 "style.label": "风格套件"
 "style.custom": "自定义…"
@@ -83,10 +85,6 @@
 "checker.passed": "✔ 检查AI 通过"
 "checker.rejected": "✘ 检查AI 打回"
 "checker.empty": "尚无检查AI评审记录；运行一次生成或修改后会显示。"
-"composer.prompt_hint": "描述你想要的古典音乐作品；Enter 换行，超过 13 行后框内滚动。"
-"composer.prompt_placeholder_work": "输入你的创作提示词…"
-"composer.prompt_default": "创作一首赋格。"
-"composer.run": "运行一轮"
 "audition.title": "品鉴意见"
 "audition.placeholder": "写下你的听感与修改意见…"
 "audition.submit": "提交意见"

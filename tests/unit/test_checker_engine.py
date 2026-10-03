@@ -17,7 +17,15 @@ from harmoniatextor.score.streamops import ScoreEditor
 def place(
     score: stream.Score, voice: str, offset: float, pitch: str, length: float = 1.0
 ) -> None:
-    """Place a note at a global offset (assumes 4/4)."""
+    """Place a note at a global offset (assumes 4/4).
+
+    Args:
+        score: The score to inspect.
+        voice: Voice slot name.
+        offset: The offset.
+        pitch: Scientific pitch name.
+        length: The length.
+    """
     measure = int(offset // 4) + 1
     inner = offset - (measure - 1) * 4
     ScoreEditor(score).place_note(voice, measure, inner, pitch, length)
@@ -27,12 +35,20 @@ class TestEngine:
     """Engine aggregation, profiles and feedback."""
 
     def test_engine_runs_all(self, score4: stream.Score) -> None:
-        """The engine runs the built-in rules."""
+        """The engine runs the built-in rules.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         report = CheckEngine().run(score4, CheckerContext())
         assert isinstance(report, CheckReport)
 
     def test_profile_disables_rule(self, score4: stream.Score) -> None:
-        """A disabled rule does not run."""
+        """A disabled rule does not run.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         place(score4, "soprano", 0.0, "C5")
         place(score4, "alto", 0.0, "C3")
         engine = CheckEngine(
@@ -44,7 +60,11 @@ class TestEngine:
         )
 
     def test_profile_overrides_severity(self, score4: stream.Score) -> None:
-        """A severity override is applied."""
+        """A severity override is applied.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         place(score4, "soprano", 0.0, "C5")
         place(score4, "alto", 0.0, "C3")
         engine = CheckEngine(
@@ -88,7 +108,11 @@ class TestEngine:
         assert ValidationProfile().setting_for("unknown").enabled
 
     def test_run_with_profile_argument(self, score4: stream.Score) -> None:
-        """A profile passed to run() overrides the engine profile."""
+        """A profile passed to run() overrides the engine profile.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         place(score4, "soprano", 0.0, "C5")
         place(score4, "alto", 0.0, "C3")
         engine = CheckEngine()

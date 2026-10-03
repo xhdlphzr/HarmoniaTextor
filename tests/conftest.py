@@ -20,20 +20,39 @@ from harmoniatextor.styles.store import StyleKitStore
 
 @pytest.fixture
 def store(tmp_path: Path) -> ProjectStore:
-    """Return a project store rooted in a temporary directory."""
+    """Return a project store rooted in a temporary directory.
+
+    Args:
+        tmp_path: The pytest temporary path fixture.
+
+    Returns:
+        The store result.
+    """
     return ProjectStore(tmp_path / "data")
 
 
 @pytest.fixture
 def service(store: ProjectStore, tmp_path: Path) -> CompositionService:
-    """Return a composition service with isolated storage and style kits."""
+    """Return a composition service with isolated storage and style kits.
+
+    Args:
+        store: The project store.
+        tmp_path: The pytest temporary path fixture.
+
+    Returns:
+        The service result.
+    """
     styles = StyleRegistry(StyleKitStore(tmp_path / "config"))
     return CompositionService(store, styles=styles)
 
 
 @pytest.fixture
 def score4() -> stream.Score:
-    """Return an empty four-voice C major score."""
+    """Return an empty four-voice C major score.
+
+    Returns:
+        The score4 result.
+    """
     return new_score(
         key="C",
         time_signature="4/4",
@@ -44,7 +63,11 @@ def score4() -> stream.Score:
 
 @pytest.fixture
 def theme() -> Theme:
-    """Return a simple C major theme."""
+    """Return a simple C major theme.
+
+    Returns:
+        The theme result.
+    """
     return Theme(
         id=1,
         movement_id="m01",

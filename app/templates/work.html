@@ -89,20 +89,6 @@ SPDX-License-Identifier: MIT
     </section>
 
     <section class="panel reveal">
-      <h2>{{ t('composer.prompt_label') }}</h2>
-      <p class="muted small">{{ t('composer.prompt_hint') }}</p>
-      <textarea
-        id="agent-goal"
-        class="autogrow"
-        rows="3"
-        data-max-lines="13"
-        placeholder="{{ t('composer.prompt_placeholder_work') }}"
-      >{{ t('composer.prompt_default') }}</textarea>
-      <button class="btn primary" id="agent-btn">{{ t('composer.run') }}</button>
-      <pre id="agent-output" class="output"></pre>
-    </section>
-
-    <section class="panel reveal">
       <h2>{{ t('audition.title') }}</h2>
       <textarea id="audit-note" rows="3" placeholder="{{ t('audition.placeholder') }}"></textarea>
       <button class="btn primary" id="audit-btn">{{ t('audition.submit') }}</button>

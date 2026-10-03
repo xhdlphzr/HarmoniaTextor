@@ -49,33 +49,57 @@ class TestConfig:
         assert config.context_window_tokens({}) == _DEFAULT_WINDOW_TOKENS
 
     def test_context_window_from_current(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """With no mapping the effective configuration is used."""
+        """With no mapping the effective configuration is used.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         monkeypatch.setattr(
             config, "current_config", lambda: {"context_window": _TINY_WINDOW_K}
         )
         assert config.context_window_tokens() == _TINY_WINDOW_TOKENS
 
     def test_config_dir(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        """The config directory lives under the home directory."""
+        """The config directory lives under the home directory.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+            tmp_path: The pytest temporary path fixture.
+        """
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
         assert config.config_dir() == tmp_path / config.CONFIG_DIR_NAME
 
     def test_config_path(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        """The config file is config.json inside the config directory."""
+        """The config file is config.json inside the config directory.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+            tmp_path: The pytest temporary path fixture.
+        """
         monkeypatch.setattr(config, "config_dir", lambda: tmp_path)
         assert config.config_path() == tmp_path / "config.json"
 
     def test_load_missing(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        """A missing file yields an empty mapping."""
+        """A missing file yields an empty mapping.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+            tmp_path: The pytest temporary path fixture.
+        """
         monkeypatch.setattr(config, "config_dir", lambda: tmp_path)
         assert config.load_config() == {}
 
     def test_ensure_and_load(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        """Ensuring creates the file once and it can be loaded."""
+        """Ensuring creates the file once and it can be loaded.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+            tmp_path: The pytest temporary path fixture.
+        """
         monkeypatch.setattr(config, "config_dir", lambda: tmp_path)
         path = config.ensure_config()
         assert path.exists()
@@ -85,7 +109,12 @@ class TestConfig:
     def test_load_invalid_json(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        """Malformed JSON yields an empty mapping."""
+        """Malformed JSON yields an empty mapping.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+            tmp_path: The pytest temporary path fixture.
+        """
         monkeypatch.setattr(config, "config_dir", lambda: tmp_path)
         (tmp_path / "config.json").write_text("{ not json", encoding="utf-8")
         assert config.load_config() == {}
@@ -93,7 +122,12 @@ class TestConfig:
     def test_load_non_dict(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        """A non-object JSON document yields an empty mapping."""
+        """A non-object JSON document yields an empty mapping.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+            tmp_path: The pytest temporary path fixture.
+        """
         monkeypatch.setattr(config, "config_dir", lambda: tmp_path)
         (tmp_path / "config.json").write_text("[1, 2]", encoding="utf-8")
         assert config.load_config() == {}
@@ -101,7 +135,12 @@ class TestConfig:
     def test_load_read_error(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        """An unreadable path yields an empty mapping."""
+        """An unreadable path yields an empty mapping.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+            tmp_path: The pytest temporary path fixture.
+        """
         directory = tmp_path / "config.json"
         directory.mkdir()
         monkeypatch.setattr(config, "config_path", lambda: directory)
@@ -110,7 +149,12 @@ class TestConfig:
     def test_save_and_current(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        """Saving merges allowed values over the defaults."""
+        """Saving merges allowed values over the defaults.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+            tmp_path: The pytest temporary path fixture.
+        """
         monkeypatch.setattr(config, "config_dir", lambda: tmp_path)
         path = config.save_config(
             {"model": "custom", "temperature": _SAVED_TEMPERATURE}
@@ -124,7 +168,12 @@ class TestConfig:
     def test_load_drops_unknown_keys(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        """Unknown keys such as temperature are ignored when loading."""
+        """Unknown keys such as temperature are ignored when loading.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+            tmp_path: The pytest temporary path fixture.
+        """
         monkeypatch.setattr(config, "config_dir", lambda: tmp_path)
         (tmp_path / "config.json").write_text(
             '{"model": "custom", "temperature": 0.2}', encoding="utf-8"
@@ -135,7 +184,12 @@ class TestConfig:
     def test_drops_checker(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        """A legacy checker section is ignored."""
+        """A legacy checker section is ignored.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+            tmp_path: The pytest temporary path fixture.
+        """
         monkeypatch.setattr(config, "config_dir", lambda: tmp_path)
         (tmp_path / "config.json").write_text(
             '{"model": "custom", "checker": 5}', encoding="utf-8"

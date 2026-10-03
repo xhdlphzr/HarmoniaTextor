@@ -27,18 +27,39 @@ class FakeWebview:
         self.icon: str | None = None
 
     def create_window(self, title: str, url: str, **kwargs: Any) -> object:
-        """Record a window creation request."""
+        """Record a window creation request.
+
+        Args:
+            title: The title.
+            url: The request URL.
+            kwargs: Forwarded keyword arguments.
+
+        Returns:
+            The create window result.
+        """
         self.windows.append((title, url, kwargs))
         return object()
 
     def start(self, **kwargs: Any) -> None:
-        """Record that the event loop started and the requested icon."""
+        """Record that the event loop started and the requested icon.
+
+        Args:
+            kwargs: Forwarded keyword arguments.
+        """
         self.icon = kwargs.get("icon")
         self.started = True
 
 
 def wsgi_app(_environ: dict[str, Any], start_response: Any) -> list[bytes]:
-    """Return a minimal WSGI application."""
+    """Return a minimal WSGI application.
+
+    Args:
+        _environ: The environ.
+        start_response: The start response.
+
+    Returns:
+        The wsgi app result.
+    """
     start_response("200 OK", [("Content-Type", "text/plain")])
     return [b"ok"]
 
@@ -51,7 +72,11 @@ class FakeService:
         self.calls = 0
 
     def interrupt_stale_generations(self) -> int:
-        """Record one interrupt call."""
+        """Record one interrupt call.
+
+        Returns:
+            The resulting number.
+        """
         self.calls += 1
         return 0
 
@@ -66,11 +91,23 @@ class FakeFlaskApp:
     """A callable WSGI app carrying Flask-style extensions."""
 
     def __init__(self, service: object) -> None:
-        """Store a single service extension."""
+        """Store a single service extension.
+
+        Args:
+            service: The composition service.
+        """
         self.extensions: dict[str, object] = {"harmonia_service": service}
 
     def __call__(self, environ: dict[str, Any], start_response: Any) -> list[bytes]:
-        """Delegate to the minimal WSGI app."""
+        """Delegate to the minimal WSGI app.
+
+        Args:
+            environ: The environ.
+            start_response: The start response.
+
+        Returns:
+            The call result.
+        """
         return wsgi_app(environ, start_response)
 
 
@@ -78,7 +115,11 @@ class TestDesktop:
     """Desktop shell behaviour."""
 
     def test_load_webview(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """The webview module is imported lazily."""
+        """The webview module is imported lazily.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         fake = types.ModuleType("webview")
         monkeypatch.setitem(sys.modules, "webview", fake)
         assert desktop._load_webview() is fake
@@ -93,7 +134,11 @@ class TestDesktop:
         assert webview.windows[0][1].startswith("http://127.0.0.1:")
 
     def test_run_uses_threaded_server(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """The server is threaded so SSE never blocks score requests."""
+        """The server is threaded so SSE never blocks score requests.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         captured: dict[str, Any] = {}
 
         def spy(host: str, port: int, app: Any, **kwargs: Any) -> Any:
@@ -106,7 +151,11 @@ class TestDesktop:
         assert captured.get("threaded") is True
 
     def test_ensure_audio_backend(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """The first launch kicks off the audio backend download."""
+        """The first launch kicks off the audio backend download.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         calls: list[object] = []
         monkeypatch.setattr(desktop, "ensure_async", calls.append)
         app = FakeFlaskApp(None)
@@ -129,7 +178,11 @@ class TestDesktop:
         desktop.DesktopApp(FakeFlaskApp(None), FakeWebview())._mark_interrupted()
 
     def test_main(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """The entry point wires the app and webview together."""
+        """The entry point wires the app and webview together.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         webview = FakeWebview()
         monkeypatch.setattr(desktop, "create_app", lambda: wsgi_app)
         monkeypatch.setattr(desktop, "_load_webview", lambda: webview)
@@ -137,7 +190,11 @@ class TestDesktop:
         assert webview.started
 
     def test_icon_name(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """The icon name follows the platform."""
+        """The icon name follows the platform.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         monkeypatch.setattr(sys, "platform", "win32")
         assert desktop._icon_name() == "Franx.ico"
         monkeypatch.setattr(sys, "platform", "darwin")
@@ -146,18 +203,30 @@ class TestDesktop:
         assert desktop._icon_name() is None
 
     def test_icon_candidates(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Bundled and repository roots are searched."""
+        """Bundled and repository roots are searched.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         monkeypatch.setattr(sys, "platform", "win32")
         monkeypatch.setattr(sys, "_MEIPASS", "C:/bundle", raising=False)
         assert len(desktop._icon_candidates()) == _ICON_CANDIDATE_COUNT
 
     def test_icon_candidates_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Linux has no window icon."""
+        """Linux has no window icon.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         monkeypatch.setattr(sys, "platform", "linux")
         assert desktop._icon_candidates() == []
 
     def test_window_icon(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """The repository icon is found, and missing icons return None."""
+        """The repository icon is found, and missing icons return None.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         monkeypatch.setattr(sys, "platform", "win32")
         assert desktop._window_icon() is not None
         monkeypatch.setattr(desktop, "_icon_candidates", list)

@@ -107,7 +107,15 @@ class FunctionalCycleTechnique(Technique[FunctionalCycleParams]):
     def apply(
         self, ctx: TechniqueContext, params: FunctionalCycleParams
     ) -> TechniqueResult:
-        """Realise the cycle."""
+        """Realise the cycle.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         editor = ScoreEditor(ctx.score)
         bar = editor.bar_length()
         figures = [
@@ -136,7 +144,15 @@ class DominantSeventhTechnique(Technique[DominantSeventhParams]):
     def apply(
         self, ctx: TechniqueContext, params: DominantSeventhParams
     ) -> TechniqueResult:
-        """Realise the dominant seventh."""
+        """Realise the dominant seventh.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         measure, beat = parse_measure_position(params.measure_position)
         editor = ScoreEditor(ctx.score)
         pitches = chord_pitches(params.key, params.chord)
@@ -159,7 +175,15 @@ class DiminishedSeventhTechnique(Technique[DiminishedSeventhParams]):
     def apply(
         self, ctx: TechniqueContext, params: DiminishedSeventhParams
     ) -> TechniqueResult:
-        """Realise the diminished seventh and its resolution."""
+        """Realise the diminished seventh and its resolution.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         measure, beat = parse_measure_position(params.measure_position)
         editor = ScoreEditor(ctx.score)
         realize_chord(
@@ -188,7 +212,15 @@ class HarmonicSequenceTechnique(Technique[HarmonicSequenceParams]):
     def apply(
         self, ctx: TechniqueContext, params: HarmonicSequenceParams
     ) -> TechniqueResult:
-        """Realise a harmonic sequence."""
+        """Realise a harmonic sequence.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         editor = ScoreEditor(ctx.score)
         bar = editor.bar_length()
         step = parse_interval(params.step_interval)
@@ -214,7 +246,15 @@ class ChromaticHarmonyTechnique(Technique[ChromaticHarmonyParams]):
     def apply(
         self, ctx: TechniqueContext, params: ChromaticHarmonyParams
     ) -> TechniqueResult:
-        """Apply chromatic alteration."""
+        """Apply chromatic alteration.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         editor = ScoreEditor(ctx.score)
         warnings: list[str] = []
         degree = params.chromatic_degree
@@ -256,7 +296,15 @@ class ModulationBridgeTechnique(Technique[ModulationBridgeParams]):
     def apply(
         self, ctx: TechniqueContext, params: ModulationBridgeParams
     ) -> TechniqueResult:
-        """Realise a modulation bridge."""
+        """Realise a modulation bridge.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         editor = ScoreEditor(ctx.score)
         bar = editor.bar_length()
         warnings: list[str] = []
@@ -292,7 +340,15 @@ class ChromaticModulationTechnique(Technique[ChromaticModulationParams]):
     def apply(
         self, ctx: TechniqueContext, params: ChromaticModulationParams
     ) -> TechniqueResult:
-        """Realise the chromatic modulation."""
+        """Realise the chromatic modulation.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         editor = ScoreEditor(ctx.score)
         bar = editor.bar_length()
         start = params.measure_range.start
@@ -347,7 +403,15 @@ class ExtendedHarmonyTechnique(Technique[ExtendedHarmonyParams]):
     def apply(
         self, ctx: TechniqueContext, params: ExtendedHarmonyParams
     ) -> TechniqueResult:
-        """Write the extension chords."""
+        """Write the extension chords.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         editor = ScoreEditor(ctx.score)
         bar = editor.bar_length()
         for measure in range(params.measure_range.start, params.measure_range.end + 1):
@@ -370,7 +434,15 @@ class ColorChordTechnique(Technique[ColorChordParams]):
     params_model = ColorChordParams
 
     def apply(self, ctx: TechniqueContext, params: ColorChordParams) -> TechniqueResult:
-        """Write the colour tones."""
+        """Write the colour tones.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         editor = ScoreEditor(ctx.score)
         bar = editor.bar_length()
         offset = _COLOR_SEMITONES.get(params.color, _COLOR_SEMITONES["9"])
@@ -394,7 +466,15 @@ class ModalHarmonyTechnique(Technique[ModalHarmonyParams]):
     def apply(
         self, ctx: TechniqueContext, params: ModalHarmonyParams
     ) -> TechniqueResult:
-        """Realise the modal progression."""
+        """Realise the modal progression.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         editor = ScoreEditor(ctx.score)
         bar = editor.bar_length()
         figures = list(params.chord_sequence) or list(_MODE_PROGRESSIONS[params.mode])
@@ -423,7 +503,15 @@ class WholeToneTechnique(Technique[WholeToneParams]):
     params_model = WholeToneParams
 
     def apply(self, ctx: TechniqueContext, params: WholeToneParams) -> TechniqueResult:
-        """Write the whole-tone run."""
+        """Write the whole-tone run.
+
+        Args:
+            ctx: The technique context.
+            params: Validated parameters.
+
+        Returns:
+            The transformed score and warnings.
+        """
         editor = ScoreEditor(ctx.score)
         bar = editor.bar_length()
         length = note_value(params.note_value)

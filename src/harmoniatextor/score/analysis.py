@@ -22,6 +22,8 @@ __all__ = [
     "voice_order",
 ]
 
+_EPSILON = 1e-6
+
 
 @dataclass(frozen=True, slots=True)
 class VoiceEvent:
@@ -43,25 +45,86 @@ class VoiceEvent:
 
 
 def _bar_length(score: stream.Score) -> float:
-    """Return the bar length of a score in quarter notes."""
+    """Return the bar length of a score in quarter notes.
+
+    Args:
+        score: The score to inspect.
+
+    Returns:
+        The resulting number.
+    """
     signatures = list(score.recurse().getElementsByClass("TimeSignature"))
     if not signatures:
         return 4.0
     return float(signatures[0].barDuration.quarterLength)
 
 
+def _measure_entries(part: stream.Part) -> list[tuple[float, float, int]]:
+    """Return each measure's ``(start, end, number)`` boundaries.
+
+    Using the measure objects rather than one global bar length makes the
+    mapping correct when the meter changes mid-piece.
+
+    Args:
+        part: The part to inspect.
+
+    Returns:
+        Measure boundaries in performance order.
+    """
+    entries: list[tuple[float, float, int]] = []
+    for measure in part.getElementsByClass(stream.Measure):
+        start = float(measure.offset)
+        end = start + float(measure.barDuration.quarterLength)
+        entries.append((start, end, int(measure.number)))
+    return entries
+
+
+def _locate_measure(
+    entries: list[tuple[float, float, int]], offset: float, fallback_bar: float
+) -> int:
+    """Map a global offset to a measure number.
+
+    Args:
+        entries: Measure boundaries from :func:`_measure_entries`.
+        offset: Global offset in quarter notes.
+        fallback_bar: Bar length used when no measures are known.
+
+    Returns:
+        The one-based measure number.
+    """
+    if not entries:
+        return int(offset // fallback_bar) + 1
+    for start, end, number in entries:
+        if start - _EPSILON <= offset < end - _EPSILON:
+            return number
+    last_start, last_end, last_number = entries[-1]
+    if offset >= last_end - _EPSILON:
+        bar = last_end - last_start
+        if bar > 0:
+            return last_number + int((offset - last_end) // bar) + 1
+        return last_number  # pragma: no cover - a zero-length measure is invalid
+    return entries[0][2]
+
+
 def measure_of(score: stream.Score, offset: float) -> int:
     """Convert a global offset into a one-based measure number.
 
     Args:
-        score: The score providing the meter.
+        score: The score providing the measures.
         offset: Global offset in quarter notes.
 
     Returns:
         The one-based measure number.
     """
-    bar = _bar_length(score)
-    return int(offset // bar) + 1
+    parts = list(score.parts)
+    if parts:
+        longest = max(
+            parts, key=lambda part: len(list(part.getElementsByClass(stream.Measure)))
+        )
+        entries = _measure_entries(longest)
+    else:
+        entries = []
+    return _locate_measure(entries, offset, _bar_length(score))
 
 
 def voice_order(score: stream.Score) -> list[str]:
@@ -89,17 +152,19 @@ def voice_events(score: stream.Score) -> dict[str, list[VoiceEvent]]:
     bar = _bar_length(score)
     for part in score.parts:
         voice = str(part.id or part.partName)
+        entries = _measure_entries(part)
         events: list[VoiceEvent] = []
         for element in part.flatten().notes:
             if isinstance(element, m21note.Note):
                 pitches = [element.pitch]
             else:
                 pitches = list(element.pitches)
+            measure = _locate_measure(entries, float(element.offset), bar)
             for item in pitches:
                 events.append(
                     VoiceEvent(
                         offset=float(element.offset),
-                        measure=int(element.offset // bar) + 1,
+                        measure=measure,
                         pitch=item.nameWithOctave,
                         midi=int(item.midi),
                         quarter_length=float(element.quarterLength),

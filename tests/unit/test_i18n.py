@@ -30,7 +30,12 @@ class TestI18nDir:
         assert (i18n_dir() / "en.yaml").is_file()
 
     def test_frozen(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """A frozen build resolves ``i18n`` next to the bundled files."""
+        """A frozen build resolves ``i18n`` next to the bundled files.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path), raising=False)
         assert i18n_dir() == tmp_path / "i18n"
 
@@ -87,7 +92,11 @@ class TestTranslate:
     def test_missing_falls_back_to_english(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """A missing Chinese id falls back to the English text."""
+        """A missing Chinese id falls back to the English text.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         monkeypatch.delitem(CATALOG["zh"], "nav.create")
         assert translate("nav.create", "zh") == "Create"
 

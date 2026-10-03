@@ -102,7 +102,7 @@ def create_app(
     """
     app = Flask(__name__, template_folder="templates", static_folder="static")
     app.config["TESTING"] = testing
-    app.config["TEMPLATES_AUTO_RELOAD"] = True
+    app.config["TEMPLATES_AUTO_RELOAD"] = testing
     data = Path(data_dir or os.environ.get("HARMONIA_DATA") or config_dir())
     vendor = Path(
         vendor_dir or os.environ.get("HARMONIA_VENDOR") or (config_dir() / "vendor")

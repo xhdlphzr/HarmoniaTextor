@@ -68,15 +68,37 @@ def build_planning_tools(service: CompositionService, work_id: str) -> list[Base
     """
 
     def set_title(title: str) -> str:
-        """Set the title of the work."""
+        """Set the title of the work.
+
+        Args:
+            title: The title.
+
+        Returns:
+            The resulting text.
+        """
         return _payload(service.set_title(work_id, title))
 
     def add_movement(name: str = "") -> str:
-        """Add a movement and receive its number."""
+        """Add a movement and receive its number.
+
+        Args:
+            name: The name.
+
+        Returns:
+            The resulting text.
+        """
         return _payload(service.add_movement(work_id, name or None))
 
     def set_movement_prompt(movement: int, prompt: str) -> str:
-        """Record the concrete creation requirement of one movement."""
+        """Record the concrete creation requirement of one movement.
+
+        Args:
+            movement: The movement.
+            prompt: The composition goal.
+
+        Returns:
+            The resulting text.
+        """
         movement_id = _movement_id(service, work_id, movement)
         if movement_id is None:
             return _payload(

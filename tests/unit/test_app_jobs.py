@@ -7,13 +7,17 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.jobs import EventCallback, Job, JobManager
+from app.jobs import _MAX_JOBS, EventCallback, Job, JobManager
 
 _TIMEOUT = 5.0
 
 
 def wait(job: Job) -> None:
-    """Block until a job finishes."""
+    """Block until a job finishes.
+
+    Args:
+        job: The job.
+    """
     job.condition.wait_for(lambda: job.status != "running", timeout=_TIMEOUT)
 
 
@@ -63,7 +67,11 @@ class TestJobManager:
         assert job.events == [{"kind": "a"}]
 
     def test_run_error(self) -> None:
-        """A raising target records an error event and status."""
+        """A raising target records an error event and status.
+
+        Raises:
+            RuntimeError: When the operation cannot proceed.
+        """
         manager = JobManager()
         job = manager.create()
 
@@ -75,3 +83,36 @@ class TestJobManager:
         assert job.status == "error"
         assert job.result == {"message": "boom"}
         assert any(event["kind"] == "error" for event in job.events)
+
+    def test_run_base_exception(self) -> None:
+        """A BaseException still leaves the job in a terminal state.
+
+        Raises:
+            KeyboardInterrupt: When the operation cannot proceed.
+        """
+        manager = JobManager()
+        job = manager.create()
+
+        def target(_emit: EventCallback) -> dict[str, Any]:
+            raise KeyboardInterrupt
+
+        manager.start(job, target)
+        wait(job)
+        assert job.status == "error"
+
+    def test_prune_finished_jobs(self) -> None:
+        """Old finished jobs are dropped once the registry grows too large."""
+        manager = JobManager()
+        jobs = []
+        for _ in range(_MAX_JOBS + 5):
+            job = manager.create()
+            job.finish("done", {})
+            jobs.append(job)
+        assert manager.get(jobs[0].id) is None
+        assert manager.get(jobs[-1].id) is jobs[-1]
+
+    def test_prune_keeps_running_jobs(self) -> None:
+        """Running jobs are never pruned."""
+        manager = JobManager()
+        running = [manager.create() for _ in range(_MAX_JOBS + 1)]
+        assert manager.get(running[0].id) is running[0]

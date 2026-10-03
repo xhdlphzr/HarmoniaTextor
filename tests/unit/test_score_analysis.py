@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from music21 import chord, stream
+from music21 import chord, meter, stream
 from music21 import note as m21note
 
 from harmoniatextor.domain.models import ThemeNote
@@ -34,26 +34,71 @@ class TestAnalysis:
     """Flattening helpers."""
 
     def test_measure_of(self, score4: stream.Score) -> None:
-        """Offsets map to measures."""
+        """Offsets map to measures.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         assert measure_of(score4, 0.0) == 1
         assert measure_of(score4, _DEFAULT_BAR_LENGTH) == _SECOND_MEASURE
 
+    def test_measure_of_variable_meter(self) -> None:
+        """Measure numbers follow a mid-piece meter change."""
+        score = stream.Score()
+        part = stream.Part(id="soprano")  # type: ignore[no-untyped-call]  # music21
+        for number, ratio, pitch in (
+            (1, "4/4", "C5"),
+            (2, "3/4", "D5"),
+            (3, "3/4", "E5"),
+        ):
+            measure = stream.Measure(number=number)
+            signature = meter.TimeSignature(ratio)
+            measure.insert(0.0, signature)
+            measure.insert(
+                0.0,
+                m21note.Note(
+                    pitch, quarterLength=float(signature.barDuration.quarterLength)
+                ),
+            )
+            part.append(measure)  # type: ignore[no-untyped-call]  # music21
+        score.insert(0.0, part)
+        assert measure_of(score, 7.5) == 3
+        assert [event.measure for event in voice_events(score)["soprano"]] == [1, 2, 3]
+        assert measure_of(score, -1.0) == 1
+        assert measure_of(score, 10.0) == 4
+
+    def test_measure_of_no_parts(self) -> None:
+        """A score without parts falls back to the bar-length division."""
+        assert measure_of(stream.Score(), _DEFAULT_BAR_LENGTH) == _SECOND_MEASURE
+
     def test_voice_events_with_chord(self, score4: stream.Score) -> None:
-        """Chord pitches expand into separate events."""
+        """Chord pitches expand into separate events.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         editor = ScoreEditor(score4)
         editor.place_chord("alto", 1, 0.0, ["E4", "G4"], 2.0)
         events = voice_events(score4)["alto"]
         assert len(events) == _TWO_EVENTS
 
     def test_onsets(self, score4: stream.Score) -> None:
-        """Onsets are the unique attack offsets."""
+        """Onsets are the unique attack offsets.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         editor = ScoreEditor(score4)
         editor.place_note("soprano", 1, 0.0, "C5", 1.0)
         editor.place_note("bass", 1, 1.0, "C3", 1.0)
         assert onsets(score4) == [0.0, 1.0]
 
     def test_first_melody_and_count(self, score4: stream.Score) -> None:
-        """The first melody and measure count are found."""
+        """The first melody and measure count are found.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         editor = ScoreEditor(score4)
         editor.write_line("soprano", 1, [ThemeNote("C5", 4.0)])
         editor.write_line("soprano", 2, [ThemeNote("D5", 4.0)])
@@ -69,13 +114,21 @@ class TestAnalysis:
         assert first_melody(score) == ("", [])
 
     def test_voice_events_ignores_rests(self, score4: stream.Score) -> None:
-        """Rests do not produce events."""
+        """Rests do not produce events.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         editor = ScoreEditor(score4)
         editor.place_note("soprano", 1, 0.0, "C5", 1.0)
         assert len(voice_events(score4)["soprano"]) == 1
 
     def test_chord_object_detected(self, score4: stream.Score) -> None:
-        """A Chord element is recognised."""
+        """A Chord element is recognised.
+
+        Args:
+            score4: An empty four-voice score.
+        """
         measure = score4.parts[0].measure(1)
         assert measure is not None
         measure.insert(0.0, chord.Chord(["C5", "E5"]))

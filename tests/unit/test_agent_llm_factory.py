@@ -16,11 +16,19 @@ class TestLLMFactory:
 
     @pytest.fixture(autouse=True)
     def _no_config(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Isolate the factory from the user's real config file."""
+        """Isolate the factory from the user's real config file.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         monkeypatch.setattr("harmoniatextor.agent.llm_factory.load_config", dict)
 
     def test_explicit_args(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Explicit arguments are forwarded."""
+        """Explicit arguments are forwarded.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         captured: dict[str, Any] = {}
 
         def fake(**kwargs: Any) -> str:
@@ -35,7 +43,11 @@ class TestLLMFactory:
         assert captured["model"] == "m"
 
     def test_environment_defaults(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Environment variables are used as defaults."""
+        """Environment variables are used as defaults.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         monkeypatch.setenv("LLM_MODEL", "env-model")
         monkeypatch.setenv("LLM_BASE_URL", "env-url")
         monkeypatch.setenv("LLM_API_KEY", "env-key")
@@ -56,7 +68,11 @@ class TestLLMFactory:
         }
 
     def test_openai_key_fallback(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """OPENAI_API_KEY is used when LLM_API_KEY is absent."""
+        """OPENAI_API_KEY is used when LLM_API_KEY is absent.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         monkeypatch.delenv("LLM_API_KEY", raising=False)
         monkeypatch.setenv("OPENAI_API_KEY", "openai-key")
         captured: dict[str, Any] = {}
@@ -70,7 +86,11 @@ class TestLLMFactory:
         assert captured["api_key"] == "openai-key"
 
     def test_config_values(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """The config file overrides environment and defaults."""
+        """The config file overrides environment and defaults.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         monkeypatch.setattr(
             "harmoniatextor.agent.llm_factory.load_config",
             lambda: {
@@ -105,7 +125,11 @@ class TestResolveSetting:
         assert resolve_setting(None, {"key": "y"}, "key", "ENV", "d") == "y"
 
     def test_environment_wins(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """The environment wins over the default."""
+        """The environment wins over the default.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+        """
         monkeypatch.setenv("ENV", "e")
         assert resolve_setting(None, {}, "key", "ENV", "d") == "e"
 
