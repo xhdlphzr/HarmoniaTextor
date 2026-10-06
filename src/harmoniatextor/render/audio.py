@@ -24,6 +24,13 @@ __all__ = ["FeatureUnavailableError", "synthesize_audio"]
 
 _CODECS: dict[str, str] = {"m4a": "aac", "mp3": "libmp3lame"}
 
+#: FluidSynth master gain.  Its default (0.2) renders far too quietly, so the
+#: synth is driven hotter before the loudness pass below.
+_FLUIDSYNTH_GAIN = "1.0"
+#: ffmpeg loudness normalisation.  Raises quiet scores to a loud, consistent
+#: level and true-peak limits the result so the boosted gain cannot clip.
+_LOUDNESS_FILTER = "loudnorm=I=-14:LRA=11:TP=-1.5"
+
 _LOCKS: dict[str, threading.Lock] = {}
 _LOCKS_GUARD = threading.Lock()
 
@@ -102,6 +109,8 @@ def synthesize_audio(
                 [
                     str(features.fluidsynth),
                     "-ni",
+                    "-g",
+                    _FLUIDSYNTH_GAIN,
                     "-F",
                     str(wav_path),
                     str(features.soundfont),
@@ -116,6 +125,8 @@ def synthesize_audio(
                     "-y",
                     "-i",
                     str(wav_path),
+                    "-af",
+                    _LOUDNESS_FILTER,
                     "-c:a",
                     codec,
                     "-b:a",

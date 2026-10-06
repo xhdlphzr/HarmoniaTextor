@@ -56,6 +56,8 @@ class TestAudio:
         out = synthesize_audio(score, tmp_path / "out.m4a", features, "m4a")
         assert out == tmp_path / "out.m4a"
         assert len(calls) == _EXPECTED_CALLS
+        assert calls[0][calls[0].index("-g") + 1] == "1.0"
+        assert calls[1][calls[1].index("-af") + 1].startswith("loudnorm")
         assert calls[1][-1] == str(out)
         assert "aac" in calls[1]
         assert not (tmp_path / "out.mid").exists()
