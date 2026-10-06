@@ -702,6 +702,44 @@ class TestInstruments:
         assert service.set_tempo(work.id, movement_id, _SLOW_TEMPO, check=False).ok
         assert service.get_work(work.id).movements[0].tempo == _SLOW_TEMPO
 
+    def test_set_time_signature(self, service: CompositionService) -> None:
+        """The movement meter is updated and reaches the score.
+
+        Args:
+            service: The composition service.
+        """
+        work = service.create_work("Demo", "symphony", "C")
+        movement_id = work.movements[0].id
+        service.add_part(work.id, movement_id, "flute", "Flute", check=False)
+        assert service.set_time_signature(work.id, movement_id, "3/4", check=False).ok
+        assert service.get_work(work.id).movements[0].time_signature == "3/4"
+        assert "<beats>3</beats>" in service.current_musicxml(work.id, movement_id)
+
+    def test_set_time_signature_partless(self, service: CompositionService) -> None:
+        """The meter can be set before any voice exists.
+
+        Args:
+            service: The composition service.
+        """
+        work = service.create_work("Demo", "symphony", "C")
+        movement_id = work.movements[0].id
+        assert service.set_time_signature(work.id, movement_id, "6/8", check=False).ok
+        assert service.get_work(work.id).movements[0].time_signature == "6/8"
+
+    def test_set_time_signature_check_failure(
+        self, service: CompositionService
+    ) -> None:
+        """An invalid score rejects the meter change.
+
+        Args:
+            service: The composition service.
+        """
+        work = service.create_work("Demo", "symphony", "C")
+        movement_id = work.movements[0].id
+        result = service.set_time_signature(work.id, movement_id, "5/4")
+        assert not result.ok
+        assert result.report is not None
+
     def test_annotate_marks(self, service: CompositionService) -> None:
         """Every supported expressive mark can be added.
 

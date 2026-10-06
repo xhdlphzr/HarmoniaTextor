@@ -58,6 +58,7 @@ class ToolKind(StrEnum):
     ROLLBACK = "rollback"
     PART = "part"
     TEMPO = "tempo"
+    METER = "meter"
     MARK = "mark"
     MERGE = "merge"
 
@@ -118,6 +119,7 @@ TOOL_KIND_LABELS: dict[str, str] = {
     ToolKind.ROLLBACK.value: "tool.rollback",
     ToolKind.PART.value: "tool.part",
     ToolKind.TEMPO.value: "tool.tempo",
+    ToolKind.METER.value: "tool.meter",
     ToolKind.MARK.value: "tool.mark",
     ToolKind.MERGE.value: "tool.merge",
 }

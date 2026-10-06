@@ -349,8 +349,10 @@ class AgentLoop:
         style = self.service.style_for(work)
         rules = self.service.effective_rules(work)
         report = self.service.check(work_id, movement_id)
+        plan = self.service.latest_plan(work_id)
+        requirement = goal if not plan else f"{goal}\n\n创作规划(Step 1):\n{plan}"
         result = self.reviewer.review(
-            goal=goal,
+            goal=requirement,
             genre_name=genre_name,
             style_name=style.name,
             rules=rules,

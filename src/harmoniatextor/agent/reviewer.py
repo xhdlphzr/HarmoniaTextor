@@ -40,8 +40,8 @@ _SYSTEM_TEMPLATE = (
     "重要:{rules} 等机械乐理规则已由程序化符号层严格校验并保证通过,"
     "你**不要**再重复检查,也**不要**以这些规则为由打回;你只做艺术、风格与表达层面的判断。\n"
     "请从以下维度审阅作品:\n"
-    "1. 人类要求:对照【人类创作要求】逐条核对是否满足;不满足必须打回,"
-    "并指出缺了哪一条、应当怎样补。\n"
+    "1. 创作要求:对照【本乐章创作要求(Step 1 创作规划,含用户目标)】逐条核对是否满足;"
+    "不满足必须打回,并指出缺了哪一条、应当怎样补。\n"
     "2. {style}风格:是否符合该风格的主题发展、织体、和声与语气特征,"
     "而非机械拼凑或混入不相称的风格。\n"
     "3. 结构完整:主题是否得到充分发展,整体是否成形而非片段堆砌。\n"
@@ -163,7 +163,8 @@ class ReviewerAI:
         """Review a score in a fresh session.
 
         Args:
-            goal: The original composition goal.
+            goal: The requirement the movement must satisfy (the Step 1 plan
+                prompt, which itself embeds the user's goal).
             genre_name: Display name of the active genre.
             style_name: Display name of the active style.
             rules: Rule identifiers enforced for the work.
@@ -179,7 +180,7 @@ class ReviewerAI:
             ),
             HumanMessage(
                 content=(
-                    f"【人类创作要求】\n{goal}\n\n"
+                    f"【本乐章创作要求(Step 1 创作规划,含用户目标)】\n{goal}\n\n"
                     f"【符号层结果(已由程序校验,无需你复查)】\n{check_summary}\n\n"
                     f"完整乐谱 MusicXML:\n{score_xml}"
                 )
