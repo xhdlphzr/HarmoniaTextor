@@ -64,7 +64,8 @@ class FreeVoiceLeadingTechnique(Technique[FreeVoiceLeadingParams]):
             The transformed score and warnings.
         """
         note = (
-            f"已豁免 {params.voice} 第 {params.measure_range.start}-"
-            f"{params.measure_range.end} 小节的声部进行规则。理由:{params.reason}"
+            f"Voice-leading rules waived for {params.voice} in measures "
+            f"{params.measure_range.start}-{params.measure_range.end}. "
+            f"Reason: {params.reason}"
         )
         return TechniqueResult(ctx.score, [note])

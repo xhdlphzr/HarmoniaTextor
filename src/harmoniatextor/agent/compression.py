@@ -39,14 +39,15 @@ _MAX_MESSAGE_CHARS = 6000
 _TRANSCRIPT_RATIO = 0.5
 _ASCII_MAX = 127
 
-_SUMMARY_SYSTEM = "你是一位对话压缩助手。"
+_SUMMARY_SYSTEM = "You are a conversation-compression assistant."
 _SUMMARY_PROMPT = (
-    "请把下面的对话压缩为结构化摘要,保留继续工作所需的一切关键信息。\n"
-    "按以下格式输出:\n"
-    "【目标】当前任务的核心目标\n"
-    "【重要细节】已确定的关键决策、调式、声部、主题编号等\n"
-    "【工作状态】已完成 / 进行中 / 被阻塞\n"
-    "【下一步行动】建议的下一步具体操作"
+    "Compress the conversation below into a structured summary, keeping every "
+    "key detail needed to continue the work.\n"
+    "Output in this format:\n"
+    "[Goal] the core goal of the current task\n"
+    "[Important details] settled decisions, mode, voices, theme numbers, etc.\n"
+    "[Work state] done / in progress / blocked\n"
+    "[Next action] the concrete next step"
 )
 
 
@@ -222,7 +223,7 @@ def _bounded_transcript(messages: list[BaseMessage], budget_chars: int) -> str:
     for message in reversed(messages):
         rendered = _render(message)
         if len(rendered) > _MAX_MESSAGE_CHARS:
-            rendered = rendered[:_MAX_MESSAGE_CHARS] + " …(过长已截断)"
+            rendered = rendered[:_MAX_MESSAGE_CHARS] + " ...(truncated)"
         if lines and total + len(rendered) > budget_chars:
             break
         lines.append(rendered)
@@ -304,7 +305,7 @@ def compress_messages(
     response = chat_model.invoke(
         [
             SystemMessage(content=_SUMMARY_SYSTEM),
-            HumanMessage(content=f"{_SUMMARY_PROMPT}\n\n【对话】\n{transcript}"),
+            HumanMessage(content=f"{_SUMMARY_PROMPT}\n\n[Conversation]\n{transcript}"),
         ]
     )
     summary = content_text(response.content)
@@ -315,11 +316,12 @@ def compress_messages(
     )
     extended = (
         f"{base}\n\n"
-        f"[上下文压缩] 以下是先前对话的压缩摘要,请据此继续:\n{summary}\n\n"
+        f"[context compression] Below is a compressed summary of the earlier "
+        f"conversation; continue from it:\n{summary}\n\n"
         f"{artifact_label}:\n{artifact_provider()}"
     )
     pinned = pinned_provider() if pinned_provider is not None else ""
     if pinned:
-        extended += f"\n\n[创作规划(必须完整遵守)]\n{pinned}"
+        extended += f"\n\n[creation plan (must be followed in full)]\n{pinned}"
     messages[:] = [SystemMessage(content=extended)]
     return True

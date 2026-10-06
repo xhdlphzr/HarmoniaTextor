@@ -13,6 +13,7 @@ from pathlib import Path
 from music21 import stream
 
 from harmoniatextor.render.audio import FeatureUnavailableError, synthesize_audio
+from harmoniatextor.render.expression import realize_expressions
 from harmoniatextor.render.features import FeatureDetector, Features
 from harmoniatextor.score.io import from_musicxml, to_musicxml
 from harmoniatextor.service.service import CompositionService
@@ -214,7 +215,9 @@ class ExportService:
             return ExportResult(ok=True, path=path)
         if fmt == "midi":
             path = out_dir / f"{stem}.mid"
-            self._score(work_id).write("midi", fp=str(path))  # type: ignore[no-untyped-call]
+            score = self._score(work_id)
+            realize_expressions(score)
+            score.write("midi", fp=str(path))  # type: ignore[no-untyped-call]
             return ExportResult(ok=True, path=path)
         if fmt in {"m4a", "mp3"}:
             path = out_dir / f"{stem}.{fmt}"
@@ -261,6 +264,7 @@ class ExportService:
         out_dir.mkdir(parents=True, exist_ok=True)
         path = out_dir / f"{self._movement_stem(work_id, movement_id)}.mid"
         score = self._score(work_id, movement_id)
+        realize_expressions(score)
         score.write("midi", fp=str(path))  # type: ignore[no-untyped-call]  # music21
         return ExportResult(ok=True, path=path)
 

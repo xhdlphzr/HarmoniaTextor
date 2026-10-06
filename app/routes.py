@@ -436,7 +436,7 @@ def _register_jobs(app: Flask) -> None:
         payload = _json_payload()
         if payload is None:
             return jsonify({"ok": False, "error": "invalid payload"}), 400
-        prompt = str(payload.get("prompt") or "继续完善这首作品。")
+        prompt = str(payload.get("prompt") or "Continue refining this work.")
         feedback = payload.get("feedback")
         service = get_service(app)
         work = _load_work(service, work_id)

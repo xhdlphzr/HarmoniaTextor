@@ -838,30 +838,49 @@ BUILTIN_RULES: tuple[type[CheckRule], ...] = (
 #: composer AI in its first prompt.  Keys must cover every rule in
 #: :data:`BUILTIN_RULES` (enforced by a test).
 RULE_CONSTRAINTS: dict[str, str] = {
-    "empty": "整份乐章至少要有一个音符;完全空白的乐章直接判失败。先 submit_theme 建立主题。",
-    "pf5th": "检测相邻两声部连续同向移动后都形成纯五度(平行五度)。"
-    "修正:改变其中一个声部的方向或音程,不要连续同向构成纯五度。",
-    "po8ve": "检测相邻两声部连续同向移动后都形成纯八度或同度(平行八/一度)。"
-    "修正:让其中一个声部反向或换音。",
-    "hf5th": "检测相邻两声部由同向进行进入纯五度(隐伏五度,含外声部):前一音程不是纯五度、"
-    "后一音程是纯五度且两声部同向。修正:改为级进或反向进入。",
-    "ho8ve": "检测相邻两声部由同向进行进入纯八度(隐伏八度,含外声部),条件同隐伏五度。"
-    "修正:改级进/反向。",
-    "crossing": "检测声部交叉:上方声部的音高低于相邻的下方声部。"
-    "修正:调整音高,使上声部始终不低于下声部。",
-    "spacing": "检测相邻声部间距超过十度(>16 个半音)。"
-    "修正:把上方声部降低或下方声部升高,任何相邻两声部间距都要 ≤ 十度。",
-    "final_outer": "检测最后一个多声部纵合的外声部音程;必须是纯五度、纯八度或同度。"
-    "修正:让收尾的外声部构成纯五/八/同度。",
-    "dom7res": "检测属七和弦(根音+大三度+纯五度+小七度)是否解决:"
-    "下一个纵合必须包含其根音上方纯五度的音。修正:把属七解决到主和弦或临时主和弦。",
-    "leading": "检测导音(主音下方小二度)是否上行小二度解决到主音;未解决即违规。",
-    "omission": "检测导音是否被重复:同一纵合里导音出现两次及以上即违规。修正:导音只出现一次。",
-    "diminterval": "检测旋律中的三全音或减七度跳进是否反向级进(≤2 个半音)解决;"
-    "未解决即违规。修正:跳进后反向级进。",
-    "tonality": "检测结构位置(尤其乐章终止处)是否出现预期主音级;没有即违规。",
-    "cadence": "检测结构终点是否形成正格终止 V→I:末纵合含主音,"
-    "且前一纵合含属音(主音上方纯五度)。修正:写出 V→I 收束。",
-    "voices": "检测开头的声部是否在结尾凭空消失(结尾声部应是开头声部的子集);"
-    "声部轮换或结尾新加入不算违规。",
+    "empty": "A movement must have at least one note; a completely empty movement "
+    "fails outright. First submit_theme to establish a theme.",
+    "pf5th": "Detects two adjacent voices moving in the same direction into "
+    "consecutive perfect fifths (parallel fifths). Fix: change one voice's "
+    "direction or interval so it does not form consecutive same-direction "
+    "perfect fifths.",
+    "po8ve": "Detects two adjacent voices moving in the same direction into "
+    "consecutive perfect octaves or unisons. Fix: move one voice in the opposite "
+    "direction or to a different note.",
+    "hf5th": "Detects adjacent voices entering a perfect fifth by similar motion "
+    "(hidden fifth, incl. outer voices): the previous interval is not a perfect "
+    "fifth, the next is, and both voices move the same way. Fix: enter by step or "
+    "contrary motion.",
+    "ho8ve": "Detects adjacent voices entering a perfect octave by similar motion "
+    "(hidden octave), the same condition as hidden fifths. Fix: enter by step or "
+    "contrary motion.",
+    "crossing": "Detects voice crossing: an upper voice's pitch is lower than the "
+    "adjacent lower voice. Fix: adjust pitches so an upper voice is never below a "
+    "lower one.",
+    "spacing": "Detects adjacent voices more than a tenth apart (>16 semitones). "
+    "Fix: lower the upper voice or raise the lower one so every adjacent pair is "
+    "within a tenth.",
+    "final_outer": "Checks the outer-voice interval of the final multi-voice "
+    "sonority; it must be a perfect fifth, octave or unison. Fix: make the closing "
+    "outer voices a perfect fifth/octave/unison.",
+    "dom7res": "Checks whether a dominant seventh (root + major third + perfect "
+    "fifth + minor seventh) resolves: the next sonority must contain the note a "
+    "perfect fifth above its root. Fix: resolve the dominant seventh to the tonic "
+    "or local tonic.",
+    "leading": "Checks whether the leading tone (a minor second below the tonic) "
+    "resolves up a minor second to the tonic; if not, it is a violation.",
+    "omission": "Checks whether the leading tone is doubled: two or more "
+    "leading-tone occurrences in one sonority is a violation. Fix: state the "
+    "leading tone only once.",
+    "diminterval": "Checks whether a tritone or diminished-seventh leap in a "
+    "melody resolves by contrary step (<=2 semitones); if not, it is a violation. "
+    "Fix: resolve by contrary step after the leap.",
+    "tonality": "Checks whether structural positions (especially movement "
+    "endings) land on the expected tonic; if not, it is a violation.",
+    "cadence": "Checks whether structural endpoints form an authentic cadence "
+    "V->I: the final sonority contains the tonic and the previous one contains the "
+    "dominant (a perfect fifth above the tonic). Fix: write a V->I close.",
+    "voices": "Checks whether a voice that sounds at the opening disappears by the "
+    "end (the closing voices must be a subset of the opening ones); voice rotation "
+    "or newly entering voices are not violations.",
 }

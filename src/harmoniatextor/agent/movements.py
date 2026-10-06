@@ -27,11 +27,12 @@ from harmoniatextor.agent.compression import (
     message_text,
 )
 from harmoniatextor.agent.loop import run_tool_calls
-from harmoniatextor.agent.prompts import system_prompt
+from harmoniatextor.agent.prompts import style_display_name, system_prompt
 from harmoniatextor.agent.reviewer import ReviewerAI
 from harmoniatextor.agent.tools import build_tools
 from harmoniatextor.checker.engine import format_feedback
 from harmoniatextor.domain.models import CheckReport, Movement
+from harmoniatextor.i18n import translate
 from harmoniatextor.score.io import from_musicxml
 from harmoniatextor.service.service import CompositionService
 
@@ -40,12 +41,13 @@ __all__ = ["ComposeResult", "MovementComposer"]
 ProgressCallback = Callable[[dict[str, Any]], None]
 
 _MOVEMENT_TAIL = (
-    "请只创作本乐章。本乐章从空谱开始,没有任何默认声部:"
-    "请先用 add_part 建立你需要的声部(编制完全由你决定),"
-    "再用 submit_theme 提交主题、用 technique_* 发展旋律;"
-    "基本成型后用 edit(measure, voice, musicxml) 按小节+声部逐处微调"
-    "(片段留空可清空该小节)。需要增减小节时用 insert / delete。"
-    "不要重写其他乐章。"
+    "Compose this movement only. It starts from an empty score with no default "
+    "voices: first create the voices you need with add_part (the instrumentation "
+    "is entirely your choice), then submit themes with submit_theme and develop "
+    "the melody with technique_*; once broadly shaped, fine-tune measure by "
+    "measure and voice with edit(measure, voice, musicxml) (an empty fragment "
+    "clears that measure). Use insert / delete to add or remove measures. Do not "
+    "rewrite any other movement."
 )
 
 
@@ -191,7 +193,10 @@ class MovementComposer:
                 },
             )
         else:
-            feedback = "检查AI打回本乐章,请在本乐章会话中继续修改:\n" + extra
+            feedback = (
+                "The reviewer rejected this movement; keep revising in this "
+                "movement's session:\n" + extra
+            )
             messages.append(HumanMessage(feedback))
             _emit(
                 on_event,
@@ -251,13 +256,14 @@ class MovementComposer:
             The instruction text.
         """
         parts = [
-            f"【总目标】\n{goal}",
-            f"【本乐章要求({movement.name})】\n{movement.prompt}",
+            f"[Overall goal]\n{goal}",
+            f"[This movement's requirement ({movement.name})]\n{movement.prompt}",
         ]
         themes = self._previous_themes(work_id, movement.id)
         if themes:
             parts.append(
-                "【此前已出现的主题(可引用/发展/加变奏,但不可修改原主题)】\n" + themes
+                "[Themes already stated (you may quote/develop/vary them, but do "
+                "not change the original themes)]\n" + themes
             )
         parts.append(_MOVEMENT_TAIL)
         return "\n\n".join(parts)
@@ -281,7 +287,7 @@ class MovementComposer:
                 notes = " ".join(
                     f"{note.pitch}/{note.quarter_length}" for note in theme.notes
                 )
-                lines.append(f"乐章 {movement.name} 主题 {theme_id}: {notes}")
+                lines.append(f"Movement {movement.name} theme {theme_id}: {notes}")
         return "\n".join(lines)
 
     def _movement_report(self, work_id: str, movement: Movement) -> CheckReport:
@@ -312,10 +318,13 @@ class MovementComposer:
         """
         if any(item.rule_id == "empty" for item in report.violations):
             return (
-                "本乐章还没有任何音符,不能算完成。"
-                "请用 submit_theme 提交主题,再用 technique_* 发展旋律。"
+                "This movement has no notes yet, so it is not complete. Submit a "
+                "theme with submit_theme and develop it with technique_*."
             )
-        return "本乐章仍未通过符号层,请继续修正:\n" + format_feedback(report)
+        return (
+            "This movement still fails the symbolic layer; keep fixing:\n"
+            + format_feedback(report)
+        )
 
     def _compress(
         self,
@@ -338,7 +347,7 @@ class MovementComposer:
             self.chat_model,
             messages,
             context_window=self.context_window,
-            artifact_label="本乐章完整 MusicXML",
+            artifact_label="Full MusicXML of this movement",
             artifact_provider=lambda: self.service.current_musicxml(
                 work_id, movement.id
             ),
@@ -383,8 +392,8 @@ class MovementComposer:
             rules = self.service.effective_rules(work)
             result = self.reviewer.review(
                 goal=movement.prompt,
-                genre_name=genre.display_name,
-                style_name=style.name,
+                genre_name=translate("genre." + genre.id, "en"),
+                style_name=style_display_name(style),
                 rules=rules,
                 score_xml=score,
                 check_summary=format_feedback(report),

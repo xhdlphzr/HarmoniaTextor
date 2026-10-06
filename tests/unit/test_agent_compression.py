@@ -251,7 +251,7 @@ class TestCompression:
             HumanMessage(content="x" * _LONG_TEXT_CHARS) for _ in range(5)
         ]
         text = _bounded_transcript(messages, budget_chars=50)
-        assert "截断" in text
+        assert "truncated" in text
         assert len(text) < _LONG_TEXT_CHARS
 
     def test_message_text_content(self) -> None:

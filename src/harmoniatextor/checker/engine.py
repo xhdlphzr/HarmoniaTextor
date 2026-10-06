@@ -84,7 +84,7 @@ class CheckEngine:
 
 
 def format_feedback(report: CheckReport) -> str:
-    """Render a check report as Chinese feedback for the language model.
+    """Render a check report as English feedback for the language model.
 
     Args:
         report: The check report.
@@ -93,23 +93,24 @@ def format_feedback(report: CheckReport) -> str:
         A human/LLM readable feedback block.
     """
     if report.ok and not report.violations:
-        return "[检查通过] 符号层未发现任何违规。"
+        return "[check passed] The symbolic layer found no violations."
     if report.ok:
-        return f"[检查通过,含 {len(report.warnings)} 条警告]"
-    lines = [f"[检查不通过] 共 {len(report.errors)} 处违规:"]
+        return f"[check passed, {len(report.warnings)} warning(s)]"
+    lines = [f"[check failed] {len(report.errors)} violation(s):"]
     for index, item in enumerate(report.errors, start=1):
         voices = (
-            f"{item.voice_a} 与 {item.voice_b}"
+            f"{item.voice_a} and {item.voice_b}"
             if item.voice_b
-            else (item.voice_a or "全体声部")
+            else (item.voice_a or "all voices")
         )
         fix = RULE_CONSTRAINTS.get(item.rule_id, "")
-        suffix = f" 修改建议:{fix}" if fix else ""
+        suffix = f" Fix: {fix}" if fix else ""
         lines.append(
-            f"{index}) 小节 {item.measure} · 声部 {voices} · 规则 {item.rule_id}:"
-            f"{item.message} 具体位置:{item.snippet}{suffix}"
+            f"{index}) measure {item.measure} - voice {voices} - rule "
+            f"{item.rule_id}: {item.message} At: {item.snippet}{suffix}"
         )
     lines.append(
-        "请针对上面每一处,按修改建议用 edit(measure, voice, musicxml) 改对应小节与声部。"
+        "For each item above, fix the given measure and voice with "
+        "edit(measure, voice, musicxml)."
     )
     return "\n".join(lines)

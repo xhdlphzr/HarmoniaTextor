@@ -351,7 +351,7 @@ class CompositionService:
         work.updated_at = _now()
         self.store.save_work(work)
         self.store.append_journal(work_id, {"event": "title", "title": title})
-        return ToolResult(True, message=f"标题已设为:{title}")
+        return ToolResult(True, message=f"Title set to: {title}")
 
     def ensure_title(self, work_id: str) -> str:
         """Fall back to the genre name when no title was chosen.
@@ -411,7 +411,7 @@ class CompositionService:
         movement = Movement(
             id=movement_id,
             work_id=work_id,
-            name=name or f"第 {index} 乐章",
+            name=name or f"Movement {index}",
             time_signature="4/4",
             key=work.tonic,
             tempo=96,
@@ -426,7 +426,7 @@ class CompositionService:
         return ToolResult(
             True,
             movement_id=movement_id,
-            message=f"已新增乐章,编号 {index}。",
+            message=f"Added movement {index}.",
         )
 
     def set_movement_prompt(
@@ -447,7 +447,9 @@ class CompositionService:
             movement = self.get_movement(work, movement_id)
         except KeyError:
             return ToolResult(
-                False, error_code="BAD_PARAM", message=f"乐章不存在:{movement_id}"
+                False,
+                error_code="BAD_PARAM",
+                message=f"Unknown movement: {movement_id}",
             )
         movement.prompt = prompt
         work.updated_at = _now()
@@ -456,7 +458,7 @@ class CompositionService:
             work_id, {"event": "movement_prompt", "movement": movement_id}
         )
         return ToolResult(
-            True, movement_id=movement_id, message="已记录该乐章的创作要求。"
+            True, movement_id=movement_id, message="Movement requirement recorded."
         )
 
     def missing_movement_prompts(self, work_id: str) -> list[Movement]:
@@ -694,7 +696,7 @@ class CompositionService:
             work.status = WorkStatus.FINAL
         work.updated_at = _now()
         self.store.save_work(work)
-        return ToolResult(True, message="乐章已定稿。", report=report)
+        return ToolResult(True, message="Movement finalised.", report=report)
 
     def _finalized_movements(self, work_id: str) -> set[str]:
         """Return the movements of a work that have been finalised.
@@ -744,18 +746,20 @@ class CompositionService:
                 spec = parse_key(key)
             except ValueError:
                 return ToolResult(
-                    False, error_code="BAD_PARAM", message=f"无效的调式:{key}"
+                    False, error_code="BAD_PARAM", message=f"Invalid key: {key}"
                 )
         try:
             theme_score = from_musicxml(musicxml)
         except Exception:  # noqa: BLE001 - reject any unparseable MusicXML
             return ToolResult(
-                False, error_code="BAD_PARAM", message="主题 MusicXML 解析失败。"
+                False,
+                error_code="BAD_PARAM",
+                message="Could not parse the theme MusicXML.",
             )
         source_voice, notes = first_melody(theme_score)
         if not notes:
             return ToolResult(
-                False, error_code="BAD_PARAM", message="主题不包含任何音符。"
+                False, error_code="BAD_PARAM", message="The theme has no notes."
             )
         target_voice = voice or source_voice
         work = self.store.load_work(work_id)
@@ -808,7 +812,9 @@ class CompositionService:
             True,
             full_musicxml=revision.full_xml,
             theme_id=theme_id,
-            message=format_feedback(report) if report is not None else "主题已提交。",
+            message=format_feedback(report)
+            if report is not None
+            else "Theme submitted.",
             report=report,
         )
 
@@ -839,7 +845,7 @@ class CompositionService:
         editor = self._editor(score, movement)
         if editor.get_part(voice) is not None:
             return ToolResult(
-                False, error_code="BAD_PARAM", message=f"声部已存在:{voice}"
+                False, error_code="BAD_PARAM", message=f"Part already exists: {voice}"
             )
         editor.get_part(voice, create=True)
         if instrument:
@@ -860,7 +866,7 @@ class CompositionService:
         return ToolResult(
             True,
             full_musicxml=revision.full_xml,
-            message=format_feedback(report) if report is not None else "声部已添加。",
+            message=format_feedback(report) if report is not None else "Part added.",
             report=report,
         )
 
@@ -884,7 +890,7 @@ class CompositionService:
         editor = self._editor(score, movement)
         if not editor.remove_part(voice):
             return ToolResult(
-                False, error_code="BAD_PARAM", message=f"声部不存在:{voice}"
+                False, error_code="BAD_PARAM", message=f"Unknown part: {voice}"
             )
         report = self._check(work, movement, score) if check else None
         revision = self._save_revision(
@@ -900,7 +906,7 @@ class CompositionService:
         return ToolResult(
             True,
             full_musicxml=revision.full_xml,
-            message=format_feedback(report) if report is not None else "声部已删除。",
+            message=format_feedback(report) if report is not None else "Part removed.",
             report=report,
         )
 
@@ -940,7 +946,7 @@ class CompositionService:
             full_musicxml=revision.full_xml,
             message=format_feedback(report)
             if report is not None
-            else f"速度已改为 {bpm}。",
+            else f"Tempo set to {bpm}.",
             report=report,
         )
 
@@ -980,7 +986,7 @@ class CompositionService:
             full_musicxml=revision.full_xml,
             message=format_feedback(report)
             if report is not None
-            else f"拍号已改为 {time_signature}。",
+            else f"Time signature set to {time_signature}.",
             report=report,
         )
 
@@ -1015,13 +1021,15 @@ class CompositionService:
         editor = self._editor(score, movement)
         if editor.get_part(voice) is None:
             return ToolResult(
-                False, error_code="BAD_PARAM", message=f"声部不存在:{voice}"
+                False, error_code="BAD_PARAM", message=f"Unknown part: {voice}"
             )
         if not editor.annotate(voice, measure, mark, value):
             return ToolResult(
                 False,
                 error_code="BAD_PARAM",
-                message=f"无法在小节 {measure} 的 {voice} 上添加记号:{mark}。",
+                message=(
+                    f"Could not add mark {mark} at measure {measure}, voice {voice}."
+                ),
             )
         report = self._check(work, movement, score) if check else None
         revision = self._save_revision(
@@ -1041,7 +1049,7 @@ class CompositionService:
             full_musicxml=revision.full_xml,
             message=format_feedback(report)
             if report is not None
-            else f"已添加记号:{mark}。",
+            else f"Added mark: {mark}.",
             report=report,
         )
 
@@ -1070,7 +1078,9 @@ class CompositionService:
             technique = self.techniques.get(technique_id)
         except KeyError:
             return ToolResult(
-                False, error_code="BAD_PARAM", message=f"未知技法:{technique_id}"
+                False,
+                error_code="BAD_PARAM",
+                message=f"Unknown technique: {technique_id}",
             )
         try:
             parsed = technique.params_model.model_validate(params)
@@ -1118,7 +1128,9 @@ class CompositionService:
         return ToolResult(
             True,
             full_musicxml=revision.full_xml,
-            message=format_feedback(report) if report is not None else "技法已应用。",
+            message=format_feedback(report)
+            if report is not None
+            else "Technique applied.",
             report=report,
             warnings=outcome.warnings,
         )
@@ -1158,7 +1170,7 @@ class CompositionService:
                 return ToolResult(
                     False,
                     error_code="BAD_PARAM",
-                    message="编辑片段 MusicXML 解析失败。",
+                    message="Could not parse the edit fragment MusicXML.",
                 )
             _source, notes = first_melody(fragment)
         work = self.store.load_work(work_id)
@@ -1167,7 +1179,7 @@ class CompositionService:
         editor = self._editor(score, movement)
         if not notes and editor.get_part(voice) is None:
             return ToolResult(
-                False, error_code="BAD_PARAM", message=f"声部不存在:{voice}"
+                False, error_code="BAD_PARAM", message=f"Unknown part: {voice}"
             )
         editor.clear_measure_range(voice, measure, measure)
         if notes:
@@ -1186,7 +1198,9 @@ class CompositionService:
         return ToolResult(
             True,
             full_musicxml=revision.full_xml,
-            message=format_feedback(report) if report is not None else "该小节已更新。",
+            message=format_feedback(report)
+            if report is not None
+            else "Measure updated.",
             report=report,
         )
 
@@ -1221,7 +1235,7 @@ class CompositionService:
             return ToolResult(
                 False,
                 error_code="BAD_PARAM",
-                message="本乐章还没有任何声部,请先用 add_part。",
+                message="This movement has no voices yet; use add_part first.",
             )
         editor.insert_measure(measure)
         if musicxml.strip():
@@ -1229,13 +1243,15 @@ class CompositionService:
                 return ToolResult(
                     False,
                     error_code="BAD_PARAM",
-                    message="插入带音符的小节时必须指定 voice。",
+                    message="A voice is required when inserting a measure with notes.",
                 )
             try:
                 fragment = from_musicxml(musicxml)
             except Exception:  # noqa: BLE001 - reject any unparseable MusicXML
                 return ToolResult(
-                    False, error_code="BAD_PARAM", message="插入片段解析失败。"
+                    False,
+                    error_code="BAD_PARAM",
+                    message="Could not parse the insert fragment.",
                 )
             _source, notes = first_melody(fragment)
             if notes:
@@ -1258,7 +1274,9 @@ class CompositionService:
         return ToolResult(
             True,
             full_musicxml=revision.full_xml,
-            message=format_feedback(report) if report is not None else "已插入新小节。",
+            message=format_feedback(report)
+            if report is not None
+            else "New measure inserted.",
             report=report,
         )
 
@@ -1282,7 +1300,7 @@ class CompositionService:
         editor = self._editor(score, movement)
         if not editor.delete_measure(measure):
             return ToolResult(
-                False, error_code="BAD_PARAM", message=f"小节不存在:{measure}"
+                False, error_code="BAD_PARAM", message=f"Unknown measure: {measure}"
             )
         report = self._check(work, movement, score) if check else None
         revision = self._save_revision(
@@ -1300,7 +1318,9 @@ class CompositionService:
         return ToolResult(
             True,
             full_musicxml=revision.full_xml,
-            message=format_feedback(report) if report is not None else "已删除该小节。",
+            message=format_feedback(report)
+            if report is not None
+            else "Measure deleted.",
             report=report,
         )
 
@@ -1321,7 +1341,7 @@ class CompositionService:
         match = next((item for item in meta if int(item["seq"]) == seq), None)
         if match is None:
             return ToolResult(
-                False, error_code="BAD_PARAM", message=f"版本 {seq} 不存在。"
+                False, error_code="BAD_PARAM", message=f"Unknown revision: {seq}."
             )
         movement.canonical_revision = str(match["id"])
         work.updated_at = _now()
@@ -1333,7 +1353,7 @@ class CompositionService:
         return ToolResult(
             True,
             full_musicxml=self.store.load_revision_xml(work_id, movement_id, seq),
-            message=f"已回退到版本 {seq}。",
+            message=f"Rolled back to revision {seq}.",
         )
 
     def record_audit(self, work_id: str, movement_id: str, note: str) -> None:

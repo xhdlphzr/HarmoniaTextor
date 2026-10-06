@@ -17,6 +17,7 @@ from pathlib import Path
 
 from music21 import stream
 
+from harmoniatextor.render.expression import realize_expressions
 from harmoniatextor.render.features import Features
 
 __all__ = ["FeatureUnavailableError", "synthesize_audio"]
@@ -78,8 +79,9 @@ def synthesize_audio(
     """
     if not features.audio_available:
         raise FeatureUnavailableError(
-            "ffmpeg、FluidSynth 与音色库(soundfont)是音频导出所必需的。"
-            "首次启动会自动下载;若仍不可用,请检查网络,或把它们安装到系统 PATH。"
+            "ffmpeg, FluidSynth and a soundfont are required for audio export. "
+            "They download automatically on first launch; if still unavailable, "
+            "check the network or install them on the system PATH."
         )
     codec = _CODECS[fmt]
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -91,6 +93,7 @@ def synthesize_audio(
         midi_path = temp_dir / "score.mid"
         wav_path = temp_dir / "score.wav"
         try:
+            realize_expressions(score)
             score.write("midi", fp=str(midi_path))  # type: ignore[no-untyped-call]  # music21
             assert features.fluidsynth is not None
             assert features.soundfont is not None

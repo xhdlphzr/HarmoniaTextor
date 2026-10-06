@@ -220,15 +220,15 @@ class TestReviewer:
 
     def test_submit_review_tool(self) -> None:
         """The submit tool acknowledges the verdict."""
-        assert _submit_review(True) == "已收到评审结论。"
+        assert _submit_review(True) == "Review received."
 
     def test_system_checks_movement_division(self) -> None:
         """The reviewer is told to check movement division."""
-        assert "乐章划分" in _system_text("巴洛克", _RULES)
+        assert "movement divisions" in _system_text("Baroque", _RULES)
 
     def test_system_excludes_symbolic_rules(self) -> None:
         """The reviewer is told not to re-check symbolic-layer rules."""
-        text = _system_text("巴洛克", _RULES)
-        assert "平行五度" in text
-        assert "以这些规则为由打回" in text
-        assert "符号层" in text
+        text = _system_text("Baroque", _RULES)
+        assert "Parallel fifths" in text
+        assert "reject on their account" in text
+        assert "symbolic layer" in text
