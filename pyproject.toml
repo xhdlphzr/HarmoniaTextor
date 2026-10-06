@@ -7,7 +7,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "harmoniatextor"
-version = "2.1.1"
+version = "2.1.2"
 description = "Neuro-symbolic classical music generation with symbolic validation."
 readme = "README.md"
 requires-python = ">=3.14"
