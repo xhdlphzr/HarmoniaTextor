@@ -416,7 +416,9 @@ def _register_jobs(app: Flask) -> None:
             service.genres.get(genre)
         except KeyError:
             return jsonify({"ok": False, "error": "unknown genre"}), 400
-        work = service.create_work(title, genre, style=style, with_movements=False)
+        work = service.create_work(
+            title, genre, style=style, prompt=prompt, with_movements=False
+        )
         job = _start_architecture_job(app, service, work.id, prompt)
         return jsonify(
             {"ok": True, "job_id": job.id, "work_id": work.id, "movement_id": "m01"}
@@ -750,6 +752,29 @@ def _register_api(app: Flask) -> None:
                 "score rendering failed for %s/%s", work_id, movement_id
             )
             return Response("", mimetype=mimetype)
+
+    @app.get("/api/works/<work_id>/context")
+    def work_context(work_id: str) -> Any:
+        """Return a work's saved creation plan and user prompt.
+
+        Args:
+            work_id: Work identifier.
+
+        Returns:
+            The result; both values are empty strings for legacy works that
+            predate the fields.
+        """
+        service = get_service(app)
+        work = _load_work(service, work_id)
+        if work is None:
+            return _unknown_work()
+        return jsonify(
+            {
+                "ok": True,
+                "plan": service.latest_plan(work_id) or "",
+                "prompt": work.prompt,
+            }
+        )
 
     @app.post("/api/works/<work_id>/movements/<movement_id>/check")
     def check(work_id: str, movement_id: str) -> Any:

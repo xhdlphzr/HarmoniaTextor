@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS works (
     tonic TEXT NOT NULL,
     status TEXT NOT NULL,
     style TEXT,
+    prompt TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
@@ -124,6 +125,7 @@ class ProjectStore:
             conn.executescript(_SCHEMA)
             _ensure_column(conn, "movements", "prompt", "TEXT NOT NULL DEFAULT ''")
             _ensure_column(conn, "works", "style", "TEXT")
+            _ensure_column(conn, "works", "prompt", "TEXT NOT NULL DEFAULT ''")
 
     @contextmanager
     def _connect(self) -> Iterator[sqlite3.Connection]:
@@ -149,14 +151,17 @@ class ProjectStore:
         with self._connect() as conn:
             conn.execute(
                 """
-                INSERT INTO works (id, title, genre, tonic, status, style, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO works
+                    (id, title, genre, tonic, status, style, prompt, created_at,
+                     updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT (id) DO UPDATE SET
                     title = excluded.title,
                     genre = excluded.genre,
                     tonic = excluded.tonic,
                     status = excluded.status,
                     style = excluded.style,
+                    prompt = excluded.prompt,
                     created_at = excluded.created_at,
                     updated_at = excluded.updated_at
                 """,
@@ -169,6 +174,7 @@ class ProjectStore:
                     json.dumps(work.style.to_dict(), ensure_ascii=False)
                     if work.style is not None
                     else None,
+                    work.prompt,
                     work.created_at,
                     work.updated_at,
                 ),
@@ -213,7 +219,8 @@ class ProjectStore:
         with self._connect() as conn:
             row = conn.execute(
                 """
-                SELECT id, title, genre, tonic, status, style, created_at, updated_at
+                SELECT id, title, genre, tonic, status, style, prompt, created_at,
+                       updated_at
                 FROM works WHERE id = ?
                 """,
                 (work_id,),
@@ -250,8 +257,9 @@ class ProjectStore:
             movements=movements,
             status=WorkStatus(row[4]),
             style=StyleSelection.from_dict(json.loads(row[5])) if row[5] else None,
-            created_at=row[6],
-            updated_at=row[7],
+            prompt=row[6],
+            created_at=row[7],
+            updated_at=row[8],
         )
 
     def list_works(self) -> list[str]:

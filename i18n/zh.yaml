@@ -69,6 +69,8 @@
 "result.feedback_submit": "提交意见并继续"
 "history.title": "作品历史"
 "history.empty": "还没有作品。"
+"history.prompt": "创作提示词"
+"history.unsaved": "未保存"
 "generation.interrupted": "生成中断"
 "generation.failed": "生成失败"
 "generation.running": "生成中"

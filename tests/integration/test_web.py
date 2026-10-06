@@ -438,6 +438,41 @@ class TestApi:
         assert response.status_code == _HTTP_OK
         assert "score-partwise" in response.get_data(as_text=True)
 
+    def test_work_context(self, app: Flask, client: FlaskClient) -> None:
+        """The context endpoint returns the saved prompt and plan.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
+        service = get_service(app)
+        work = service.create_work("Demo", "plain", "C", prompt="写一首赋格")
+        service.record_plan(work.id, work.movements[0].id, "钢琴:平静到激昂")
+        data = client.get(f"/api/works/{work.id}/context").get_json()
+        assert data["ok"] is True
+        assert data["prompt"] == "写一首赋格"
+        assert data["plan"] == "钢琴:平静到激昂"
+
+    def test_work_context_legacy_blank(self, app: Flask, client: FlaskClient) -> None:
+        """A legacy work without a prompt or plan returns empty strings.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
+        work = get_service(app).create_work("Legacy", "plain", "C")
+        data = client.get(f"/api/works/{work.id}/context").get_json()
+        assert data["prompt"] == ""
+        assert data["plan"] == ""
+
+    def test_work_context_unknown(self, client: FlaskClient) -> None:
+        """The context endpoint is a 404 for an unknown work.
+
+        Args:
+            client: The Flask test client.
+        """
+        assert client.get("/api/works/nope/context").status_code == _HTTP_NOT_FOUND
+
     def test_score_merged_movements(self, app: Flask, client: FlaskClient) -> None:
         """A work with composed movements serves its live merged score.
 
@@ -1210,6 +1245,23 @@ class TestJobs:
         assert '"ok": true' in events
         assert '"plan_tree"' in events
         assert "写一乐章" in events
+
+    def test_generate_stores_prompt(
+        self, app: Flask, client: FlaskClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Generation records the user prompt on the work.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
+        monkeypatch.setattr("app.routes.create_chat_model", FakeChatModel)
+        data = client.post(
+            "/api/generate", json={"prompt": "写一首赋格", "genre": "plain"}
+        ).get_json()
+        client.get(f"/api/jobs/{data['job_id']}/events").get_data(as_text=True)
+        assert get_service(app).get_work(data["work_id"]).prompt == "写一首赋格"
 
     def test_run_unknown_work(self, client: FlaskClient) -> None:
         """Continuing a missing work is a 404.

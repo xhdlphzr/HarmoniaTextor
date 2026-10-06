@@ -69,6 +69,8 @@
 "result.feedback_submit": "Submit and continue"
 "history.title": "History"
 "history.empty": "No works yet."
+"history.prompt": "Composition prompt"
+"history.unsaved": "Not saved"
 "generation.interrupted": "Interrupted"
 "generation.failed": "Failed"
 "generation.running": "Running"

@@ -751,6 +751,49 @@ SPDX-License-Identifier: MIT
       }
     }
 
+    function renderPromptContext(prompt) {
+      const node = byId("context-prompt");
+      if (!node) {
+        return;
+      }
+      const text = (prompt || "").trim();
+      node.textContent = text || t("history.unsaved");
+      node.classList.toggle("is-empty", !text);
+    }
+
+    function renderPlanEmpty() {
+      const box = byId("plan-inline");
+      if (!box) {
+        return;
+      }
+      revealPanel("plan-panel");
+      box.classList.remove("hidden");
+      box.innerHTML = "";
+      const body = document.createElement("div");
+      body.className = "plan-detail is-empty";
+      body.textContent = t("history.unsaved");
+      box.appendChild(body);
+    }
+
+    function renderWorkContext(workId, withPlan) {
+      fetch(`/api/works/${workId}/context`)
+        .then((response) => response.json())
+        .then((data) => {
+          renderPromptContext(data.prompt);
+          if (withPlan === false) {
+            return;
+          }
+          if (data.plan) {
+            renderPlan(data.plan, []);
+          } else {
+            renderPlanEmpty();
+          }
+        })
+        .catch(() => {
+          renderPromptContext("");
+        });
+    }
+
     function renderCheckerPending() {
       const box = byId("checker-inline");
       if (!box) {
@@ -958,6 +1001,7 @@ SPDX-License-Identifier: MIT
           result.violations
         );
         loadScore(result.work_id, result.movement_id);
+        renderWorkContext(result.work_id, false);
       });
       source.onerror = () => {
         if (source) {
@@ -1169,6 +1213,7 @@ SPDX-License-Identifier: MIT
           []
         );
         loadScore(workId, movementId);
+        renderWorkContext(workId);
         const panel = byId("result-panel");
         if (panel) {
           window.scrollTo({ top: panel.offsetTop, behavior: "smooth" });
