@@ -944,6 +944,46 @@ class CompositionService:
             report=report,
         )
 
+    def set_time_signature(
+        self, work_id: str, movement_id: str, time_signature: str, *, check: bool = True
+    ) -> ToolResult:
+        """Change the time signature of a movement.
+
+        Args:
+            work_id: Active work.
+            movement_id: Active movement.
+            time_signature: New time signature such as ``"3/4"``.
+            check: Whether to run the symbolic checker immediately.
+
+        Returns:
+            A tool result carrying the full score.
+        """
+        work = self.store.load_work(work_id)
+        movement = self._owning_movement(work, movement_id)
+        movement.time_signature = time_signature
+        score = self.current_score(work_id, movement_id)
+        editor = self._editor(score, movement)
+        editor.set_time_signature(time_signature)
+        report = self._check(work, movement, score) if check else None
+        revision = self._save_revision(
+            work,
+            movement,
+            movement_id,
+            score,
+            RevisionOrigin(ToolKind.METER, params={"time_signature": time_signature}),
+            report,
+        )
+        if report is not None and not report.ok:
+            return ToolResult(False, message=format_feedback(report), report=report)
+        return ToolResult(
+            True,
+            full_musicxml=revision.full_xml,
+            message=format_feedback(report)
+            if report is not None
+            else f"拍号已改为 {time_signature}。",
+            report=report,
+        )
+
     def annotate(
         self,
         work_id: str,

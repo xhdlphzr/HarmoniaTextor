@@ -72,6 +72,26 @@ class TestScoreEditor:
         assert marks
         assert int(marks[0].number) == _TEMPO
 
+    def test_set_time_signature_replaces_meter(self, score4: stream.Score) -> None:
+        """Every time signature is replaced with the new meter.
+
+        Args:
+            score4: An empty four-voice score.
+        """
+        ScoreEditor(score4).set_time_signature("3/4")
+        signatures = list(score4.recurse().getElementsByClass("TimeSignature"))
+        assert signatures
+        assert all(item.ratioString == "3/4" for item in signatures)
+
+    def test_set_time_signature_partless(self) -> None:
+        """A part without a time signature gets one."""
+        score = stream.Score()
+        score.insert(0.0, new_part("flute"))
+        ScoreEditor(score).set_time_signature("6/8")
+        signatures = list(score.recurse().getElementsByClass("TimeSignature"))
+        assert signatures
+        assert signatures[0].ratioString == "6/8"
+
     def test_write_across_measures(self, score4: stream.Score) -> None:
         """Writing a long line creates measures as needed.
 

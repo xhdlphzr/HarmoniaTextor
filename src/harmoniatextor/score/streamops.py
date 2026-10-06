@@ -214,6 +214,26 @@ class ScoreEditor:
         if not marks and self.score.parts:
             self._ensure_attributes(self.score.parts[0])
 
+    def set_time_signature(self, signature: str) -> None:
+        """Retune every time signature in the score.
+
+        Each existing time signature is replaced with a fresh one so the new
+        meter is what actually reaches the exported MusicXML.
+
+        Args:
+            signature: New time signature such as ``"3/4"``.
+        """
+        self._time_signature = signature
+        marks = list(self.score.recurse().getElementsByClass(meter.TimeSignature))
+        for element in marks:
+            container = element.activeSite
+            assert container is not None
+            offset = element.offset
+            container.remove(element)
+            container.insert(offset, meter.TimeSignature(signature))
+        if not marks and self.score.parts:
+            self._ensure_attributes(self.score.parts[0])
+
     def remove_part(self, voice: str) -> bool:
         """Remove a voice from the score.
 

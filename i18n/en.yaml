@@ -130,6 +130,7 @@
 "tool.import": "Initial"
 "tool.part": "Part"
 "tool.tempo": "Tempo"
+"tool.meter": "Meter"
 "tool.mark": "Mark"
 "tool.merge": "Merge"
 "tool.add_part": "Add part"

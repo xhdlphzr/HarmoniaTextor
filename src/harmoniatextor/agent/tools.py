@@ -18,6 +18,7 @@ from harmoniatextor.domain.params import (
     InsertMeasureParams,
     RemovePartParams,
     SetTempoParams,
+    SetTimeSignatureParams,
     SubmitThemeParams,
 )
 from harmoniatextor.service.service import CompositionService, ToolResult
@@ -148,6 +149,21 @@ def build_tools(
         """
         return result_payload(service.set_tempo(work_id, movement_id, bpm, check=False))
 
+    def set_time_signature(time_signature: str) -> str:
+        """Change the time signature of the whole movement.
+
+        Args:
+            time_signature: New time signature such as ``"3/4"``.
+
+        Returns:
+            The resulting text.
+        """
+        return result_payload(
+            service.set_time_signature(
+                work_id, movement_id, time_signature, check=False
+            )
+        )
+
     def annotate(measure: int, voice: str, mark: str, value: str = "") -> str:
         """Add an expressive mark to one measure of one voice.
 
@@ -269,6 +285,16 @@ def build_tools(
                 "Use this to adjust the speed of the whole movement."
             ),
             args_schema=SetTempoParams,
+        ),
+        StructuredTool.from_function(
+            func=set_time_signature,
+            name="set_time_signature",
+            description=(
+                "Change the time signature (meter) of the whole movement, e.g. "
+                "'3/4', '4/4' or '6/8'. Use this when the movement's meter should "
+                "differ from the planned default."
+            ),
+            args_schema=SetTimeSignatureParams,
         ),
         StructuredTool.from_function(
             func=annotate,

@@ -41,7 +41,7 @@ from harmoniatextor.score.streamops import ScoreEditor
 from harmoniatextor.service.service import CompositionService, ToolResult
 from harmoniatextor.techniques import build_default_registry
 
-_EXPECTED_TOOL_COUNT = 45
+_EXPECTED_TOOL_COUNT = 46
 _AUTO_CONTINUE_CALLS = 2
 _EXPECTED_MESSAGES = 2
 _COMPRESSED_MESSAGES = 1
@@ -287,6 +287,7 @@ class TestTools:
         assert "add_part" in names
         assert "remove_part" in names
         assert "set_tempo" in names
+        assert "set_time_signature" in names
         assert "annotate" in names
         assert "edit" in names
         assert "insert" in names
@@ -316,6 +317,7 @@ class TestTools:
             "add_part",
             "remove_part",
             "set_tempo",
+            "set_time_signature",
             "annotate",
             "edit",
             "insert",
@@ -346,6 +348,8 @@ class TestTools:
         assert "ok" in removed
         tempo = tools["set_tempo"].invoke({"bpm": 100})
         assert "ok" in tempo
+        meter = tools["set_time_signature"].invoke({"time_signature": "3/4"})
+        assert "ok" in meter
         edited = tools["edit"].invoke(
             {"measure": 1, "voice": "soprano", "musicxml": theme_xml()}
         )

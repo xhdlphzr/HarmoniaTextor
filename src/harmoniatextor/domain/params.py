@@ -56,6 +56,7 @@ __all__ = [
     "SequenceParams",
     "SetMovementPromptParams",
     "SetTempoParams",
+    "SetTimeSignatureParams",
     "SetTitleParams",
     "StrettoParams",
     "SubmitThemeParams",
@@ -748,6 +749,41 @@ class SetTempoParams(_Params):
     bpm: int = Field(
         ge=20, le=300, description="New tempo in quarter notes per minute (20-300)."
     )
+
+
+class SetTimeSignatureParams(_Params):
+    """Parameters for the set-time-signature tool.
+
+    Attributes:
+        time_signature: New time signature such as ``"3/4"`` or ``"6/8"``.
+    """
+
+    time_signature: str = Field(
+        min_length=3,
+        description="New time signature for the whole movement, e.g. '3/4', '6/8'.",
+    )
+
+    @field_validator("time_signature")
+    @classmethod
+    def _validate_meter(cls, value: str) -> str:
+        """Validate the ``numerator/denominator`` shape.
+
+        Args:
+            value: Raw time-signature string.
+
+        Returns:
+            The stripped time signature.
+
+        Raises:
+            ValueError: When the value is not of the form ``"n/d"``.
+        """
+        text = value.strip()
+        numerator, _, denominator = text.partition("/")
+        if not numerator.isdigit() or not denominator.isdigit():
+            raise ValueError("time signature must look like '3/4'")
+        if int(numerator) < 1 or int(denominator) < 1:
+            raise ValueError("time signature parts must be positive")
+        return text
 
 
 class AnnotateParams(_Params):

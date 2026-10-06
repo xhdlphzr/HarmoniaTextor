@@ -12,6 +12,7 @@ from harmoniatextor.domain.params import (
     FreeVoiceLeadingParams,
     MeasurePosition,
     MeasureRange,
+    SetTimeSignatureParams,
     VoiceExchangeParams,
     parse_measure_position,
 )
@@ -75,3 +76,14 @@ class TestParams:
                 measure_range=MeasureRange(start=1, end=1),
                 reason="no",
             )
+
+    def test_set_time_signature_valid(self) -> None:
+        """A well-formed time signature is accepted and stripped."""
+        assert SetTimeSignatureParams(time_signature=" 3/4 ").time_signature == "3/4"
+
+    def test_set_time_signature_invalid(self) -> None:
+        """Malformed or non-positive time signatures are rejected."""
+        with pytest.raises(ValidationError):
+            SetTimeSignatureParams(time_signature="bad")
+        with pytest.raises(ValidationError):
+            SetTimeSignatureParams(time_signature="0/4")

@@ -130,6 +130,7 @@
 "tool.import": "初始谱"
 "tool.part": "声部"
 "tool.tempo": "速度"
+"tool.meter": "拍号"
 "tool.mark": "记号"
 "tool.merge": "合并"
 "tool.add_part": "新增声部"
