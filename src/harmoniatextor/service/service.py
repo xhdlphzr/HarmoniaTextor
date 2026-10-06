@@ -279,6 +279,7 @@ class CompositionService:
         tonic: str = "C",
         *,
         style: str | None = None,
+        prompt: str = "",
         with_movements: bool = True,
     ) -> Work:
         """Create a new work with a movement skeleton.
@@ -289,6 +290,8 @@ class CompositionService:
             tonic: Initial tonic key; the composer agent replaces it when it
                 submits the first theme with a chosen key.
             style: Style kit identifier; defaults to the built-in default kit.
+            prompt: The user's original composition prompt, kept for the
+                history view.
             with_movements: Whether to pre-populate the genre's movement
                 skeleton.  The architect adds movements itself.
 
@@ -315,6 +318,7 @@ class CompositionService:
                 rules=kit.rules,
                 techniques=kit.techniques,
             ),
+            prompt=prompt,
             created_at=timestamp,
             updated_at=timestamp,
         )

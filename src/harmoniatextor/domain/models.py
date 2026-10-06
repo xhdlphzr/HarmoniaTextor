@@ -284,6 +284,8 @@ class Work:
         movements: Ordered movements.
         status: Lifecycle status.
         style: Frozen style-kit snapshot chosen at creation.
+        prompt: The user's original composition prompt, or an empty string for
+            works created before this was recorded.
         created_at: ISO timestamp.
         updated_at: ISO timestamp.
     """
@@ -295,5 +297,6 @@ class Work:
     movements: list[Movement] = field(default_factory=list)
     status: WorkStatus = WorkStatus.DRAFT
     style: StyleSelection | None = None
+    prompt: str = ""
     created_at: str = ""
     updated_at: str = ""

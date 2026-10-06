@@ -76,6 +76,16 @@ class TestCreation:
         assert service.get_work(work.id).title == "Demo"
         assert service.current_score(work.id, work.movements[0].id) is not None
 
+    def test_create_work_keeps_prompt(self, service: CompositionService) -> None:
+        """The user prompt is stored with the work.
+
+        Args:
+            service: The composition service.
+        """
+        work = service.create_work("Demo", "plain", "C", prompt="写一首赋格")
+        assert service.get_work(work.id).prompt == "写一首赋格"
+        assert service.create_work("Demo", "plain", "C").prompt == ""
+
     def test_get_movement_missing(self, service: CompositionService) -> None:
         """Unknown movements raise KeyError.
 

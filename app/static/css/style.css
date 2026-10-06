@@ -529,6 +529,31 @@ textarea.autogrow::-webkit-scrollbar-thumb {
   white-space: pre-wrap;
 }
 
+.history-context {
+  margin: 0.8rem 0 0.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  animation: fadeUp 320ms var(--ease) both;
+}
+
+.history-context-label {
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  color: var(--gold);
+}
+
+.history-context-text {
+  margin: 0;
+  max-height: 12rem;
+}
+
+.plan-detail.is-empty,
+.history-context-text.is-empty {
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
 /* ------------------------------------------------------------------ toast */
 
 .toast-container {

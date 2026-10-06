@@ -93,6 +93,10 @@ SPDX-License-Identifier: MIT
     <h2 id="result-title">{{ t('result.work') }}</h2>
     <span class="chip state" id="result-status"></span>
   </div>
+  <div class="history-context">
+    <span class="history-context-label">{{ t('history.prompt') }}</span>
+    <pre class="output history-context-text" id="context-prompt"></pre>
+  </div>
   <div class="actions">
     <button type="button" class="btn" id="score-btn">{{ t('result.show_score') }}</button>
     <button type="button" class="btn" id="export-png">{{ t('export.png') }}</button>
