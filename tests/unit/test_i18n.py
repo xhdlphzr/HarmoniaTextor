@@ -103,3 +103,18 @@ class TestTranslate:
     def test_placeholders(self) -> None:
         """Placeholders are substituted."""
         assert translate("theme.measure", "en", measure=3) == "bar 3"
+
+    def test_rule_labels(self) -> None:
+        """Rule names are localised."""
+        assert translate("rule.pf5th", "en") == "Parallel fifths"
+        assert translate("rule.pf5th", "zh") == "平行五度"
+
+    def test_technique_labels(self) -> None:
+        """Technique names are localised."""
+        assert translate("technique.imitation", "en") == "Imitation"
+        assert translate("technique.imitation", "zh") == "模仿"
+
+    def test_violation_labels(self) -> None:
+        """Violation phrases are localised."""
+        assert translate("violation.parallel_fifth", "en") == "parallel perfect fifth"
+        assert translate("violation.parallel_fifth", "zh") == "平行纯五度"

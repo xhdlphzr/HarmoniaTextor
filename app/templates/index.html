@@ -46,12 +46,12 @@ SPDX-License-Identifier: MIT
     </div>
     <div class="style-pane" id="style-rules-pane">
       {% for rule in rule_options %}
-      <label class="style-option"><input type="checkbox" class="style-rule" value="{{ rule.id }}" checked /> {{ rule.name }}</label>
+      <label class="style-option"><input type="checkbox" class="style-rule" value="{{ rule.id }}" checked /> {{ t('rule.' + rule.id) }}</label>
       {% endfor %}
     </div>
     <div class="style-pane hidden" id="style-techniques-pane">
       {% for technique in technique_options %}
-      <label class="style-option"><input type="checkbox" class="style-technique" value="{{ technique.id }}" checked /> {{ technique.name }}</label>
+      <label class="style-option"><input type="checkbox" class="style-technique" value="{{ technique.id }}" checked /> {{ t('technique.' + technique.id) }}</label>
       {% endfor %}
     </div>
     <div class="style-custom-row">

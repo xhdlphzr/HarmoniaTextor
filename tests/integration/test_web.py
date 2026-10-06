@@ -198,6 +198,27 @@ class TestPages:
         assert 'lang="zh-CN"' in page
         assert "创作规划" in page
 
+    def test_style_panel_localised_english(self, client: FlaskClient) -> None:
+        """Rule and technique names are English by default.
+
+        Args:
+            client: The Flask test client.
+        """
+        page = client.get("/").get_data(as_text=True)
+        assert "Parallel fifths" in page
+        assert "Imitation" in page
+
+    def test_style_panel_localised_chinese(self, client: FlaskClient) -> None:
+        """Rule and technique names are Chinese when configured.
+
+        Args:
+            client: The Flask test client.
+        """
+        save_config({"language": "zh"})
+        page = client.get("/").get_data(as_text=True)
+        assert "平行五度" in page
+        assert "模仿" in page
+
     def test_index_no_store(self, client: FlaskClient) -> None:
         """Pages are not cached by the desktop webview.
 

@@ -7,8 +7,13 @@ from __future__ import annotations
 
 from harmoniatextor.checker.rules import BUILTIN_RULES, RULE_CONSTRAINTS
 from harmoniatextor.genres.base import Genre
+from harmoniatextor.i18n import translate
 from harmoniatextor.styles.base import StyleKit
 from harmoniatextor.techniques.registry import TechniqueRegistry
+
+#: The composer and reviewer prompts are written in Chinese, so their rule and
+#: technique names are resolved in Chinese regardless of the interface language.
+_PROMPT_LANGUAGE = "zh"
 
 __all__ = [
     "ARCHITECT_INSTRUCTION",
@@ -201,11 +206,15 @@ def system_prompt(
         The system prompt text.
     """
     technique_lines = [
-        f"- technique_{technique.id}({technique.name}):{technique.summary}"
+        f"- technique_{technique.id}"
+        f"({translate('technique.' + technique.id, _PROMPT_LANGUAGE)}):"
+        f"{technique.summary}"
         for technique in techniques.all()
     ]
     rule_lines = [
-        f"- {rule.rule_id}({rule.name}):{RULE_CONSTRAINTS.get(rule.rule_id, '')}"
+        f"- {rule.rule_id}"
+        f"({translate('rule.' + rule.rule_id, _PROMPT_LANGUAGE)}):"
+        f"{RULE_CONSTRAINTS.get(rule.rule_id, '')}"
         for rule in BUILTIN_RULES
         if rule.rule_id in rules
     ]

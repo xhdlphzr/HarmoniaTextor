@@ -229,6 +229,6 @@ class TestReviewer:
     def test_system_excludes_symbolic_rules(self) -> None:
         """The reviewer is told not to re-check symbolic-layer rules."""
         text = _system_text("巴洛克", _RULES)
-        assert "Parallel fifths" in text
+        assert "平行五度" in text
         assert "以这些规则为由打回" in text
         assert "符号层" in text

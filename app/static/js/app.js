@@ -16,6 +16,19 @@ SPDX-License-Identifier: MIT
     return out;
   }
 
+  function violationText(item) {
+    const key = "violation." + item.kind;
+    const template = window.I18N && window.I18N[key];
+    if (!template) {
+      return item.message || "";
+    }
+    return t(key, {
+      measure: item.measure,
+      voice_a: item.voice_a || "",
+      voice_b: item.voice_b || "",
+    });
+  }
+
   function byId(id) {
     return document.getElementById(id);
   }
@@ -561,7 +574,7 @@ SPDX-License-Identifier: MIT
                 tool: toolLabel(event.tool),
                 measure: item.measure,
                 who,
-                message: item.message,
+                message: violationText(item),
               }),
               "bad"
             );
@@ -651,7 +664,7 @@ SPDX-License-Identifier: MIT
               t("progress.violation", {
                 measure: item.measure,
                 who,
-                message: item.message,
+                message: violationText(item),
               }),
               "bad"
             );
@@ -810,7 +823,7 @@ SPDX-License-Identifier: MIT
         li.textContent = t("progress.violation", {
           measure: item.measure,
           who,
-          message: item.message,
+          message: violationText(item),
         });
         list.appendChild(li);
       });
@@ -1231,7 +1244,7 @@ SPDX-License-Identifier: MIT
         li.textContent = t("progress.violation", {
           measure: item.measure,
           who,
-          message: item.message,
+          message: violationText(item),
         });
         list.appendChild(li);
       });
