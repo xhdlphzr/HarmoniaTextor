@@ -238,7 +238,9 @@ def _register_pages(app: Flask) -> None:
             status_labels=WORK_STATUS_LABELS,
             voice_labels=VOICE_LABELS,
             tool_labels=TOOL_KIND_LABELS,
-            technique_labels={item.id: item.name for item in service.techniques.all()},
+            technique_labels={
+                item.id: f"technique.{item.id}" for item in service.techniques.all()
+            },
         )
 
 

@@ -121,7 +121,7 @@ SPDX-License-Identifier: MIT
             r{{ revision.seq }} ·
             {{ t(tool_labels.get(revision.source, revision.source)) }}
             {%- if revision.technique %}
-            · {{ technique_labels.get(revision.technique, revision.technique) }}
+            · {{ t(technique_labels.get(revision.technique, revision.technique)) }}
             {%- endif %}
           </span>
           <button class="btn tiny rollback" data-seq="{{ revision.seq }}">{{ t('tool.rollback') }}</button>

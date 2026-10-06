@@ -29,6 +29,7 @@ from harmoniatextor.agent.compression import (
     ensure_tool_responses,
 )
 from harmoniatextor.checker.rules import BUILTIN_RULES
+from harmoniatextor.i18n import translate
 
 __all__ = ["ReviewResult", "ReviewerAI"]
 
@@ -67,7 +68,11 @@ def _system_text(style_name: str, rules: frozenset[str]) -> str:
     Returns:
         The system prompt text.
     """
-    names = "、".join(rule.name for rule in BUILTIN_RULES if rule.rule_id in rules)
+    names = "、".join(
+        translate("rule." + rule.rule_id, "zh")
+        for rule in BUILTIN_RULES
+        if rule.rule_id in rules
+    )
     return _SYSTEM_TEMPLATE.format(style=style_name, rules=names)
 
 
