@@ -24,14 +24,27 @@ class TestPrompts:
             PlainGenre(), style, build_default_registry(), style.rules
         )
         assert "technique_imitation" in prompt
-        assert "当前风格:巴洛克" in prompt
+        assert "Current style: Baroque" in prompt
         assert "pf5th" in prompt
-        assert "层次感" in prompt
-        assert "没有任何声部" in prompt
+        assert "layered" in prompt
+        assert "no voices at all" in prompt
         assert "add_part" in prompt
-        assert "所有 musicxml 参数都是片段" in prompt
-        assert "第一个 part" in prompt
-        assert "修正:" in prompt
+        assert "every musicxml parameter is a fragment" in prompt
+        assert "first part" in prompt
+        assert "Fix:" in prompt
+
+    def test_system_prompt_teaches_annotate(self) -> None:
+        """The system prompt explains how to write performable marks."""
+        style = BUILTIN_KITS["baroque"]
+        prompt = system_prompt(
+            PlainGenre(), style, build_default_registry(), style.rules
+        )
+        assert "How to write expression and marks" in prompt
+        assert "annotate" in prompt
+        assert "dolce" in prompt
+        assert "at least 2 notes" in prompt
+        assert "staccato" in prompt
+        assert "pedal" in prompt
 
     def test_system_prompt_is_style_scoped(self) -> None:
         """Only the style's rules and techniques appear."""
@@ -39,12 +52,12 @@ class TestPrompts:
         prompt = system_prompt(
             PlainGenre(), style, build_default_registry(), style.rules
         )
-        assert "当前风格:印象派" in prompt
+        assert "Current style: Impressionist" in prompt
         assert "pf5th" not in prompt
         assert "voices" in prompt
 
     def test_architect_prompts(self) -> None:
         """The architect prompts carry the style."""
         style = BUILTIN_KITS["classical"]
-        assert "古典主义" in architect_system(style)
-        assert "古典主义" in architect_instruction(style)
+        assert "Current style: Classical" in architect_system(style)
+        assert "Current style: Classical" in architect_instruction(style)

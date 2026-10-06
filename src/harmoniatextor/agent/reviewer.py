@@ -36,25 +36,36 @@ __all__ = ["ReviewResult", "ReviewerAI"]
 _REVIEW_TURNS = 3
 
 _SYSTEM_TEMPLATE = (
-    "你是一位严格、独立的{style}音乐评审专家。你只负责评审,不修改乐谱。\n"
-    "重要:{rules} 等机械乐理规则已由程序化符号层严格校验并保证通过,"
-    "你**不要**再重复检查,也**不要**以这些规则为由打回;你只做艺术、风格与表达层面的判断。\n"
-    "请从以下维度审阅作品:\n"
-    "1. 创作要求:对照【本乐章创作要求(Step 1 创作规划,含用户目标)】逐条核对是否满足;"
-    "不满足必须打回,并指出缺了哪一条、应当怎样补。\n"
-    "2. {style}风格:是否符合该风格的主题发展、织体、和声与语气特征,"
-    "而非机械拼凑或混入不相称的风格。\n"
-    "3. 结构完整:主题是否得到充分发展,整体是否成形而非片段堆砌。\n"
-    "4. 意境与情感:作品是否表达出统一、真挚的意境与情感,而非机械拼凑。\n"
-    "5. 节奏与旋律:左右手(或各声部)的节奏不要过于一致;整体节奏不要过于整齐,"
-    "但变化也不能突兀;旋律进行要自然流畅、不割裂。\n"
-    "6. 可演奏性:节奏与写法是否符合所选乐器的实际演奏。\n"
-    "作品可以是单乐章或多乐章:若多乐章更合适应指出,但不要强求;"
-    "若作品为多乐章,务必检查是否有清晰的乐章划分(各乐章的起止、速度与角色),"
-    "缺少乐章划分必须打回并说明应如何划分。\n"
-    "完成评审后必须调用 submit_review 工具给出结论:passed 为是否通过;"
-    "suggestions 在打回时必须逐条写明小节号、涉及声部(谁和谁)以及具体修改办法,"
-    "不要只给笼统结论。"
+    "You are a strict, independent reviewer of {style} music. You only review; "
+    "you never edit the score.\n"
+    "Important: mechanical theory rules such as {rules} have already been "
+    "strictly checked and guaranteed by the programmatic symbolic layer - do "
+    "**not** re-check them and do **not** reject on their account; judge only "
+    "artistic, stylistic and expressive matters.\n"
+    "Review the work along these dimensions:\n"
+    "1. Requirements: check the [Movement requirement (Step 1 composition plan, "
+    "incl. the user goal)] item by item; if any is unmet you must reject, saying "
+    "which one is missing and how to add it.\n"
+    "2. {style} style: whether it matches the style's thematic development, "
+    "texture, harmony and tone, rather than mechanical patchwork or an "
+    "incongruous style.\n"
+    "3. Structural completeness: whether the themes are fully developed and the "
+    "whole is shaped rather than patchwork.\n"
+    "4. Mood and emotion: whether the work expresses a unified, sincere mood and "
+    "emotion rather than mechanical patchwork.\n"
+    "5. Rhythm and melody: the hands'/voices' rhythms should not be too "
+    "identical and the overall rhythm should not be too even, yet changes must "
+    "not be abrupt; the melodic writing should flow naturally and not be "
+    "disjointed.\n"
+    "6. Playability: whether the rhythm and writing suit the actual instruments.\n"
+    "The work may be single- or multi-movement: say so if multi-movement fits "
+    "better, but do not force it; if it is multi-movement, make sure there are "
+    "clear movement divisions (each movement's start/end, tempo and role); if "
+    "they are missing you must reject and explain how to divide them.\n"
+    "After reviewing you must call the submit_review tool: passed says whether "
+    "it passes; when rejecting, suggestions must give, item by item, the measure "
+    "number, the voices involved (who and who) and the concrete fix - do not "
+    "give vague conclusions."
 )
 
 
@@ -68,8 +79,8 @@ def _system_text(style_name: str, rules: frozenset[str]) -> str:
     Returns:
         The system prompt text.
     """
-    names = "、".join(
-        translate("rule." + rule.rule_id, "zh")
+    names = ", ".join(
+        translate("rule." + rule.rule_id, "en")
         for rule in BUILTIN_RULES
         if rule.rule_id in rules
     )
@@ -103,13 +114,16 @@ def _submit_review(passed: bool, suggestions: str = "") -> str:
     Returns:
         A confirmation string.
     """
-    return "已收到评审结论。"
+    return "Review received."
 
 
 _REVIEW_TOOL = StructuredTool.from_function(
     func=_submit_review,
     name="submit_review",
-    description="提交评审结论:passed 表示是否通过,suggestions 给出问题与修改建议。",
+    description=(
+        "Submit the review verdict: passed says whether it passes, suggestions "
+        "give the problems and fixes."
+    ),
     args_schema=_ReviewParams,
 )
 
@@ -176,13 +190,15 @@ class ReviewerAI:
         """
         messages: list[BaseMessage] = [
             SystemMessage(
-                content=f"{_system_text(style_name, rules)}\n当前体裁:{genre_name}。"
+                content=f"{_system_text(style_name, rules)}\nCurrent genre: {genre_name}."
             ),
             HumanMessage(
                 content=(
-                    f"【本乐章创作要求(Step 1 创作规划,含用户目标)】\n{goal}\n\n"
-                    f"【符号层结果(已由程序校验,无需你复查)】\n{check_summary}\n\n"
-                    f"完整乐谱 MusicXML:\n{score_xml}"
+                    f"[Movement requirement (Step 1 composition plan, incl. the "
+                    f"user goal)]\n{goal}\n\n"
+                    f"[Symbolic-layer result (already checked programmatically; "
+                    f"you need not re-check)]\n{check_summary}\n\n"
+                    f"Full score MusicXML:\n{score_xml}"
                 )
             ),
         ]
@@ -192,7 +208,7 @@ class ReviewerAI:
                 self.chat_model,
                 messages,
                 context_window=self.context_window,
-                artifact_label="当前完整 MusicXML",
+                artifact_label="Current full MusicXML",
                 artifact_provider=lambda: score_xml,
             )
             ensure_tool_responses(messages)
@@ -206,7 +222,7 @@ class ReviewerAI:
             if calls or invalid:
                 messages.extend(
                     ToolMessage(
-                        content="请调用 submit_review 工具给出评审结论。",
+                        content="Call the submit_review tool with your verdict.",
                         tool_call_id=str(call.get("id", "")),
                     )
                     for call in calls
@@ -214,8 +230,8 @@ class ReviewerAI:
                 messages.extend(
                     ToolMessage(
                         content=(
-                            "submit_review 的参数解析失败,请重新调用并给出合法 JSON:"
-                            f"{call.get('error', '')}"
+                            "Could not parse the submit_review arguments; call it "
+                            f"again with valid JSON: {call.get('error', '')}"
                         ),
                         tool_call_id=str(call.get("id", "")),
                     )
@@ -224,10 +240,10 @@ class ReviewerAI:
             else:
                 messages.append(
                     HumanMessage(
-                        content="请调用 submit_review 工具给出评审结论(passed 与 suggestions)。"
+                        content="Call the submit_review tool (passed and suggestions)."
                     )
                 )
-        return ReviewResult(False, "检查AI未能给出评审结论。")
+        return ReviewResult(False, "The reviewer could not reach a verdict.")
 
 
 def _extract(response: BaseMessage) -> ReviewResult | None:

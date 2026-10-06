@@ -21,6 +21,7 @@ from harmoniatextor.domain.params import (
     SetTimeSignatureParams,
     SubmitThemeParams,
 )
+from harmoniatextor.i18n import translate
 from harmoniatextor.service.service import CompositionService, ToolResult
 from harmoniatextor.techniques.registry import TechniqueRegistry
 
@@ -83,7 +84,10 @@ def build_tools(
             The resulting text.
         """
         xml = service.current_musicxml(work_id, movement_id)
-        return xml or "空谱:本乐章还没有任何声部。请先用 add_part 建立声部。"
+        return xml or (
+            "Empty score: this movement has no voices yet. Create voices first "
+            "with add_part."
+        )
 
     def submit_theme(
         musicxml: str, instrument: str, key: str = "", voice: str = ""
@@ -300,10 +304,18 @@ def build_tools(
             func=annotate,
             name="annotate",
             description=(
-                "Add an expressive mark to one measure of one voice. mark is one of: "
-                "dynamic (value like 'pp','mf','f','ff'), text (value like 'dolce'), "
-                "crescendo, diminuendo, accent, tenuto, staccato, slur, pedal, or "
-                "tempo (value = BPM, for a tempo change inside the movement)."
+                "Add an expressive mark to one measure (one-based) of one voice; the "
+                "voice must already have notes in that measure or the mark does nothing. "
+                "mark/value: 'dynamic' (value a standard name pp/ppp/p/mp/mf/f/ff/fff), "
+                "'text' (value a performable emotion word: dolce/espressivo/cantabile/"
+                "legato/mesto/tranquillo/calmo/lontano/sotto voce, or marcato/deciso/"
+                "risoluto/energico/agitato/brillante), 'crescendo' or 'diminuendo' "
+                "(needs at least 2 notes in the measure), 'accent'/'tenuto'/'staccato' "
+                "(applied to every note of that voice in the measure; a slur in the same "
+                "measure overrides staccato), 'slur' (needs at least 2 notes; plays "
+                "legato), 'pedal' (sustains that voice's notes to the pedal release), or "
+                "'tempo' (value = integer BPM). Every one of these is performed on "
+                "M4A/MP3/MIDI export, so write them exactly this way."
             ),
             args_schema=AnnotateParams,
         ),
@@ -360,7 +372,10 @@ def build_tools(
             StructuredTool.from_function(
                 func=make_func(technique.id),
                 name=f"technique_{technique.id}",
-                description=f"{technique.name}: {technique.summary}",
+                description=(
+                    f"{translate('technique.' + technique.id, 'en')}: "
+                    f"{technique.summary}"
+                ),
                 args_schema=technique.params_model,
             )
         )

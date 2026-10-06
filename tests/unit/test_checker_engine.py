@@ -78,12 +78,12 @@ class TestEngine:
 
     def test_feedback_passed(self) -> None:
         """Passing feedback is concise."""
-        assert "检查通过" in format_feedback(CheckReport())
+        assert "check passed" in format_feedback(CheckReport())
 
     def test_feedback_warnings(self) -> None:
         """Warnings are reported separately."""
         warning = CheckViolation("r", Severity.WARNING, 1, None, None, "k", "m", "s")
-        assert "警告" in format_feedback(CheckReport(violations=[warning]))
+        assert "warning" in format_feedback(CheckReport(violations=[warning]))
 
     def test_feedback_errors(self) -> None:
         """Errors are rendered with guidance."""
@@ -98,9 +98,9 @@ class TestEngine:
             "x",
         )
         text = format_feedback(CheckReport(violations=[error]))
-        assert "检查不通过" in text
+        assert "check failed" in text
         assert "pf5th" in text
-        assert "修改建议" in text
+        assert "Fix:" in text
         assert "edit(measure, voice, musicxml)" in text
 
     def test_profile_default(self) -> None:

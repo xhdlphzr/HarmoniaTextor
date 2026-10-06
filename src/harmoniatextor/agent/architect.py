@@ -26,8 +26,14 @@ __all__ = ["Architect", "PlanResult", "plan_tree", "render_plan"]
 
 ProgressCallback = Callable[[dict[str, Any]], None]
 
-_MISSING_MESSAGE = "以下乐章还没有创作要求,请用 set_movement_prompt(movement, prompt) 逐条补全:\n{listing}"
-_NO_MOVEMENTS_MESSAGE = "还没有任何乐章,请先用 add_movement 规划乐章并为其写 prompt。"
+_MISSING_MESSAGE = (
+    "These movements still have no requirement; fill each one in with "
+    "set_movement_prompt(movement, prompt):\n{listing}"
+)
+_NO_MOVEMENTS_MESSAGE = (
+    "There are no movements yet; first plan movements with add_movement and write "
+    "a prompt for each."
+)
 
 
 @dataclass(slots=True)
@@ -81,8 +87,8 @@ def render_plan(service: CompositionService, work_id: str) -> str:
     work = service.get_work(work_id)
     lines: list[str] = []
     for index, movement in enumerate(work.movements, start=1):
-        lines.append(f"乐章 {index}:{movement.name}")
-        lines.append(f"  创作要求:{movement.prompt}")
+        lines.append(f"Movement {index}: {movement.name}")
+        lines.append(f"  Requirement: {movement.prompt}")
     return "\n".join(lines)
 
 
@@ -101,7 +107,7 @@ def _missing_listing(service: CompositionService, work_id: str) -> list[str]:
         movement.id: index for index, movement in enumerate(work.movements, start=1)
     }
     return [
-        f"- 乐章 {numbers.get(movement.id, '?')}({movement.name})"
+        f"- Movement {numbers.get(movement.id, '?')} ({movement.name})"
         for movement in service.missing_movement_prompts(work_id)
     ]
 

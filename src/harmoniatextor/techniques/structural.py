@@ -135,7 +135,8 @@ def _require_voices(editor: ScoreEditor) -> list[str]:
     voices = editor.voice_names()
     if not voices:
         raise TechniqueError(
-            "NO_VOICE", "本乐章还没有任何声部,请先用 add_part 创建声部。"
+            "NO_VOICE",
+            "This movement has no voices yet; create them first with add_part.",
         )
     return voices
 

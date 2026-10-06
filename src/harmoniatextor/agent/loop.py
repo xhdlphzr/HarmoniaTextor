@@ -40,11 +40,13 @@ from harmoniatextor.agent.compression import (
 from harmoniatextor.agent.prompts import (
     STEP1_INSTRUCTION,
     STEP2_INSTRUCTION,
+    style_display_name,
     system_prompt,
 )
 from harmoniatextor.agent.reviewer import ReviewerAI, ReviewResult
 from harmoniatextor.agent.tools import build_tools
 from harmoniatextor.checker.engine import format_feedback
+from harmoniatextor.i18n import translate
 from harmoniatextor.service.service import CompositionService
 from harmoniatextor.techniques.registry import TechniqueRegistry
 
@@ -175,7 +177,7 @@ class AgentLoop:
         bound = self.chat_model.bind_tools(tools)
         prompt = system_prompt(genre, style, techniques, rules)
         messages: list[BaseMessage] = [SystemMessage(content=prompt)]
-        instruction = goal if not feedback else f"{goal}\n\n人工品鉴意见:{feedback}"
+        instruction = goal if not feedback else f"{goal}\n\nHuman feedback: {feedback}"
         messages.append(HumanMessage(content=instruction))
         _emit(on_event, {"kind": "start", "goal": goal, "tools": sorted(mapping)})
         plan_text = ""
@@ -186,7 +188,7 @@ class AgentLoop:
             stored_plan = self.service.latest_plan(work_id)
             if stored_plan:
                 messages.append(
-                    SystemMessage(content="已有的创作规划:\n" + stored_plan)
+                    SystemMessage(content="Existing creation plan:\n" + stored_plan)
                 )
         steps = 0
         reviews = 0
@@ -214,7 +216,9 @@ class AgentLoop:
             if not report.ok:
                 if not auto_continue:
                     return AgentRunResult(False, steps, text, messages, plan=plan_text)
-                feedback = "符号层仍未通过,请继续修正:\n" + format_feedback(report)
+                feedback = "The symbolic layer still fails; keep fixing:\n" + (
+                    format_feedback(report)
+                )
                 _emit(
                     on_event,
                     {
@@ -229,7 +233,11 @@ class AgentLoop:
             if self.reviewer is None:
                 return AgentRunResult(True, steps, text, messages, plan=plan_text)
             review = self._review(
-                work_id, movement_id, goal, genre.display_name, on_event
+                work_id,
+                movement_id,
+                goal,
+                translate("genre." + genre.id, "en"),
+                on_event,
             )
             if review.passed:
                 return AgentRunResult(
@@ -252,7 +260,10 @@ class AgentLoop:
                     review_suggestions=review.suggestions,
                     plan=plan_text,
                 )
-            feedback = "检查AI未通过,请根据以下意见继续修改:\n" + review.suggestions
+            feedback = (
+                "The reviewer rejected it; continue per these suggestions:\n"
+                + review.suggestions
+            )
             _emit(
                 on_event,
                 {
@@ -314,7 +325,7 @@ class AgentLoop:
             self.chat_model,
             messages,
             context_window=self.context_window,
-            artifact_label="当前完整 MusicXML",
+            artifact_label="Current full MusicXML",
             artifact_provider=lambda: self.service.current_musicxml(
                 work_id, movement_id
             ),
@@ -350,11 +361,11 @@ class AgentLoop:
         rules = self.service.effective_rules(work)
         report = self.service.check(work_id, movement_id)
         plan = self.service.latest_plan(work_id)
-        requirement = goal if not plan else f"{goal}\n\n创作规划(Step 1):\n{plan}"
+        requirement = goal if not plan else f"{goal}\n\nCreation plan (Step 1):\n{plan}"
         result = self.reviewer.review(
             goal=requirement,
             genre_name=genre_name,
-            style_name=style.name,
+            style_name=style_display_name(style),
             rules=rules,
             score_xml=self.service.current_musicxml(work_id, movement_id),
             check_summary=format_feedback(report),
@@ -441,10 +452,10 @@ def run_tool_calls(
         _emit(on_event, {"kind": "tool_call", "step": steps, "tool": name, "args": {}})
         message = ToolMessage(
             content=(
-                "工具参数解析失败(通常是 JSON 转义错误),请重新调用并给出合法 JSON:"
-                f"{call.get('error', '')}。"
-                "请避免一次性手工书写大段 MusicXML,改用 "
-                "submit_theme / add_part / technique_* / edit 分步构建。"
+                "Could not parse the tool arguments (usually a JSON escaping "
+                f"error); call again with valid JSON: {call.get('error', '')}. "
+                "Avoid hand-writing long MusicXML in one go; build it step by "
+                "step with submit_theme / add_part / technique_* / edit."
             ),
             tool_call_id=str(call.get("id", "")),
         )

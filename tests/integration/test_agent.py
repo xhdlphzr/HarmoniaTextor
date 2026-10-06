@@ -854,12 +854,12 @@ class TestPlanningTools:
         tools = {tool.name: tool for tool in build_planning_tools(service, work.id)}
         assert "set_movement_prompt" in ARCHITECT_INSTRUCTION
         assert "set_movement_prompt" in ARCHITECT_SYSTEM
-        assert "极其详细" in ARCHITECT_SYSTEM
-        assert "没有乐章模板" in ARCHITECT_SYSTEM
-        assert "自成一体" in ARCHITECT_SYSTEM
-        assert "跨乐章指代" in ARCHITECT_SYSTEM
-        assert "独立、自足" in ARCHITECT_INSTRUCTION
-        assert "跨乐章指代" in ARCHITECT_INSTRUCTION
+        assert "extremely detailed" in ARCHITECT_SYSTEM
+        assert "no movement template" in ARCHITECT_SYSTEM
+        assert "self-contained" in ARCHITECT_SYSTEM
+        assert "cross-movement" in ARCHITECT_SYSTEM
+        assert "independent and self-contained" in ARCHITECT_INSTRUCTION
+        assert "cross-movement" in ARCHITECT_INSTRUCTION
         assert "Every movement must get one" in tools["set_movement_prompt"].description
 
 
@@ -1245,7 +1245,7 @@ class TestMovementComposer:
             service, cast("BaseChatModel", ScriptedChatModel(responses=[]))
         )
         text = composer._instruction(work.id, movement, "goal")
-        assert "此前已出现的主题" in text
+        assert "[Themes already stated" in text
         assert "A5" in text
         assert "submit_theme" in text
 

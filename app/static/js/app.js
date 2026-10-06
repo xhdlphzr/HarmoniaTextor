@@ -1145,7 +1145,7 @@ SPDX-License-Identifier: MIT
       }
       startJob(
         api(current.workId, current.movementId, "run"),
-        { prompt: "根据品鉴意见继续完善这首作品。", feedback },
+        { prompt: "Continue refining this work based on the audition notes.", feedback },
         byId("generate-btn")
       );
     });
