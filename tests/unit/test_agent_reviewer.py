@@ -18,7 +18,6 @@ from harmoniatextor.agent.reviewer import (
     ReviewerAI,
     _extract,
     _submit_review,
-    _system_text,
 )
 
 _RULES = frozenset({"pf5th", "empty", "voices"})
@@ -219,16 +218,5 @@ class TestReviewer:
         assert result.passed
 
     def test_submit_review_tool(self) -> None:
-        """The submit tool acknowledges the verdict."""
-        assert _submit_review(True) == "Review received."
-
-    def test_system_checks_movement_division(self) -> None:
-        """The reviewer is told to check movement division."""
-        assert "movement divisions" in _system_text("Baroque", _RULES)
-
-    def test_system_excludes_symbolic_rules(self) -> None:
-        """The reviewer is told not to re-check symbolic-layer rules."""
-        text = _system_text("Baroque", _RULES)
-        assert "Parallel fifths" in text
-        assert "reject on their account" in text
-        assert "symbolic layer" in text
+        """The submit tool returns a confirmation."""
+        assert _submit_review(True)

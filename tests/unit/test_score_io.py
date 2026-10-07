@@ -381,6 +381,30 @@ class TestStaffGroups:
         score = new_score(key="C", time_signature="4/4", tempo_bpm=80, voices=["flute"])
         assert "<part-group" not in to_musicxml(score)
 
+    def test_associate_rejects_section_members(self) -> None:
+        """Section members are never associated; they are bracketed automatically."""
+        score = new_score(
+            key="C", time_signature="4/4", tempo_bpm=80, voices=["violin1", "violin2"]
+        )
+        assert ScoreEditor(score).associate("violin2", "violin1") is False
+
+    def test_associate_rejects_different_instruments(self) -> None:
+        """Different instruments are never associated."""
+        score = new_score(
+            key="C", time_signature="4/4", tempo_bpm=80, voices=["piano", "violin"]
+        )
+        assert ScoreEditor(score).associate("violin", "piano") is False
+        assert "<part-group" not in to_musicxml(score)
+
+    def test_associate_rejects_different_keyboards(self) -> None:
+        """Two different keyboards are not one instrument."""
+        score = new_score(
+            key="C", time_signature="4/4", tempo_bpm=80, voices=["piano", "harp"]
+        )
+        editor = ScoreEditor(score)
+        editor.set_instrument("harp", "Harp")
+        assert editor.associate("harp", "piano") is False
+
 
 class TestFromMusicXmlInstruments:
     """Parsed scores always carry an instrument per part."""

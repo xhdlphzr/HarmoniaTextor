@@ -16,6 +16,7 @@ from music21 import (
     chord,
     dynamics,
     expressions,
+    layout,
     meter,
     spanner,
     stream,
@@ -26,7 +27,7 @@ from music21 import note as m21note
 from music21 import pitch as m21pitch
 
 from harmoniatextor.domain.models import ThemeNote
-from harmoniatextor.score.io import make_instrument, new_part
+from harmoniatextor.score.io import grand_staff_key, make_instrument, new_part
 
 __all__ = ["ScoreEditor"]
 
@@ -163,6 +164,41 @@ class ScoreEditor:
         self._ensure_attributes(part)
         self.score.insert(0.0, part)
         return part
+
+    def associate(self, voice: str, target: str) -> bool:
+        """Lock a voice into the same group as an existing voice.
+
+        Only the same one-player instrument may be grouped this way (a piano's
+        hands, a harp's hands, an organ's manuals and pedal), so the two parts
+        are drawn under one brace.  Different instruments, including different
+        members of one section, are never associated.
+
+        Args:
+            voice: Voice slot to group.
+            target: Existing voice slot to group it with.
+
+        Returns:
+            ``True`` when both parts exist, are the same one-player instrument,
+            and now share a group.
+        """
+        part = self.get_part(voice)
+        anchor = self.get_part(target)
+        if part is None or anchor is None:
+            return False
+        key = grand_staff_key(part)
+        if key is None or key != grand_staff_key(anchor):
+            return False
+        for group in self.score.getElementsByClass(layout.StaffGroup):
+            members = list(group.getSpannedElements())  # type: ignore[no-untyped-call]
+            if any(member is anchor for member in members):
+                if not any(member is part for member in members):
+                    group.addSpannedElements(part)
+                return True
+        self.score.insert(
+            0.0,
+            layout.StaffGroup([anchor, part], symbol="brace", barTogether=True),
+        )
+        return True
 
     def set_instrument(self, voice: str, instrument_name: str) -> None:
         """Assign an instrument to a voice slot.

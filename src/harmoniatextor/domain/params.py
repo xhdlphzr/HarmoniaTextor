@@ -717,6 +717,8 @@ class AddPartParams(_Params):
     Attributes:
         voice: Voice slot name for the new part.
         instrument: Instrument to assign to the new part (required).
+        associate: An existing voice slot to lock the new part into one group
+            with, e.g. the piano's other hand or the rest of a section.
     """
 
     voice: str = Field(min_length=1, description="Voice slot name for the new part.")
@@ -725,6 +727,16 @@ class AddPartParams(_Params):
         description=(
             "Required. The instrument for the new part, e.g. 'Violin', 'Flute', "
             "'Cello', 'Piano'. It is never inferred from the voice name."
+        ),
+    )
+    associate: str = Field(
+        default="",
+        description=(
+            "Optional. An existing voice slot of the SAME one-player instrument, one "
+            "player's other staves (e.g. a piano's left hand 'lh' with 'rh', an organ "
+            "pedal with the manuals). Their staves are then braced as one. Use this "
+            "only for one instrument played by one person; never for different "
+            "instruments or a section. Empty adds the part ungrouped."
         ),
     )
 

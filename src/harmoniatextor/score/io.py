@@ -21,6 +21,7 @@ __all__ = [
     "clone_score",
     "ensure_instruments",
     "from_musicxml",
+    "grand_staff_key",
     "group_staves",
     "instrument_for_voice",
     "make_instrument",
@@ -325,8 +326,11 @@ _SECTION_FAMILIES: tuple[tuple[str, tuple[str, ...]], ...] = (
 )
 
 
-def _grand_staff_key(part: stream.Part) -> str | None:
-    """Return the grand-staff instrument of a part.
+def grand_staff_key(part: stream.Part) -> str | None:
+    """Return the one-player grand-staff instrument of a part.
+
+    Parts that share this key are staves of one instrument played by one
+    person (for example a piano's hands), so they may be locked together.
 
     Args:
         part: Part to inspect.
@@ -376,8 +380,22 @@ def _hand_hint(part: stream.Part) -> bool:
     )
 
 
+def _make_group(members: list[stream.Part]) -> layout.StaffGroup:
+    """Build the braced group of one instrument's associated staves.
+
+    Args:
+        members: The grouped parts, in score order.
+
+    Returns:
+        The configured staff group.
+    """
+    label = grand_staff_key(members[0]) or "group"
+    return layout.StaffGroup(members, name=label, symbol="brace", barTogether=True)
+
+
 def _add_groups(
     score: stream.Score,
+    parts: list[stream.Part],
     key_of: Callable[[stream.Part], str | None],
     symbol: Literal["brace", "bracket"],
     *,
@@ -387,6 +405,7 @@ def _add_groups(
 
     Args:
         score: Score to modify in place.
+        parts: Candidate parts, in score order.
         key_of: Maps a part to its grouping key, or ``None`` to skip it.
         symbol: MusicXML group symbol, ``"brace"`` or ``"bracket"``.
         continue_on_hint: Whether a hand/pedal part joins the previous group
@@ -395,7 +414,7 @@ def _add_groups(
     """
     groups: list[list[stream.Part]] = []
     keys: list[str | None] = []
-    for part in score.parts:
+    for part in parts:
         key = key_of(part)
         if continue_on_hint and _hand_hint(part) and keys:
             groups[-1].append(part)
@@ -417,20 +436,36 @@ def _add_groups(
 def group_staves(score: stream.Score) -> None:
     """Join staves of one instrument or one section.
 
-    Called just before serialisation so a piano's left and right hands (or any
-    other single-player instrument split across staves) are joined by a brace,
-    and orchestral sections (strings, woodwinds, brass, percussion) by a
-    bracket, as engraved scores do.
+    Called just before serialisation.  Staves the composer explicitly locked
+    with ``add_part(associate=...)`` (the same one-player instrument, e.g. a
+    piano's hands) stay joined by a brace.  Parts the composer left ungrouped
+    fall back to automatic detection: one instrument's staves are braced and an
+    orchestral section (strings, woodwinds, brass, percussion) is bracketed.
 
     Args:
         score: The score to modify in place.
     """
+    parts = list(score.parts)
+    identities = {id(part) for part in parts}
+    covered: set[int] = set()
+    explicit: list[list[stream.Part]] = []
     for existing in list(score.getElementsByClass(layout.StaffGroup)):
+        members = [
+            member
+            for member in existing.getSpannedElements()  # type: ignore[no-untyped-call]
+            if id(member) in identities and id(member) not in covered
+        ]
         site = existing.activeSite
         if site is not None:
             site.remove(existing)
-    _add_groups(score, _grand_staff_key, "brace", continue_on_hint=True)
-    _add_groups(score, _section, "bracket")
+        if len(members) >= 2:
+            explicit.append(members)
+            covered.update(id(member) for member in members)
+    for members in explicit:
+        score.insert(0.0, _make_group(members))
+    remaining = [part for part in parts if id(part) not in covered]
+    _add_groups(score, remaining, grand_staff_key, "brace", continue_on_hint=True)
+    _add_groups(score, remaining, _section, "bracket")
 
 
 def to_musicxml(score: stream.Score) -> str:
