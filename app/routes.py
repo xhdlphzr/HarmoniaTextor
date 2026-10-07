@@ -5,8 +5,10 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import os
+import tempfile
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -776,6 +778,40 @@ def _register_api(app: Flask) -> None:
             }
         )
 
+    @app.post("/api/works/<work_id>/movements/<movement_id>/png")
+    def save_png(work_id: str, movement_id: str) -> Any:
+        """Save a client-rendered staff PNG into the downloads folder.
+
+        Args:
+            work_id: Work identifier.
+            movement_id: Movement identifier.
+
+        Returns:
+            The result.
+        """
+        service = get_service(app)
+        work = _load_work(service, work_id)
+        if work is None:
+            return _unknown_work()
+        if not _has_movement(service, work, movement_id):
+            return _unknown_movement()
+        payload = _json_payload()
+        if payload is None:
+            return jsonify({"ok": False, "error": "invalid payload"}), 400
+        raw = str(payload.get("data", ""))
+        if raw.startswith("data:"):
+            _, _, raw = raw.partition(",")
+        try:
+            data = base64.b64decode(raw, validate=True)
+        except ValueError:
+            return jsonify({"ok": False, "error": "invalid image data"}), 400
+        if not data:
+            return jsonify({"ok": False, "error": "empty image data"}), 400
+        result = get_export_service(app).export_png(
+            work_id, movement_id, _downloads_dir(), data
+        )
+        return jsonify({"ok": True, "path": str(result.path)})
+
     @app.post("/api/works/<work_id>/movements/<movement_id>/check")
     def check(work_id: str, movement_id: str) -> Any:
         """Return the symbolic check report.
@@ -874,6 +910,18 @@ def _downloads_dir() -> Path:
     return Path(os.environ.get("HARMONIA_DOWNLOADS") or (Path.home() / "Downloads"))
 
 
+def _preview_dir() -> Path:
+    """Return the scratch directory used for non-saving preview renders.
+
+    Audio playback and direct browser fetches render here so they never leave
+    stray files in the user's downloads folder.
+
+    Returns:
+        A preview directory under the system temporary directory.
+    """
+    return Path(tempfile.gettempdir()) / "harmonia-textor-preview"
+
+
 def _register_export(app: Flask) -> None:
     """Register the export routes.
 
@@ -900,10 +948,12 @@ def _register_export(app: Flask) -> None:
         if not _has_movement(service, work, movement_id):
             return _unknown_movement()
         exporter = get_export_service(app)
-        result = exporter.export(work_id, movement_id, _downloads_dir(), fmt)
+        save = bool(request.args.get("save"))
+        target = _downloads_dir() if save else _preview_dir()
+        result = exporter.export(work_id, movement_id, target, fmt)
         if not result.ok or result.path is None:
             return jsonify({"ok": False, "error": result.error}), 400
-        if request.args.get("save"):
+        if save:
             return jsonify({"ok": True, "path": str(result.path)})
         return send_file(result.path, as_attachment=True)
 
@@ -922,10 +972,12 @@ def _register_export(app: Flask) -> None:
         if _load_work(service, work_id) is None:
             return _unknown_work()
         exporter = get_export_service(app)
-        result = exporter.export_work(work_id, fmt, _downloads_dir())
+        save = bool(request.args.get("save"))
+        target = _downloads_dir() if save else _preview_dir()
+        result = exporter.export_work(work_id, fmt, target)
         if not result.ok or result.path is None:
             return jsonify({"ok": False, "error": result.error}), 400
-        if request.args.get("save"):
+        if save:
             return jsonify({"ok": True, "path": str(result.path)})
         return send_file(result.path, as_attachment=True)
 

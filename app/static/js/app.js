@@ -198,7 +198,7 @@ SPDX-License-Identifier: MIT
     return css;
   }
 
-  function downloadScorePng(container, filename) {
+  function saveScorePng(container, workId, movementId) {
     const svg = container.querySelector("svg");
     if (!svg) {
       window.alert(t("js.show_score_first"));
@@ -226,11 +226,20 @@ SPDX-License-Identifier: MIT
       ctx.fillStyle = "#fffdf8";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-      const link = document.createElement("a");
-      link.href = canvas.toDataURL("image/png");
-      link.download = filename;
-      link.click();
-      showToast(t("js.exported", { path: filename }), "ok");
+      fetch(`/api/works/${workId}/movements/${movementId}/png`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: canvas.toDataURL("image/png") }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.ok) {
+            showToast(t("js.exported", { path: data.path || "" }), "ok");
+          } else {
+            showToast(data.error || t("js.png_failed"), "bad");
+          }
+        })
+        .catch(() => showToast(t("js.png_failed"), "bad"));
     };
     image.onerror = () => showToast(t("js.png_failed"), "bad");
     image.src = url;
@@ -1151,7 +1160,7 @@ SPDX-License-Identifier: MIT
 
     on("export-png", "click", () => {
       if (current) {
-        downloadScorePng(byId("score-view"), `${current.workId}-${current.movementId}.png`);
+        saveScorePng(byId("score-view"), current.workId, current.movementId);
       }
     });
 
@@ -1257,7 +1266,7 @@ SPDX-License-Identifier: MIT
     const workPngBtn = byId("work-png-btn");
     if (workPngBtn) {
       workPngBtn.addEventListener("click", () => {
-        downloadScorePng(scoreView, `${workId}-${movementId}.png`);
+        saveScorePng(scoreView, workId, movementId);
       });
     }
 

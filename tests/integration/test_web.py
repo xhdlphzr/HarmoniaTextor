@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import base64
 from pathlib import Path
 
 import pytest
@@ -784,6 +785,88 @@ class TestApi:
         work_id, _movement_id = make_work(app)
         assert (
             client.get(f"/works/{work_id}/export/ogg").status_code == _HTTP_BAD_REQUEST
+        )
+
+    def test_export_preview_skips_downloads(
+        self,
+        app: Flask,
+        client: FlaskClient,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A non-saving render goes to the preview directory, not downloads.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+            tmp_path: The pytest temporary path fixture.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
+        downloads = tmp_path / "dl"
+        preview = tmp_path / "pv"
+        monkeypatch.setattr("app.routes._downloads_dir", lambda: downloads)
+        monkeypatch.setattr("app.routes._preview_dir", lambda: preview)
+        work_id, movement_id = make_work(app)
+        response = client.get(
+            f"/works/{work_id}/movements/{movement_id}/export/musicxml"
+        )
+        assert response.status_code == _HTTP_OK
+        response.close()
+        assert list(preview.glob("*.musicxml"))
+        assert not downloads.exists()
+
+    def test_save_png(self, app: Flask, client: FlaskClient) -> None:
+        """The PNG endpoint writes the image and reports its path.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
+        work_id, movement_id = make_work(app)
+        encoded = base64.b64encode(b"\x89PNG").decode("ascii")
+        url = f"/api/works/{work_id}/movements/{movement_id}/png"
+        data = client.post(
+            url, json={"data": "data:image/png;base64," + encoded}
+        ).get_json()
+        assert data["ok"] is True
+        assert data["path"].endswith(".png")
+        raw = client.post(url, json={"data": encoded}).get_json()
+        assert raw["ok"] is True
+
+    def test_save_png_invalid(self, app: Flask, client: FlaskClient) -> None:
+        """Bad PNG payloads are rejected.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
+        work_id, movement_id = make_work(app)
+        url = f"/api/works/{work_id}/movements/{movement_id}/png"
+        assert (
+            client.post(url, json={"data": "not-base64!"}).status_code
+            == _HTTP_BAD_REQUEST
+        )
+        assert client.post(url, json={"data": ""}).status_code == _HTTP_BAD_REQUEST
+        assert client.post(url, json=[1, 2]).status_code == _HTTP_BAD_REQUEST
+
+    def test_save_png_unknown(self, app: Flask, client: FlaskClient) -> None:
+        """PNG saves for unknown works or movements are 404.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
+        work_id, _movement_id = make_work(app)
+        body = {"data": base64.b64encode(b"\x89PNG").decode("ascii")}
+        assert (
+            client.post("/api/works/nope/movements/m01/png", json=body).status_code
+            == _HTTP_NOT_FOUND
+        )
+        assert (
+            client.post(
+                f"/api/works/{work_id}/movements/m99/png", json=body
+            ).status_code
+            == _HTTP_NOT_FOUND
         )
 
 

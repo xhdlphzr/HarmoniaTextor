@@ -10,6 +10,7 @@ import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
+from music21 import metadata as m21metadata
 from music21 import stream
 
 from harmoniatextor.render.audio import FeatureUnavailableError, synthesize_audio
@@ -32,6 +33,14 @@ _RESERVED_NAMES = frozenset(
     }
 )
 _MAX_FILENAME = 120
+
+#: File extension produced for each supported export format.
+_EXTENSIONS: dict[str, str] = {
+    "musicxml": "musicxml",
+    "midi": "mid",
+    "m4a": "m4a",
+    "mp3": "mp3",
+}
 
 
 def safe_filename(title: str, fallback: str) -> str:
@@ -106,25 +115,6 @@ class ExportService:
         """
         return safe_filename(self.service.get_work(work_id).title, work_id)
 
-    def _movement_stem(self, work_id: str, movement_id: str) -> str:
-        """Return a filesystem-safe stem for one movement of a work.
-
-        Args:
-            work_id: Work identifier.
-            movement_id: Movement identifier.
-
-        Returns:
-            ``"<title>-<movement>"``, both sanitised.
-        """
-        title = self._title(work_id)
-        try:
-            movement = self.service.get_movement(
-                self.service.get_work(work_id), movement_id
-            )
-        except KeyError:
-            return title
-        return safe_filename(f"{title}-{movement.name}", f"{work_id}-{movement_id}")
-
     def export(
         self, work_id: str, movement_id: str, out_dir: Path, fmt: str
     ) -> ExportResult:
@@ -151,10 +141,12 @@ class ExportService:
         return handler(work_id, movement_id, out_dir)
 
     def _score(self, work_id: str, movement_id: str = "") -> stream.Score:
-        """Return the score to export.
+        """Return the score to export, titled with the work's Step 1 title.
 
         A work with composed movements is exported as the merged full-work score;
-        an empty work falls back to the movement's canonical score.
+        an empty work falls back to the movement's canonical score.  The work
+        title chosen by the Step 1 architect is stamped onto the score metadata
+        so it appears as the MusicXML title (the composed fragments carry none).
 
         Args:
             work_id: Work identifier.
@@ -165,8 +157,48 @@ class ExportService:
         """
         merged = self.service.merged_musicxml(work_id)
         if merged:
-            return from_musicxml(merged)
-        return self.service.current_score(work_id, movement_id)
+            score = from_musicxml(merged)
+        else:
+            score = self.service.current_score(work_id, movement_id)
+        if score.metadata is None:
+            score.metadata = m21metadata.Metadata()
+        score.metadata.title = self.service.get_work(work_id).title
+        return score
+
+    def _write(
+        self, work_id: str, movement_id: str, out_dir: Path, fmt: str, stem: str
+    ) -> ExportResult:
+        """Write one export artifact under a chosen stem.
+
+        Args:
+            work_id: Work identifier.
+            movement_id: Movement identifier.
+            out_dir: Output directory.
+            fmt: One of ``musicxml``, ``midi``, ``m4a`` or ``mp3``.
+            stem: Filesystem-safe file stem, without extension.
+
+        Returns:
+            The export result.
+        """
+        out_dir.mkdir(parents=True, exist_ok=True)
+        path = out_dir / f"{stem}.{_EXTENSIONS[fmt]}"
+        if fmt == "musicxml":
+            path.write_text(
+                to_musicxml(self._score(work_id, movement_id)), encoding="utf-8"
+            )
+            return ExportResult(ok=True, path=path)
+        if fmt == "midi":
+            score = self._score(work_id, movement_id)
+            realize_expressions(score)
+            score.write("midi", fp=str(path))  # type: ignore[no-untyped-call]
+            return ExportResult(ok=True, path=path)
+        try:
+            synthesize_audio(
+                self._score(work_id, movement_id), path, self.features(), fmt
+            )
+        except FeatureUnavailableError as exc:
+            return ExportResult(ok=False, error=str(exc))
+        return ExportResult(ok=True, path=path)
 
     def export_work(self, work_id: str, fmt: str, out_dir: Path) -> ExportResult:
         """Export a work, zipping several movements when nothing is composed.
@@ -179,13 +211,17 @@ class ExportService:
         Returns:
             The export result pointing at the single file or the zip archive.
         """
+        if fmt not in _EXTENSIONS:
+            return ExportResult(ok=False, error=f"unsupported format: {fmt}")
         work = self.service.get_work(work_id)
         out_dir.mkdir(parents=True, exist_ok=True)
         if self.service.merged_musicxml(work_id):
             return self._export_merged(work_id, out_dir, fmt)
+        title = self._title(work_id)
         paths: list[Path] = []
         for movement in work.movements:
-            result = self.export(work_id, movement.id, out_dir, fmt)
+            stem = safe_filename(f"{title}-{movement.name}", f"{work_id}-{movement.id}")
+            result = self._write(work_id, movement.id, out_dir, fmt, stem)
             if not result.ok or result.path is None:
                 return result
             paths.append(result.path)
@@ -208,25 +244,7 @@ class ExportService:
         Returns:
             The export result.
         """
-        stem = self._title(work_id)
-        if fmt == "musicxml":
-            path = out_dir / f"{stem}.musicxml"
-            path.write_text(to_musicxml(self._score(work_id)), encoding="utf-8")
-            return ExportResult(ok=True, path=path)
-        if fmt == "midi":
-            path = out_dir / f"{stem}.mid"
-            score = self._score(work_id)
-            realize_expressions(score)
-            score.write("midi", fp=str(path))  # type: ignore[no-untyped-call]
-            return ExportResult(ok=True, path=path)
-        if fmt in {"m4a", "mp3"}:
-            path = out_dir / f"{stem}.{fmt}"
-            try:
-                synthesize_audio(self._score(work_id), path, self.features(), fmt)
-            except FeatureUnavailableError as exc:
-                return ExportResult(ok=False, error=str(exc))
-            return ExportResult(ok=True, path=path)
-        return ExportResult(ok=False, error=f"unsupported format: {fmt}")
+        return self._write(work_id, "", out_dir, fmt, self._title(work_id))
 
     def export_musicxml(
         self, work_id: str, movement_id: str, out_dir: Path
@@ -241,12 +259,9 @@ class ExportService:
         Returns:
             The export result.
         """
-        out_dir.mkdir(parents=True, exist_ok=True)
-        path = out_dir / f"{self._movement_stem(work_id, movement_id)}.musicxml"
-        path.write_text(
-            to_musicxml(self._score(work_id, movement_id)), encoding="utf-8"
+        return self._write(
+            work_id, movement_id, out_dir, "musicxml", self._title(work_id)
         )
-        return ExportResult(ok=True, path=path)
 
     def export_midi(
         self, work_id: str, movement_id: str, out_dir: Path
@@ -261,12 +276,7 @@ class ExportService:
         Returns:
             The export result.
         """
-        out_dir.mkdir(parents=True, exist_ok=True)
-        path = out_dir / f"{self._movement_stem(work_id, movement_id)}.mid"
-        score = self._score(work_id, movement_id)
-        realize_expressions(score)
-        score.write("midi", fp=str(path))  # type: ignore[no-untyped-call]  # music21
-        return ExportResult(ok=True, path=path)
+        return self._write(work_id, movement_id, out_dir, "midi", self._title(work_id))
 
     def export_m4a(self, work_id: str, movement_id: str, out_dir: Path) -> ExportResult:
         """Export the current score as an M4A file.
@@ -280,7 +290,7 @@ class ExportService:
             The export result; a friendly error is returned when the audio
             backend is unavailable.
         """
-        return self._export_audio(work_id, movement_id, out_dir, "m4a")
+        return self._write(work_id, movement_id, out_dir, "m4a", self._title(work_id))
 
     def export_mp3(self, work_id: str, movement_id: str, out_dir: Path) -> ExportResult:
         """Export the current score as an MP3 file.
@@ -294,27 +304,23 @@ class ExportService:
             The export result; a friendly error is returned when the audio
             backend is unavailable.
         """
-        return self._export_audio(work_id, movement_id, out_dir, "mp3")
+        return self._write(work_id, movement_id, out_dir, "mp3", self._title(work_id))
 
-    def _export_audio(
-        self, work_id: str, movement_id: str, out_dir: Path, fmt: str
+    def export_png(
+        self, work_id: str, movement_id: str, out_dir: Path, data: bytes
     ) -> ExportResult:
-        """Export the current score as compressed audio.
+        """Save a client-rendered staff PNG under the work title.
 
         Args:
             work_id: Work identifier.
             movement_id: Movement identifier.
             out_dir: Output directory.
-            fmt: Target format, either ``"m4a"`` or ``"mp3"``.
+            data: Raw PNG bytes.
 
         Returns:
             The export result.
         """
         out_dir.mkdir(parents=True, exist_ok=True)
-        path = out_dir / f"{self._movement_stem(work_id, movement_id)}.{fmt}"
-        score = self._score(work_id, movement_id)
-        try:
-            synthesize_audio(score, path, self.features(), fmt)
-        except FeatureUnavailableError as exc:
-            return ExportResult(ok=False, error=str(exc))
+        path = out_dir / f"{self._title(work_id)}.png"
+        path.write_bytes(data)
         return ExportResult(ok=True, path=path)
