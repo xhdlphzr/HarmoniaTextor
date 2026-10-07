@@ -308,6 +308,80 @@ class TestClefs:
         assert "<sign>C</sign>" in to_musicxml(score)
 
 
+class TestStaffGroups:
+    """Same-instrument staff grouping."""
+
+    def test_piano_hands_braced(self) -> None:
+        """Piano hands are joined by a brace."""
+        score = new_score(
+            key="C", time_signature="4/4", tempo_bpm=80, voices=["rh", "lh"]
+        )
+        xml = to_musicxml(score)
+        assert xml.count("<group-symbol>brace</group-symbol>") == 1
+
+    def test_organ_manuals_and_pedal_braced(self) -> None:
+        """An organ's manuals and pedal share a brace."""
+        score = new_score(
+            key="C", time_signature="4/4", tempo_bpm=80, voices=["organ", "pedal"]
+        )
+        assert "<group-symbol>brace</group-symbol>" in to_musicxml(score)
+
+    def test_strings_section_bracketed(self) -> None:
+        """A string section is joined by a bracket, not a brace."""
+        score = new_score(
+            key="C",
+            time_signature="4/4",
+            tempo_bpm=80,
+            voices=["violin1", "violin2", "viola", "cello"],
+        )
+        xml = to_musicxml(score)
+        assert "<group-symbol>bracket</group-symbol>" in xml
+        assert "<group-symbol>brace</group-symbol>" not in xml
+
+    def test_woodwinds_section_bracketed(self) -> None:
+        """A woodwind section is joined by a bracket."""
+        score = new_score(
+            key="C", time_signature="4/4", tempo_bpm=80, voices=["flute", "oboe"]
+        )
+        assert "<group-symbol>bracket</group-symbol>" in to_musicxml(score)
+
+    def test_brass_section_bracketed(self) -> None:
+        """A brass section is joined by a bracket."""
+        score = new_score(
+            key="C", time_signature="4/4", tempo_bpm=80, voices=["horn", "trumpet"]
+        )
+        assert "<group-symbol>bracket</group-symbol>" in to_musicxml(score)
+
+    def test_distinct_instruments_not_grouped(self) -> None:
+        """Parts for unrelated instruments are not grouped."""
+        score = new_score(
+            key="C",
+            time_signature="4/4",
+            tempo_bpm=80,
+            voices=["soprano", "alto", "tenor", "bass"],
+        )
+        assert "<part-group" not in to_musicxml(score)
+
+    def test_single_part_not_grouped(self) -> None:
+        """A lone part has no group."""
+        score = new_score(key="C", time_signature="4/4", tempo_bpm=80, voices=["piano"])
+        assert "<part-group" not in to_musicxml(score)
+
+    def test_grouping_is_idempotent(self) -> None:
+        """Serialising twice does not duplicate the group."""
+        score = new_score(
+            key="C", time_signature="4/4", tempo_bpm=80, voices=["rh", "lh"]
+        )
+        to_musicxml(score)
+        xml = to_musicxml(score)
+        assert xml.count("<group-symbol>brace</group-symbol>") == 1
+
+    def test_section_with_single_member_not_grouped(self) -> None:
+        """A lone section member is not bracketed."""
+        score = new_score(key="C", time_signature="4/4", tempo_bpm=80, voices=["flute"])
+        assert "<part-group" not in to_musicxml(score)
+
+
 class TestFromMusicXmlInstruments:
     """Parsed scores always carry an instrument per part."""
 
