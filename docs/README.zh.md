@@ -19,6 +19,15 @@ SPDX-License-Identifier: MIT
 
 神经符号古典音乐生成。大语言模型担任作曲家，而确定性的符号层（技法包、对位检查点、可插拔体裁框架）负责校验并把每一个决定落地为 MusicXML。
 
+## 演示
+
+由 HarmoniaTextor 依据莎士比亚**十四行诗第 18 首**（Sonnet 18）完整创作：**F大调钢琴奏鸣曲，《永恒之夏》**。
+
+![F大调钢琴奏鸣曲，《永恒之夏》乐谱片段](../assets/ui.png)
+
+- [试听音频（MP3）](../assets/Piano%20Sonata%20in%20F%20major%20Eternal%20Summer.mp3)
+- [查看 MusicXML 乐谱](../assets/Piano%20Sonata%20in%20F%20major%20Eternal%20Summer.musicxml)
+
 ## 架构
 
 ```mermaid
