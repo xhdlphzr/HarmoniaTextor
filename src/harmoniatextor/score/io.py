@@ -9,13 +9,14 @@ import copy
 import warnings
 from typing import Any
 
-from music21 import converter, instrument, meter, stream, tempo
+from music21 import clef, converter, instrument, meter, stream, tempo
 from music21 import key as m21key
 from music21.musicxml.m21ToXml import GeneralObjectExporter
 from music21.musicxml.xmlObjects import MusicXMLWarning
 
 __all__ = [
     "DEFAULT_INSTRUMENTS",
+    "assign_clefs",
     "clone_score",
     "ensure_instruments",
     "from_musicxml",
@@ -25,6 +26,9 @@ __all__ = [
     "new_score",
     "to_musicxml",
 ]
+
+#: MIDI number of middle C, the register boundary for piano-hand clefs.
+_MIDDLE_C = 60
 
 DEFAULT_INSTRUMENTS: dict[str, str] = {
     "soprano": "Soprano",
@@ -149,12 +153,171 @@ def clone_score(score: stream.Score) -> stream.Score:
     return copy.deepcopy(score)
 
 
+#: Tokens (matched as substrings) that put a part in a bass clef.
+_BASS_TOKENS = (
+    "cello",
+    "bass",
+    "trombone",
+    "tuba",
+    "euphonium",
+    "baritone",
+    "timpani",
+    "kettle",
+    "pedal",
+)
+#: Tokens that put a part in an alto clef.
+_ALTO_TOKENS = ("viola",)
+#: Instruments that read by hand or register (piano, harp, organ).
+_KEYBOARD_TOKENS = ("piano", "harp", "organ")
+
+
+def _part_tokens(part: stream.Part) -> set[str]:
+    """Return the lowercased identifiers of a part.
+
+    The part id and name, plus every instrument's class name and label, are
+    collected so an instrument can be recognised however it was recorded.
+
+    Args:
+        part: Part to inspect.
+
+    Returns:
+        A set of lowercased tokens.
+    """
+    tokens: set[str] = set()
+    for value in (part.id, part.partName):
+        if value:
+            tokens.add(str(value).lower())
+    for item in part.getElementsByClass(instrument.Instrument):
+        tokens.add(type(item).__name__.lower())
+        name = str(item.instrumentName or "").lower()
+        if name:
+            tokens.add(name)
+    return tokens
+
+
+def _matches(tokens: set[str], needles: tuple[str, ...]) -> bool:
+    """Return whether any token contains any needle.
+
+    Args:
+        tokens: Lowercased tokens to search.
+        needles: Lowercased substrings to look for.
+
+    Returns:
+        ``True`` when a needle occurs in a token.
+    """
+    return any(needle in token for token in tokens for needle in needles)
+
+
+def _median_midi(part: stream.Part) -> float | None:
+    """Return the median pitch of a part's notes.
+
+    Args:
+        part: Part to inspect.
+
+    Returns:
+        The median MIDI number, or ``None`` when the part has no notes.
+    """
+    values: list[float] = []
+    for item in part.recurse().notes:
+        values.extend(float(pitch.midi) for pitch in item.pitches)
+    if not values:
+        return None
+    values.sort()
+    middle = len(values) // 2
+    if len(values) % 2:
+        return values[middle]
+    return (values[middle - 1] + values[middle]) / 2
+
+
+def _clef_sign(part: stream.Part) -> str | None:
+    """Choose a clef sign for a part.
+
+    A left hand or pedal staff (``lh``/``left``/``pedal``) takes a bass clef and
+    a right hand (``rh``/``right``) a treble clef.  Low instruments (cello,
+    contrabass, bassoon, contrabassoon, trombone, tuba, euphonium, baritone,
+    timpani) also take a bass clef, and the viola an alto clef.  Any other
+    keyboard-family part (piano, harp, organ) falls back to its register.  Parts
+    that are neither keep music21's default.
+
+    Args:
+        part: Part to inspect.
+
+    Returns:
+        ``"bass"``, ``"alto"``, ``"treble"`` or ``None`` to leave it unchanged.
+    """
+    names = [str(value).lower() for value in (part.id, part.partName) if value]
+    lowered = " ".join(names)
+    if (
+        "left" in lowered
+        or "pedal" in lowered
+        or any(name.startswith("lh") for name in names)
+    ):
+        return "bass"
+    if "right" in lowered or any(name.startswith("rh") for name in names):
+        return "treble"
+    tokens = _part_tokens(part)
+    if _matches(tokens, _ALTO_TOKENS):
+        return "alto"
+    if _matches(tokens, _BASS_TOKENS):
+        return "bass"
+    if _matches(tokens, _KEYBOARD_TOKENS):
+        median = _median_midi(part)
+        if median is not None and median < _MIDDLE_C:
+            return "bass"
+        return "treble"
+    return None
+
+
+def _set_clef(part: stream.Part, sign: str) -> None:
+    """Replace a part's clef with the requested one.
+
+    Args:
+        part: Part to modify in place.
+        sign: One of ``"bass"``, ``"alto"`` or ``"treble"``.
+    """
+    for existing in list(part.recurse().getElementsByClass(clef.Clef)):
+        site = existing.activeSite
+        if site is not None:
+            site.remove(existing)
+    measures = list(part.getElementsByClass(stream.Measure))
+    target = measures[0] if measures else stream.Measure(number=1)
+    if not measures:
+        part.insert(0.0, target)
+    chosen: clef.Clef
+    if sign == "bass":
+        chosen = clef.BassClef()  # type: ignore[no-untyped-call]  # music21
+    elif sign == "alto":
+        chosen = clef.AltoClef()  # type: ignore[no-untyped-call]  # music21
+    else:
+        chosen = clef.TrebleClef()  # type: ignore[no-untyped-call]  # music21
+    target.insert(0.0, chosen)
+
+
+def assign_clefs(score: stream.Score) -> None:
+    """Give every part a register-appropriate clef.
+
+    Called just before serialisation so the rendered and exported staff always
+    notates low instruments and piano/harp left hands in a bass clef and the
+    viola in an alto clef, no matter what the composer AI named the voices.
+    Parts that read comfortably in a treble clef are left untouched.
+
+    Args:
+        score: The score to modify in place.
+    """
+    for part in score.parts:
+        sign = _clef_sign(part)
+        if sign is not None:
+            _set_clef(part, sign)
+
+
 def to_musicxml(score: stream.Score) -> str:
     """Serialise a score to MusicXML text.
 
     A part-less score (a movement before the composer AI creates any voice) is
     serialised as a single empty staff; music21's "not well-formed" warning for
-    that intentional state is suppressed.
+    that intentional state is suppressed.  Register-appropriate clefs are
+    applied first (see :func:`assign_clefs`), so the rendered staff notates low
+    instruments and left hands in a bass clef and the viola in an alto clef.
 
     Args:
         score: The score to serialise.
@@ -162,6 +325,7 @@ def to_musicxml(score: stream.Score) -> str:
     Returns:
         A MusicXML document as text.
     """
+    assign_clefs(score)
     exporter = GeneralObjectExporter(score)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=MusicXMLWarning)
