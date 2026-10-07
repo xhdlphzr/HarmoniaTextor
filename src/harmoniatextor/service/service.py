@@ -829,6 +829,7 @@ class CompositionService:
         voice: str,
         instrument: str | None = None,
         *,
+        associate: str | None = None,
         check: bool = True,
     ) -> ToolResult:
         """Add a new instrumental part to a movement.
@@ -838,6 +839,8 @@ class CompositionService:
             movement_id: Active movement.
             voice: Voice slot name for the new part.
             instrument: Instrument to assign; defaults to the voice mapping.
+            associate: Existing voice slot to lock the new part into one group
+                with, so their staves are drawn together.
             check: Whether to run the symbolic checker immediately.
 
         Returns:
@@ -851,9 +854,24 @@ class CompositionService:
             return ToolResult(
                 False, error_code="BAD_PARAM", message=f"Part already exists: {voice}"
             )
+        if associate and editor.get_part(associate) is None:
+            return ToolResult(
+                False,
+                error_code="BAD_PARAM",
+                message=f"Unknown part to associate: {associate}",
+            )
         editor.get_part(voice, create=True)
         if instrument:
             editor.set_instrument(voice, instrument)
+        if associate and not editor.associate(voice, associate):
+            return ToolResult(
+                False,
+                error_code="BAD_PARAM",
+                message=(
+                    f"Cannot associate {voice} with {associate}: only the same "
+                    "one-player instrument (piano, harp, organ) can be grouped."
+                ),
+            )
         report = self._check(work, movement, score) if check else None
         revision = self._save_revision(
             work,

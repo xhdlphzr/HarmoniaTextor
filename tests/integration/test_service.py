@@ -633,6 +633,52 @@ class TestInstruments:
         assert not duplicate.ok
         assert duplicate.error_code == "BAD_PARAM"
 
+    def test_add_part_associate(self, service: CompositionService) -> None:
+        """A new part can be locked into a group with an existing part.
+
+        Args:
+            service: The composition service.
+        """
+        work = service.create_work("Demo", "plain", "C", with_movements=False)
+        service.add_movement(work.id)
+        service.add_part(work.id, "m01", "rh", "Piano", check=False)
+        result = service.add_part(
+            work.id, "m01", "lh", "Piano", associate="rh", check=False
+        )
+        assert result.ok
+        assert "<group-symbol>brace</group-symbol>" in (result.full_musicxml or "")
+
+    def test_add_part_associate_unknown(self, service: CompositionService) -> None:
+        """Associating with a missing part is rejected.
+
+        Args:
+            service: The composition service.
+        """
+        work = service.create_work("Demo", "plain", "C", with_movements=False)
+        service.add_movement(work.id)
+        result = service.add_part(
+            work.id, "m01", "lh", "Piano", associate="nope", check=False
+        )
+        assert not result.ok
+        assert result.error_code == "BAD_PARAM"
+
+    def test_add_part_associate_wrong_instrument(
+        self, service: CompositionService
+    ) -> None:
+        """Associating different instruments is rejected.
+
+        Args:
+            service: The composition service.
+        """
+        work = service.create_work("Demo", "plain", "C", with_movements=False)
+        service.add_movement(work.id)
+        service.add_part(work.id, "m01", "flute", "Flute", check=False)
+        result = service.add_part(
+            work.id, "m01", "oboe", "Oboe", associate="flute", check=False
+        )
+        assert not result.ok
+        assert result.error_code == "BAD_PARAM"
+
     def test_add_part_check_failure(
         self, service: CompositionService, monkeypatch: pytest.MonkeyPatch
     ) -> None:

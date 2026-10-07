@@ -115,18 +115,26 @@ def build_tools(
             )
         )
 
-    def add_part(voice: str, instrument: str) -> str:
+    def add_part(voice: str, instrument: str, associate: str = "") -> str:
         """Add a new instrumental part and always name its instrument.
 
         Args:
             voice: Voice slot name.
             instrument: Instrument name.
+            associate: Existing voice slot to group the new part with.
 
         Returns:
             The resulting text.
         """
         return result_payload(
-            service.add_part(work_id, movement_id, voice, instrument, check=False)
+            service.add_part(
+                work_id,
+                movement_id,
+                voice,
+                instrument,
+                associate=associate or None,
+                check=False,
+            )
         )
 
     def remove_part(voice: str) -> str:
@@ -267,8 +275,11 @@ def build_tools(
             description=(
                 "Add a new part to the movement. Give voice (the slot name) and its "
                 "instrument (required, e.g. 'Flute', 'Violin', 'Cello', 'Piano'); the "
-                "instrument is never inferred. Use this to write separate parts for the "
-                "same instrument (e.g. violin1 and violin2) or to add a new instrument."
+                "instrument is never inferred. Only when the new part is another staff "
+                "of the SAME one-player instrument (e.g. a piano's 'lh' with 'rh', or "
+                "an organ pedal with the manuals) set associate to that part's slot so "
+                "the staves are braced as one; never associate different instruments or "
+                "a section."
             ),
             args_schema=AddPartParams,
         ),

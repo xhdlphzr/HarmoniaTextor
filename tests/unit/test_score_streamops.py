@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from music21 import stream
+from music21 import layout, stream
 
 from harmoniatextor.domain.models import ThemeNote
 from harmoniatextor.score.analysis import (
@@ -12,6 +12,8 @@ from harmoniatextor.score.analysis import (
 )
 from harmoniatextor.score.io import (
     new_part,
+    new_score,
+    to_musicxml,
 )
 from harmoniatextor.score.streamops import ScoreEditor
 
@@ -187,3 +189,55 @@ class TestScoreEditor:
         events = voice_events(score4)["alto"]
         assert len(events) == _TWO_EVENTS
         assert {event.pitch for event in events} == {"F4", "A4"}
+
+
+def _spanned(score: stream.Score) -> list[object]:
+    """Return the first staff group's spanned elements.
+
+    Args:
+        score: The score to inspect.
+
+    Returns:
+        The spanned elements.
+    """
+    group = next(iter(score.getElementsByClass(layout.StaffGroup)))
+    return list(group.getSpannedElements())  # type: ignore[no-untyped-call]
+
+
+class TestAssociate:
+    """Locking voices into staff groups."""
+
+    def test_creates_group(self) -> None:
+        """Associating two voices creates a braced group."""
+        score = new_score(
+            key="C", time_signature="4/4", tempo_bpm=80, voices=["rh", "lh"]
+        )
+        assert ScoreEditor(score).associate("lh", "rh") is True
+        assert "<group-symbol>brace</group-symbol>" in to_musicxml(score)
+
+    def test_extends_group(self) -> None:
+        """Associating a third voice extends the existing group."""
+        score = new_score(
+            key="C", time_signature="4/4", tempo_bpm=80, voices=["v1", "v2", "v3"]
+        )
+        editor = ScoreEditor(score)
+        assert editor.associate("v2", "v1") is True
+        assert editor.associate("v3", "v1") is True
+        assert len(_spanned(score)) == 3
+
+    def test_duplicate_is_ignored(self) -> None:
+        """Associating the same pair twice keeps one member."""
+        score = new_score(
+            key="C", time_signature="4/4", tempo_bpm=80, voices=["rh", "lh"]
+        )
+        editor = ScoreEditor(score)
+        assert editor.associate("lh", "rh") is True
+        assert editor.associate("lh", "rh") is True
+        assert len(_spanned(score)) == 2
+
+    def test_unknown_voice(self) -> None:
+        """Associating a missing part returns False."""
+        score = new_score(key="C", time_signature="4/4", tempo_bpm=80, voices=["rh"])
+        editor = ScoreEditor(score)
+        assert editor.associate("lh", "rh") is False
+        assert editor.associate("rh", "nope") is False
