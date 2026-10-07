@@ -199,6 +199,61 @@ class TestExportService:
         assert "我的作品第一首测试" in result.path.name
         assert all(char not in result.path.name for char in '<>:"/\\|?*')
 
+    def test_export_movement_named_after_title(
+        self, service: CompositionService, tmp_path: Path
+    ) -> None:
+        """Per-movement exports are named after the title, without a suffix.
+
+        Args:
+            service: The composition service.
+            tmp_path: The pytest temporary path fixture.
+        """
+        work = service.create_work("Demo", "sonata", "C")
+        exporter = ExportService(service, tmp_path / "vendor")
+        result = exporter.export_musicxml(
+            work.id, work.movements[1].id, tmp_path / "out"
+        )
+        assert result.ok
+        assert result.path is not None
+        assert result.path.name == "Demo.musicxml"
+
+    def test_export_musicxml_uses_work_title(
+        self, service: CompositionService, tmp_path: Path
+    ) -> None:
+        """The exported MusicXML carries the work's Step 1 title.
+
+        Args:
+            service: The composition service.
+            tmp_path: The pytest temporary path fixture.
+        """
+        work = service.create_work("Demo", "plain", "C")
+        service.set_title(work.id, "F大调钢琴奏鸣曲")
+        service.submit_theme(
+            work.id, work.movements[0].id, _movement_xml(), check=False
+        )
+        exporter = ExportService(service, tmp_path / "vendor")
+        result = exporter.export_work(work.id, "musicxml", tmp_path / "out")
+        assert result.ok
+        assert result.path is not None
+        assert "F大调钢琴奏鸣曲" in result.path.read_text(encoding="utf-8")
+
+    def test_export_png(self, service: CompositionService, tmp_path: Path) -> None:
+        """A client-rendered PNG is saved under the work title.
+
+        Args:
+            service: The composition service.
+            tmp_path: The pytest temporary path fixture.
+        """
+        work = service.create_work("Demo", "plain", "C")
+        exporter = ExportService(service, tmp_path / "vendor")
+        result = exporter.export_png(
+            work.id, work.movements[0].id, tmp_path / "out", b"\x89PNG"
+        )
+        assert result.ok
+        assert result.path is not None
+        assert result.path.name == "Demo.png"
+        assert result.path.read_bytes() == b"\x89PNG"
+
     def test_export_work_uses_title(
         self, service: CompositionService, tmp_path: Path
     ) -> None:
