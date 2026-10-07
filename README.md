@@ -19,6 +19,15 @@ SPDX-License-Identifier: MIT
 
 Neuro-symbolic classical music generation. A large language model acts as the composer while a deterministic symbolic layer (technique packs, counterpoint checkers and a pluggable genre framework) validates and materialises every decision as MusicXML.
 
+## Demo
+
+Composed end-to-end by HarmoniaTextor from Shakespeare's **Sonnet 18**: **Piano Sonata in F major, "Eternal Summer"**.
+
+![Piano Sonata in F major, "Eternal Summer" — score excerpt](assets/ui.png)
+
+- [Listen to the audio (MP3)](assets/Piano%20Sonata%20in%20F%20major%20Eternal%20Summer.mp3)
+- [Open the MusicXML score](assets/Piano%20Sonata%20in%20F%20major%20Eternal%20Summer.musicxml)
+
 ## Architecture
 
 ```mermaid
