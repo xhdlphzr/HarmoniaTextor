@@ -7,9 +7,10 @@ from __future__ import annotations
 
 import copy
 import warnings
-from typing import Any
+from collections.abc import Callable
+from typing import Any, Literal
 
-from music21 import clef, converter, instrument, meter, stream, tempo
+from music21 import clef, converter, instrument, layout, meter, stream, tempo
 from music21 import key as m21key
 from music21.musicxml.m21ToXml import GeneralObjectExporter
 from music21.musicxml.xmlObjects import MusicXMLWarning
@@ -20,6 +21,7 @@ __all__ = [
     "clone_score",
     "ensure_instruments",
     "from_musicxml",
+    "group_staves",
     "instrument_for_voice",
     "make_instrument",
     "new_part",
@@ -310,14 +312,137 @@ def assign_clefs(score: stream.Score) -> None:
             _set_clef(part, sign)
 
 
+#: Single-player instruments that may span several staves; parts of one of
+#: these that share the instrument are joined by a brace (e.g. piano hands).
+#: The more specific ``harpsichord`` is listed before ``harp`` so it wins.
+_GRAND_STAFF = ("piano", "harpsichord", "celesta", "harp", "organ", "keyboard")
+#: Orchestral sections, joined by a bracket.  Order is the score order.
+_SECTION_FAMILIES: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("woodwinds", ("flute", "piccolo", "oboe", "clarinet", "bassoon")),
+    ("brass", ("trumpet", "horn", "trombone", "tuba", "euphonium")),
+    ("strings", ("violin", "viola", "cello", "contrabass", "double bass")),
+    ("percussion", ("timpani", "percussion", "drum", "cymbal", "glockenspiel")),
+)
+
+
+def _grand_staff_key(part: stream.Part) -> str | None:
+    """Return the grand-staff instrument of a part.
+
+    Args:
+        part: Part to inspect.
+
+    Returns:
+        A lowercased instrument key, or ``None`` for a single-staff part.
+    """
+    tokens = _part_tokens(part)
+    for key in _GRAND_STAFF:
+        if _matches(tokens, (key,)):
+            return key
+    return None
+
+
+def _section(part: stream.Part) -> str | None:
+    """Return the orchestral section of a part.
+
+    Args:
+        part: Part to inspect.
+
+    Returns:
+        A section name, or ``None`` when the part is not orchestral.
+    """
+    tokens = _part_tokens(part)
+    for name, keys in _SECTION_FAMILIES:
+        if _matches(tokens, keys):
+            return name
+    return None
+
+
+def _hand_hint(part: stream.Part) -> bool:
+    """Return whether a part names a hand or pedal staff.
+
+    Args:
+        part: Part to inspect.
+
+    Returns:
+        ``True`` for a left/right hand or pedal part.
+    """
+    names = [str(value).lower() for value in (part.id, part.partName) if value]
+    return any(
+        name.startswith(("lh", "rh"))
+        or "left" in name
+        or "right" in name
+        or "pedal" in name
+        for name in names
+    )
+
+
+def _add_groups(
+    score: stream.Score,
+    key_of: Callable[[stream.Part], str | None],
+    symbol: Literal["brace", "bracket"],
+    *,
+    continue_on_hint: bool = False,
+) -> None:
+    """Join consecutive parts that share a grouping key.
+
+    Args:
+        score: Score to modify in place.
+        key_of: Maps a part to its grouping key, or ``None`` to skip it.
+        symbol: MusicXML group symbol, ``"brace"`` or ``"bracket"``.
+        continue_on_hint: Whether a hand/pedal part joins the previous group
+            even when its own key differs (so an organ pedal groups with the
+            organ manuals).
+    """
+    groups: list[list[stream.Part]] = []
+    keys: list[str | None] = []
+    for part in score.parts:
+        key = key_of(part)
+        if continue_on_hint and _hand_hint(part) and keys:
+            groups[-1].append(part)
+            continue
+        if key is not None and keys and keys[-1] == key:
+            groups[-1].append(part)
+        else:
+            groups.append([part])
+            keys.append(key)
+    for key, group in zip(keys, groups):
+        if key is None or len(group) < 2:
+            continue
+        staff_group = layout.StaffGroup(
+            group, name=key, symbol=symbol, barTogether=True
+        )
+        score.insert(0.0, staff_group)
+
+
+def group_staves(score: stream.Score) -> None:
+    """Join staves of one instrument or one section.
+
+    Called just before serialisation so a piano's left and right hands (or any
+    other single-player instrument split across staves) are joined by a brace,
+    and orchestral sections (strings, woodwinds, brass, percussion) by a
+    bracket, as engraved scores do.
+
+    Args:
+        score: The score to modify in place.
+    """
+    for existing in list(score.getElementsByClass(layout.StaffGroup)):
+        site = existing.activeSite
+        if site is not None:
+            site.remove(existing)
+    _add_groups(score, _grand_staff_key, "brace", continue_on_hint=True)
+    _add_groups(score, _section, "bracket")
+
+
 def to_musicxml(score: stream.Score) -> str:
     """Serialise a score to MusicXML text.
 
     A part-less score (a movement before the composer AI creates any voice) is
     serialised as a single empty staff; music21's "not well-formed" warning for
-    that intentional state is suppressed.  Register-appropriate clefs are
-    applied first (see :func:`assign_clefs`), so the rendered staff notates low
-    instruments and left hands in a bass clef and the viola in an alto clef.
+    that intentional state is suppressed.  Register-appropriate clefs
+    (:func:`assign_clefs`) and staff groups (:func:`group_staves`) are applied
+    first, so the rendered staff notates low instruments in a bass clef, the
+    viola in an alto clef, and braces an instrument's staves while bracketing
+    orchestral sections.
 
     Args:
         score: The score to serialise.
@@ -326,6 +451,7 @@ def to_musicxml(score: stream.Score) -> str:
         A MusicXML document as text.
     """
     assign_clefs(score)
+    group_staves(score)
     exporter = GeneralObjectExporter(score)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=MusicXMLWarning)

@@ -19,14 +19,19 @@
     </scaling>
   </defaults>
   <part-list>
+    <part-group number="1" type="start">
+      <group-name>piano</group-name>
+      <group-symbol>brace</group-symbol>
+      <group-barline>yes</group-barline>
+    </part-group>
     <score-part id="Pe9325ebdf1c4f3159e4da857f0d1391a">
       <part-name>rh</part-name>
       <part-abbreviation>Pno</part-abbreviation>
-      <score-instrument id="I9fd2dbe8002f4995d31ebd05e81f823e">
+      <score-instrument id="I713eedca36090a724f6b54fd1951a8d1">
         <instrument-name>Piano</instrument-name>
         <instrument-abbreviation>Pno</instrument-abbreviation>
       </score-instrument>
-      <midi-instrument id="I9fd2dbe8002f4995d31ebd05e81f823e">
+      <midi-instrument id="I713eedca36090a724f6b54fd1951a8d1">
         <midi-channel>1</midi-channel>
         <midi-program>1</midi-program>
       </midi-instrument>
@@ -34,15 +39,16 @@
     <score-part id="Pa1e0e80437e7e65289d5ca85171bf85e">
       <part-name>lh</part-name>
       <part-abbreviation>Pno</part-abbreviation>
-      <score-instrument id="I6f9b106728f03944b418be36b1f76208">
+      <score-instrument id="I4a126a437aa206f89ca3fa11d46e0dc2">
         <instrument-name>Piano</instrument-name>
         <instrument-abbreviation>Pno</instrument-abbreviation>
       </score-instrument>
-      <midi-instrument id="I6f9b106728f03944b418be36b1f76208">
+      <midi-instrument id="I4a126a437aa206f89ca3fa11d46e0dc2">
         <midi-channel>2</midi-channel>
         <midi-program>1</midi-program>
       </midi-instrument>
     </score-part>
+    <part-group number="1" type="stop" />
   </part-list>
   <!--=========================== Part 1 ===========================-->
   <part id="Pe9325ebdf1c4f3159e4da857f0d1391a">
@@ -58,6 +64,10 @@
           <beats>4</beats>
           <beat-type>4</beat-type>
         </time>
+        <clef>
+          <sign>G</sign>
+          <line>2</line>
+        </clef>
       </attributes>
       <direction>
         <direction-type>
@@ -4084,6 +4094,10 @@
           <beats>4</beats>
           <beat-type>4</beat-type>
         </time>
+        <clef>
+          <sign>F</sign>
+          <line>4</line>
+        </clef>
       </attributes>
       <direction>
         <direction-type>

@@ -31,6 +31,8 @@ class TestPrompts:
         assert "add_part" in prompt
         assert "every musicxml parameter is a fragment" in prompt
         assert "first part" in prompt
+        assert "braced" in prompt
+        assert "bracketed as a section" in prompt
         assert "Fix:" in prompt
 
     def test_system_prompt_teaches_annotate(self) -> None:
