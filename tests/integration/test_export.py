@@ -68,7 +68,11 @@ class TestExportService:
         exporter = ExportService(service, tmp_path / "vendor")
 
         def fake_synth(
-            _score: object, out_path: Path, _features: object, _fmt: str
+            _score: object,
+            out_path: Path,
+            _features: object,
+            _fmt: str,
+            **_kwargs: object,
         ) -> Path:
             out_path.write_text("audio")
             return out_path
@@ -315,7 +319,11 @@ class TestExportService:
         assert not exporter.export_work(work_id, "ogg", tmp_path / "out").ok
 
         def fake_synth(
-            _score: object, out_path: Path, _features: object, _fmt: str
+            _score: object,
+            out_path: Path,
+            _features: object,
+            _fmt: str,
+            **_kwargs: object,
         ) -> Path:
             out_path.write_text("audio")
             return out_path

@@ -9,6 +9,8 @@ then transcodes the WAV to the requested compressed format with ffmpeg.
 
 from __future__ import annotations
 
+import copy
+import math
 import shutil
 import subprocess
 import tempfile
@@ -63,11 +65,56 @@ def _lock_for(path: Path) -> threading.Lock:
         return lock
 
 
+def _apply_section_sizes(
+    score: stream.Score, counts: dict[str, int] | None
+) -> stream.Score:
+    """Expand each voice into as many players as its section size.
+
+    A score with one part per voice sounds like a single player.  For a section
+    of several players the part is copied once per player and each copy is
+    quietened so the section is louder and thicker without clipping.  The work
+    is done on the throw-away score used for audio rendering and never reaches
+    the stored notation.
+
+    Args:
+        score: The score to render.
+        counts: Voice-to-player-count mapping; omitted voices play as one.
+
+    Returns:
+        The original score when nothing needs expanding, else an expanded copy.
+    """
+    if not counts:
+        return score
+    parts = list(score.parts)
+    if not any(counts.get(str(part.id or part.partName), 1) > 1 for part in parts):
+        return score
+    rendered = stream.Score()
+    if score.metadata is not None:
+        rendered.metadata = copy.deepcopy(score.metadata)
+    for part in parts:
+        name = str(part.id or part.partName)
+        count = max(1, counts.get(name, 1))
+        scale = 1.0 / math.sqrt(count)
+        for index in range(count):
+            clone = copy.deepcopy(part)
+            if count > 1:
+                clone.id = f"{name}~{index + 1}"
+                clone.partName = clone.id
+                for item in clone.recurse().notes:
+                    velocity = item.volume.velocity
+                    if velocity is not None:
+                        item.volume.velocity = max(1, round(velocity * scale))
+            rendered.insert(0.0, clone)
+    return rendered
+
+
 def synthesize_audio(
     score: stream.Score,
     out_path: Path,
     features: Features,
     fmt: str = "m4a",
+    *,
+    player_counts: dict[str, int] | None = None,
 ) -> Path:
     """Render a score to a compressed audio file.
 
@@ -76,6 +123,7 @@ def synthesize_audio(
         out_path: Destination path; the suffix follows ``fmt``.
         features: Detected audio backend features.
         fmt: Target format, either ``"m4a"`` or ``"mp3"``.
+        player_counts: Voice-to-player-count mapping used for section playback.
 
     Returns:
         The written audio path.
@@ -100,8 +148,9 @@ def synthesize_audio(
         midi_path = temp_dir / "score.mid"
         wav_path = temp_dir / "score.wav"
         try:
-            realize_expressions(score)
-            score.write("midi", fp=str(midi_path))  # type: ignore[no-untyped-call]  # music21
+            prepared = _apply_section_sizes(score, player_counts)
+            realize_expressions(prepared)
+            prepared.write("midi", fp=str(midi_path))  # type: ignore[no-untyped-call]  # music21
             assert features.fluidsynth is not None
             assert features.soundfont is not None
             assert features.ffmpeg is not None

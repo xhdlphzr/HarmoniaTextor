@@ -17,6 +17,7 @@ from harmoniatextor.domain.params import (
     EditParams,
     InsertMeasureParams,
     RemovePartParams,
+    SetPartCountParams,
     SetTempoParams,
     SetTimeSignatureParams,
     SubmitThemeParams,
@@ -115,13 +116,21 @@ def build_tools(
             )
         )
 
-    def add_part(voice: str, instrument: str, associate: str = "") -> str:
+    def add_part(
+        voice: str,
+        instrument: str,
+        associate: str = "",
+        count: int = 1,
+        split: bool = False,
+    ) -> str:
         """Add a new instrumental part and always name its instrument.
 
         Args:
             voice: Voice slot name.
             instrument: Instrument name.
             associate: Existing voice slot to group the new part with.
+            count: How many players perform the voice.
+            split: Whether to create ``count`` numbered independent voices.
 
         Returns:
             The resulting text.
@@ -133,9 +142,23 @@ def build_tools(
                 voice,
                 instrument,
                 associate=associate or None,
+                count=count,
+                split=split,
                 check=False,
             )
         )
+
+    def set_part_count(voice: str, count: int) -> str:
+        """Set how many players perform an existing voice.
+
+        Args:
+            voice: Voice slot to retarget.
+            count: Number of players.
+
+        Returns:
+            The resulting text.
+        """
+        return result_payload(service.set_part_count(work_id, voice, count))
 
     def remove_part(voice: str) -> str:
         """Remove a voice from the movement.
@@ -279,9 +302,21 @@ def build_tools(
                 "of the SAME one-player instrument (e.g. a piano's 'lh' with 'rh', or "
                 "an organ pedal with the manuals) set associate to that part's slot so "
                 "the staves are braced as one; never associate different instruments or "
-                "a section."
+                "a section. Set count to the number of players for an orchestral "
+                "section (playback only), or split=true to create numbered independent "
+                "voices instead."
             ),
             args_schema=AddPartParams,
+        ),
+        StructuredTool.from_function(
+            func=set_part_count,
+            name="set_part_count",
+            description=(
+                "Set how many players perform an existing voice (playback thickness "
+                "only, e.g. 2 flutes, 4 horns, 12 first violins). Use this for "
+                "orchestral sections; it does not add staves."
+            ),
+            args_schema=SetPartCountParams,
         ),
         StructuredTool.from_function(
             func=remove_part,

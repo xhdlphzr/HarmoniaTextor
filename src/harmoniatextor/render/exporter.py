@@ -194,7 +194,11 @@ class ExportService:
             return ExportResult(ok=True, path=path)
         try:
             synthesize_audio(
-                self._score(work_id, movement_id), path, self.features(), fmt
+                self._score(work_id, movement_id),
+                path,
+                self.features(),
+                fmt,
+                player_counts=self.service.part_counts(work_id),
             )
         except FeatureUnavailableError as exc:
             return ExportResult(ok=False, error=str(exc))

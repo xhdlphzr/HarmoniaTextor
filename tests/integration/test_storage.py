@@ -145,6 +145,48 @@ class TestProjectStore:
         store.save_work(make_work())
         assert store.load_work("w-1").prompt == ""
 
+    def test_part_counts_roundtrip(self, tmp_path: Path) -> None:
+        """A work's player counts survive save/load.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
+        store = ProjectStore(tmp_path / "data")
+        work = make_work()
+        work.part_counts = {"flute": 2, "violin1": 12}
+        store.save_work(work)
+        assert store.load_work("w-1").part_counts == {"flute": 2, "violin1": 12}
+
+    def test_part_counts_absent(self, tmp_path: Path) -> None:
+        """A work without player counts loads an empty mapping.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
+        store = ProjectStore(tmp_path / "data")
+        store.save_work(make_work())
+        assert store.load_work("w-1").part_counts == {}
+
+    def test_works_part_counts_migration(self, tmp_path: Path) -> None:
+        """A works table created before the counts column auto-fills empty.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
+        connection = sqlite3.connect(tmp_path / "history.db")
+        connection.execute(
+            "CREATE TABLE works (id TEXT PRIMARY KEY, title TEXT, genre TEXT, tonic TEXT,"
+            " status TEXT, style TEXT, prompt TEXT, created_at TEXT, updated_at TEXT)"
+        )
+        connection.execute(
+            "INSERT INTO works VALUES"
+            " ('w-1', 'Demo', 'plain', 'C', 'draft', NULL, '', 't0', 't0')"
+        )
+        connection.commit()
+        connection.close()
+        store = ProjectStore(tmp_path)
+        assert store.load_work("w-1").part_counts == {}
+
     def test_works_prompt_migration(self, tmp_path: Path) -> None:
         """A works table created before the prompt column auto-fills blank.
 

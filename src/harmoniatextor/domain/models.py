@@ -286,6 +286,8 @@ class Work:
         style: Frozen style-kit snapshot chosen at creation.
         prompt: The user's original composition prompt, or an empty string for
             works created before this was recorded.
+        part_counts: How many players perform each voice (playback-only
+            orchestration metadata; omitted voices play as one player).
         created_at: ISO timestamp.
         updated_at: ISO timestamp.
     """
@@ -298,5 +300,6 @@ class Work:
     status: WorkStatus = WorkStatus.DRAFT
     style: StyleSelection | None = None
     prompt: str = ""
+    part_counts: dict[str, int] = field(default_factory=dict)
     created_at: str = ""
     updated_at: str = ""
