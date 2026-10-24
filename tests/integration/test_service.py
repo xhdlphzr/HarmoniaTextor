@@ -679,6 +679,91 @@ class TestInstruments:
         assert not result.ok
         assert result.error_code == "BAD_PARAM"
 
+    def test_add_part_count_records_section(self, service: CompositionService) -> None:
+        """A non-split count is stored as playback orchestration metadata.
+
+        Args:
+            service: The composition service.
+        """
+        work = service.create_work("Demo", "plain", "C", with_movements=False)
+        service.add_movement(work.id)
+        result = service.add_part(
+            work.id, "m01", "flute", "Flute", count=2, check=False
+        )
+        assert result.ok
+        assert service.part_counts(work.id) == {"flute": 2}
+
+    def test_add_part_split_creates_voices(self, service: CompositionService) -> None:
+        """Splitting a section creates numbered independent voices.
+
+        Args:
+            service: The composition service.
+        """
+        work = service.create_work("Demo", "plain", "C", with_movements=False)
+        service.add_movement(work.id)
+        result = service.add_part(
+            work.id, "m01", "horn", "Horn", count=3, split=True, check=False
+        )
+        assert result.ok
+        names = [
+            str(part.id or part.partName)
+            for part in service.current_score(work.id, "m01").parts
+        ]
+        assert names == ["horn1", "horn2", "horn3"]
+        assert service.part_counts(work.id) == {}
+
+    def test_add_part_split_rejects_associate(
+        self, service: CompositionService
+    ) -> None:
+        """Split parts cannot be associated with one player's staves.
+
+        Args:
+            service: The composition service.
+        """
+        work = service.create_work("Demo", "plain", "C", with_movements=False)
+        service.add_movement(work.id)
+        result = service.add_part(
+            work.id,
+            "m01",
+            "piano",
+            "Piano",
+            associate="rh",
+            count=2,
+            split=True,
+            check=False,
+        )
+        assert not result.ok
+        assert result.error_code == "BAD_PARAM"
+
+    def test_add_part_count_invalid(self, service: CompositionService) -> None:
+        """A player count below one is rejected.
+
+        Args:
+            service: The composition service.
+        """
+        work = service.create_work("Demo", "plain", "C", with_movements=False)
+        service.add_movement(work.id)
+        result = service.add_part(
+            work.id, "m01", "flute", "Flute", count=0, check=False
+        )
+        assert not result.ok
+        assert result.error_code == "BAD_PARAM"
+
+    def test_set_part_count(self, service: CompositionService) -> None:
+        """A voice's player count can be set, cleared and validated.
+
+        Args:
+            service: The composition service.
+        """
+        work = service.create_work("Demo", "plain", "C")
+        assert service.set_part_count(work.id, "flute", 3).ok
+        assert service.part_counts(work.id) == {"flute": 3}
+        assert service.set_part_count(work.id, "flute", 1).ok
+        assert service.part_counts(work.id) == {}
+        result = service.set_part_count(work.id, "flute", 0)
+        assert not result.ok
+        assert result.error_code == "BAD_PARAM"
+
     def test_add_part_check_failure(
         self, service: CompositionService, monkeypatch: pytest.MonkeyPatch
     ) -> None:

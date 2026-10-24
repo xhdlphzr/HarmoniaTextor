@@ -55,6 +55,7 @@ __all__ = [
     "RubatoParams",
     "SequenceParams",
     "SetMovementPromptParams",
+    "SetPartCountParams",
     "SetTempoParams",
     "SetTimeSignatureParams",
     "SetTitleParams",
@@ -719,6 +720,9 @@ class AddPartParams(_Params):
         instrument: Instrument to assign to the new part (required).
         associate: An existing voice slot to lock the new part into one group
             with, e.g. the piano's other hand or the rest of a section.
+        count: How many players perform this voice.
+        split: Whether to create ``count`` numbered independent voices instead
+            of one voice played by several players.
     """
 
     voice: str = Field(min_length=1, description="Voice slot name for the new part.")
@@ -737,6 +741,42 @@ class AddPartParams(_Params):
             "pedal with the manuals). Their staves are then braced as one. Use this "
             "only for one instrument played by one person; never for different "
             "instruments or a section. Empty adds the part ungrouped."
+        ),
+    )
+    count: int = Field(
+        default=1,
+        ge=1,
+        le=64,
+        description=(
+            "How many players perform this voice (default 1). A section of 2 flutes "
+            "or 12 first violins uses count=2/12 so playback has the right thickness."
+        ),
+    )
+    split: bool = Field(
+        default=False,
+        description=(
+            "When true, create count numbered independent voices (e.g. flute1, "
+            "flute2) instead of one voice with several players. Use split when each "
+            "player needs a separate line."
+        ),
+    )
+
+
+class SetPartCountParams(_Params):
+    """Parameters for the set-part-count tool.
+
+    Attributes:
+        voice: Voice slot whose player count changes.
+        count: How many players perform the voice.
+    """
+
+    voice: str = Field(min_length=1, description="Voice slot to retarget.")
+    count: int = Field(
+        ge=1,
+        le=64,
+        description=(
+            "How many players perform this voice, e.g. 2 for two flutes or 12 for "
+            "the first violins. Affects playback thickness only."
         ),
     )
 

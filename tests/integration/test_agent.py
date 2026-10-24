@@ -41,7 +41,7 @@ from harmoniatextor.score.streamops import ScoreEditor
 from harmoniatextor.service.service import CompositionService, ToolResult
 from harmoniatextor.techniques import build_default_registry
 
-_EXPECTED_TOOL_COUNT = 46
+_EXPECTED_TOOL_COUNT = 47
 _AUTO_CONTINUE_CALLS = 2
 _EXPECTED_MESSAGES = 2
 _COMPRESSED_MESSAGES = 1
@@ -342,8 +342,12 @@ class TestTools:
             {"musicxml": theme_xml(), "instrument": "Soprano"}
         )
         assert "theme_id" in submitted
-        added = tools["add_part"].invoke({"voice": "flute", "instrument": "Flute"})
+        added = tools["add_part"].invoke(
+            {"voice": "flute", "instrument": "Flute", "count": 2}
+        )
         assert "ok" in added
+        counted = tools["set_part_count"].invoke({"voice": "flute", "count": 3})
+        assert json.loads(counted)["ok"] is True
         removed = tools["remove_part"].invoke({"voice": "flute"})
         assert "ok" in removed
         tempo = tools["set_tempo"].invoke({"bpm": 100})

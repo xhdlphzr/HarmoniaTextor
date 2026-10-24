@@ -7,10 +7,17 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from music21 import metadata
 
-from harmoniatextor.render.audio import FeatureUnavailableError, synthesize_audio
+from harmoniatextor.domain.models import ThemeNote
+from harmoniatextor.render.audio import (
+    FeatureUnavailableError,
+    _apply_section_sizes,
+    synthesize_audio,
+)
 from harmoniatextor.render.features import Features
 from harmoniatextor.score.io import new_score
+from harmoniatextor.score.streamops import ScoreEditor
 
 _EXPECTED_CALLS = 2
 
@@ -119,3 +126,31 @@ class TestAudio:
         synthesize_audio(score, out, features, "m4a")
         synthesize_audio(score, out, features, "m4a")
         assert len(calls) == _EXPECTED_CALLS * 2
+
+    def test_section_sizes_noop(self) -> None:
+        """No counts, an empty mapping and unit counts keep the score as is."""
+        score = new_score(key="C", time_signature="4/4", tempo_bpm=80, voices=["flute"])
+        assert _apply_section_sizes(score, None) is score
+        assert _apply_section_sizes(score, {}) is score
+        assert _apply_section_sizes(score, {"flute": 1}) is score
+
+    def test_section_sizes_expand(self) -> None:
+        """A section is expanded into quietened per-player copies."""
+        score = new_score(
+            key="C", time_signature="4/4", tempo_bpm=80, voices=["flute", "violin"]
+        )
+        ScoreEditor(score).write_line("flute", 1, [ThemeNote("C5", 1.0)])
+        score.metadata = metadata.Metadata()
+        score.metadata.title = "Section"
+        for item in score.recurse().notes:
+            item.volume.velocity = 90
+        rendered = _apply_section_sizes(score, {"flute": 3})
+        assert rendered.metadata is not None
+        assert rendered.metadata.title == "Section"
+        names = sorted(str(part.id or part.partName) for part in rendered.parts)
+        assert names == ["flute~1", "flute~2", "flute~3", "violin"]
+        copies = [part for part in rendered.parts if str(part.id).startswith("flute~")]
+        for part in copies:
+            velocities = [item.volume.velocity for item in part.recurse().notes]
+            assert velocities == [52]
+        assert len(score.parts) == 2

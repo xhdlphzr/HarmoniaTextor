@@ -830,6 +830,8 @@ class CompositionService:
         instrument: str | None = None,
         *,
         associate: str | None = None,
+        count: int = 1,
+        split: bool = False,
         check: bool = True,
     ) -> ToolResult:
         """Add a new instrumental part to a movement.
@@ -841,6 +843,9 @@ class CompositionService:
             instrument: Instrument to assign; defaults to the voice mapping.
             associate: Existing voice slot to lock the new part into one group
                 with, so their staves are drawn together.
+            count: How many players perform the voice; playback-only when the
+                part is not split.
+            split: Whether to create ``count`` numbered independent voices.
             check: Whether to run the symbolic checker immediately.
 
         Returns:
@@ -850,28 +855,51 @@ class CompositionService:
         movement = self._owning_movement(work, movement_id)
         score = self.current_score(work_id, movement_id)
         editor = self._editor(score, movement)
-        if editor.get_part(voice) is not None:
+        if count < 1:
             return ToolResult(
-                False, error_code="BAD_PARAM", message=f"Part already exists: {voice}"
+                False, error_code="BAD_PARAM", message="count must be at least 1."
             )
+        if split and associate:
+            return ToolResult(
+                False,
+                error_code="BAD_PARAM",
+                message="split parts cannot be associated; associate is for one player.",
+            )
+        if count == 1 or not split:
+            names = [voice]
+        else:
+            names = [f"{voice}{index}" for index in range(1, count + 1)]
+        for name in names:
+            if editor.get_part(name) is not None:
+                return ToolResult(
+                    False,
+                    error_code="BAD_PARAM",
+                    message=f"Part already exists: {name}",
+                )
         if associate and editor.get_part(associate) is None:
             return ToolResult(
                 False,
                 error_code="BAD_PARAM",
                 message=f"Unknown part to associate: {associate}",
             )
-        editor.get_part(voice, create=True)
-        if instrument:
-            editor.set_instrument(voice, instrument)
-        if associate and not editor.associate(voice, associate):
-            return ToolResult(
-                False,
-                error_code="BAD_PARAM",
-                message=(
-                    f"Cannot associate {voice} with {associate}: only the same "
-                    "one-player instrument (piano, harp, organ) can be grouped."
-                ),
-            )
+        for name in names:
+            editor.get_part(name, create=True)
+            if instrument:
+                editor.set_instrument(name, instrument)
+            if associate and not editor.associate(name, associate):
+                return ToolResult(
+                    False,
+                    error_code="BAD_PARAM",
+                    message=(
+                        f"Cannot associate {name} with {associate}: only the same "
+                        "one-player instrument (piano, harp, organ) can be grouped."
+                    ),
+                )
+        if count > 1 and not split:
+            work.part_counts[voice] = count
+        else:
+            for name in names:
+                work.part_counts.pop(name, None)
         report = self._check(work, movement, score) if check else None
         revision = self._save_revision(
             work,
@@ -879,18 +907,74 @@ class CompositionService:
             movement_id,
             score,
             RevisionOrigin(
-                ToolKind.PART, params={"voice": voice, "instrument": instrument}
+                ToolKind.PART,
+                params={
+                    "voice": voice,
+                    "instrument": instrument,
+                    "count": count,
+                    "split": split,
+                },
             ),
             report,
         )
         if report is not None and not report.ok:
             return ToolResult(False, message=format_feedback(report), report=report)
+        message = (
+            format_feedback(report)
+            if report is not None
+            else (
+                f"Parts added: {', '.join(names)}."
+                if split and count > 1
+                else "Part added."
+            )
+        )
         return ToolResult(
             True,
             full_musicxml=revision.full_xml,
-            message=format_feedback(report) if report is not None else "Part added.",
+            message=message,
             report=report,
         )
+
+    def set_part_count(self, work_id: str, voice: str, count: int) -> ToolResult:
+        """Set how many players perform a voice.
+
+        The count is orchestration metadata used only for playback thickness; it
+        never changes the notation or the number of parts.
+
+        Args:
+            work_id: Active work.
+            voice: Voice slot to retarget.
+            count: Number of players (1 removes the override).
+
+        Returns:
+            A tool result confirming the setting.
+        """
+        if count < 1:
+            return ToolResult(
+                False, error_code="BAD_PARAM", message="count must be at least 1."
+            )
+        work = self.store.load_work(work_id)
+        if count == 1:
+            work.part_counts.pop(voice, None)
+        else:
+            work.part_counts[voice] = count
+        work.updated_at = _now()
+        self.store.save_work(work)
+        self.store.append_journal(
+            work_id, {"event": "part_count", "voice": voice, "count": count}
+        )
+        return ToolResult(True, message=f"{voice}: {count} player(s).")
+
+    def part_counts(self, work_id: str) -> dict[str, int]:
+        """Return how many players perform each voice.
+
+        Args:
+            work_id: Work identifier.
+
+        Returns:
+            A voice-to-player-count mapping; omitted voices play as one player.
+        """
+        return dict(self.store.load_work(work_id).part_counts)
 
     def remove_part(
         self, work_id: str, movement_id: str, voice: str, *, check: bool = True
