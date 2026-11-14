@@ -568,7 +568,7 @@ wheels = [
 
 [[package]]
 name = "harmoniatextor"
-version = "2.4.0"
+version = "2.5.0"
 source = { editable = "." }
 dependencies = [
     { name = "flask" },
@@ -1922,6 +1922,8 @@ name = "pyqt6-webengine-qt6"
 version = "6.140.0"
 source = { registry = "https://pypi.org/simple" }
 wheels = [
+    { url = "https://files.pythonhosted.org/packages/9b/c0/249414adb1d76d470c8759d9ca362f49fd96d434f5635340b08bbea18f72/pyqt6_webengine_qt6-6.140.0-1-py3-none-manylinux_2_34_x86_64.whl", hash = "sha256:ee0f4e285ea5e0e973fb75b41c76a26ed3c7c19911eea7d1d42db6743ca10dc7", size = 116684660, upload-time = "2026-11-13T15:05:24.902Z" },
+    { url = "https://files.pythonhosted.org/packages/be/32/ba8775028b310210663666f4ea84b6f46e6beef776c13d1c0faf703967a9/pyqt6_webengine_qt6-6.140.0-1-py3-none-manylinux_2_39_aarch64.whl", hash = "sha256:b9a1dc319066a3812f8408d2bbf4cdcaa8b2dbd4e9ebe5764608c2b0d9b964ce", size = 113987217, upload-time = "2026-11-13T15:07:52.245Z" },
     { url = "https://files.pythonhosted.org/packages/58/05/573c0285dc3d4d31a43ddba150792d2a595b0610fc654035ad36e41f23d0/pyqt6_webengine_qt6-6.140.0-py3-none-manylinux_2_34_x86_64.whl", hash = "sha256:d14a3f57c425bd14ff2435a4e69c02737b26a9a7d5acb227b11babeff97295d6", size = 116403379, upload-time = "2026-11-02T17:02:43.193Z" },
     { url = "https://files.pythonhosted.org/packages/fa/2a/f8fe14260396f3a9d8edd209b3d2242cf4b9e1f091572c9a3a3d63c2fbb4/pyqt6_webengine_qt6-6.140.0-py3-none-manylinux_2_39_aarch64.whl", hash = "sha256:cc098447011bece0abd8b6fded02058de5b7687af7e8e659f1a9d705546317e5", size = 113715832, upload-time = "2026-11-02T17:02:49.894Z" },
 ]
