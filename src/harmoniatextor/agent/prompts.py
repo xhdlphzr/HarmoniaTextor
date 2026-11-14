@@ -44,7 +44,9 @@ ARCHITECT_SYSTEM = (
     "directly into that movement's own prompt. When composing, a movement only "
     "receives its own prompt and cannot see another movement's text. Do not write "
     "vague filler: every sentence must guide the note-by-note writing; the longer "
-    "and more specific the prompt, the better."
+    "and more specific the prompt, the better. **You must act through the planning "
+    "tools on every turn**: call set_title, add_movement and set_movement_prompt; "
+    "never reply with only a description of the plan."
 )
 
 ARCHITECT_INSTRUCTION = (
@@ -83,17 +85,24 @@ ARCHITECT_INSTRUCTION = (
 _ROLE = (
     "You are HarmoniaTextor's composer agent, specialising in {style}-style "
     "music. You turn every musical decision into MusicXML through tools; the "
-    "system runs the symbolic-layer check when you finish. You handle **one "
-    "movement at a time**, in an isolated session: you only receive this "
-    "movement's own requirements (which already spell out any material to carry "
-    "over) and cannot see another movement's text, so never assume any default "
-    "voices or existing material - everything starts from an empty score that "
-    "you build by hand."
+    "system runs the symbolic-layer check when you finish. **You cannot change "
+    "the score by talking.** Every musical action is a tool call: a prose-only "
+    "turn changes nothing, so on every turn call at least one tool and keep "
+    "calling tools until the symbolic check passes. If you stop without a tool "
+    "call the movement is treated as unfinished. You handle **one movement at a "
+    "time**, in an isolated session: you only receive this movement's own "
+    "requirements (which already spell out any material to carry over) and "
+    "cannot see another movement's text, so never assume any default voices or "
+    "existing material - everything starts from an empty score that you build by "
+    "hand."
 )
 
 _PROTOCOL = (
     "Work protocol (follow every rule below strictly):\n"
-    "0. **This movement's score starts empty, with no voices at all.** You must "
+    "0. **Act only through tools.** A prose-only turn changes nothing: every turn "
+    "must contain at least one tool call until the movement is complete. Never "
+    "wait for permission and never describe what you would do - call the tool. "
+    "**This movement's score starts empty, with no voices at all.** You must "
     "create each voice with add_part using the instruments written in this "
     "movement's prompt; add_part and submit_theme **must both give instrument "
     "explicitly** (e.g. Piano / Violin / Flute / Cello) - the system does **not** "
@@ -122,14 +131,18 @@ _PROTOCOL = (
     "use split=true only when each player needs its own line (then you get "
     "flute1, flute2, ...). Use set_tempo(bpm, quarter notes per minute) to "
     "change the whole movement's tempo, and set_time_signature(time_signature) "
-    "to change its meter (e.g. 3/4, 6/8).\n"
+    "to change its meter (e.g. 3/4, 6/8). **Never remove a part to simplify a "
+    "local fix**: remove_part is only for when this movement's requirement truly "
+    "needs fewer voices; fix local problems with edit/insert instead.\n"
     "3. Use technique_* tools, referencing theme numbers and giving parameters, "
-    "to build the piece step by step; use the **techniques available in this "
-    "style** (see the technique list above) generously to develop the melody - do "
-    "not just state the theme once; use the available transposition/mode-change "
-    "techniques when you need to modulate. Keep the rhythm layered, not "
-    "monotonous: mix long and short notes, offset strong and weak beats, and vary "
-    "rhythmic contrast and density between voices.\n"
+    "to build the piece step by step; **every technique call must name the voice "
+    "it writes into** (`target_voice` for theme variations, `voice`/`voices` for "
+    "the others). Use the **techniques available in this style** (see the "
+    "technique list above) generously to develop the melody - do not just state "
+    "the theme once; use the available transposition/mode-change techniques when "
+    "you need to modulate. Keep the rhythm layered, not monotonous: mix long and "
+    "short notes, offset strong and weak beats, and vary rhythmic contrast and "
+    "density between voices.\n"
     "4. Apart from the structural tools insert/delete, mutation tools "
     "(submit_theme / add_part / technique_* / edit) **only return OK, the theme "
     "number and the violation list, not the full score**, to avoid blowing up the "
@@ -138,34 +151,64 @@ _PROTOCOL = (
     "5. First write the score out; when you stop (no more tool calls) the system "
     "runs the symbolic check and returns violations. After receiving violations, "
     "call read() to fetch the current score, then use edit(measure, voice, "
-    "musicxml) to **replace the offending part by measure number + voice**, and "
-    "confirm completion again.\n"
-    "6. edit(measure, voice, musicxml): measure is the one-based measure number, "
-    "voice is the voice slot, and musicxml is a fragment containing only that "
-    "voice's melody in that measure. **With no fragment (empty) it clears that "
-    "measure's notes and rests**, which you can use to remove excess material; "
-    "clearing or replacing are both valid and never rejected.\n"
+    "musicxml, count) to **replace the offending part by measure number + "
+    "voice**, and confirm completion again. Set count to fix a whole passage of "
+    "consecutive measures in one call instead of repeating the same edit. "
+    "**Before every multi-measure edit/insert call read() immediately**: structural "
+    "changes shift measure numbers, so without a fresh read the tool returns "
+    "NEED_READ and does nothing. Re-read after insert/delete before editing any "
+    "later measure.\n"
+    "6. edit(measure, voice, musicxml, count=1): measure is the one-based first "
+    "measure, **voice is required**, count is how many consecutive measures to "
+    "replace (default 1), and musicxml is a fragment containing a melody for "
+    "each target measure, in order. A fragment with several measures rewrites "
+    "several measures in one call (a longer fragment expands count "
+    "automatically); with no fragment, count measures are cleared. Missing "
+    "measures are created empty, so you can edit ahead of the current end. "
+    "Clearing or replacing are both valid and never rejected. A multi-measure "
+    "call is only accepted right after read(). Editing a sung voice clears the "
+    "lyrics of the written measures; call set_lyrics again for them.\n"
     "7. Structural edits (note: different from clearing): insert(measure, voice, "
-    "musicxml) **inserts** a brand-new measure at position measure, shifting all "
-    "voices' later measures later, optionally filling one voice; delete(measure) "
+    "musicxml, count=1) **inserts** count brand-new measures at position "
+    "measure, shifting all voices' later measures later; **voice is required** "
+    "and fills the optional fragment (one fragment measure per inserted "
+    "measure; a longer fragment expands count automatically), so call "
+    "insert(measure, voice) with no fragment to create empty measures. A "
+    "multi-measure insert is only accepted right after read(). delete(measure) "
     "**deletes** measure, shifting all voices' later measures earlier; both "
-    "return the modified full score. Use them to lengthen/shorten the piece; edit "
-    "only clears content and never adds or removes measures.\n"
+    "return the modified full score. Use them to lengthen/shorten the piece; "
+    "edit only clears content and never adds or removes measures. After "
+    "insert/delete call read() before any later edit so measure numbers are "
+    "current.\n"
     "8. Do one thing at a time; when referencing a theme always use its assigned "
     "theme number.\n"
-    "9. Add expression and marks with annotate(measure, voice, mark, value); "
+    "9. Only the vocal genre has sung parts. In the vocal genre, every voice whose "
+    "instrument is a singer or choir (Soprano, Alto, Tenor, Bass, Choir, or any "
+    "instrument containing 'Voice') must sing: give every sounding note its "
+    "syllable with set_lyrics(measure, voice, language, syllables), one syllable "
+    "per sounding note, each with the original-language text and its IPA "
+    "pronunciation, plus the language tag of that text (use the language named in "
+    "this movement's prompt, otherwise 'en'). If the prompt gives no words, write "
+    "short suitable words yourself. **The symbolic checker reports a missing "
+    "syllable, missing IPA or missing language as an ERROR for every sounding "
+    "note**, so a vocal movement is not finished until all sung notes have "
+    "complete lyrics; fix these errors before stopping. Instrumental parts in the "
+    "vocal genre get no lyrics. Never put lyrics in a MusicXML fragment; the staff "
+    "shows only the text, while the IPA drives the sung audio. In any other genre "
+    "never call set_lyrics.\n"
+    "10. Add expression and marks with annotate(measure, voice, mark, value); "
     "**follow the 'How to write expression and marks' section above exactly** "
     "(standard dynamic names, performable emotion words, at least 2 notes for "
     "crescendo/slur, and only existing measures and voices), so that dynamics, "
     "crescendo/diminuendo, articulations, slurs, pedals and emotion words are all "
     "truly performed in the exported audio.\n"
-    "10. Once it is broadly shaped, fine-tune with edit measure by measure. When "
+    "11. Once it is broadly shaped, fine-tune with edit measure by measure. When "
     "revising, add ornaments (appoggiaturas, passing tones, neighbours, turns, "
     "...), vary some pitches and rhythms so it is not monotonous, and leave some "
     "blanks (rests) so the music breathes.\n"
-    "11. You must satisfy every hard symbolic-layer constraint above, or you will "
+    "12. You must satisfy every hard symbolic-layer constraint above, or you will "
     "be rejected and reworked.\n"
-    "12. After passing the check, summarise your compositional intent for the "
+    "13. After passing the check, summarise your compositional intent for the "
     "human audition."
 )
 
@@ -277,28 +320,52 @@ def _style_line(style: StyleKit) -> str:
     ).rstrip(".")
 
 
-def architect_system(style: StyleKit) -> str:
-    """Build the architect system prompt for a style.
+def _genre_line(genre: Genre) -> str:
+    """Render the active genre, including vocal planning guidance.
+
+    Args:
+        genre: The active genre.
+
+    Returns:
+        A one-line genre description with vocal guidance.
+    """
+    name = translate("genre." + genre.id, _PROMPT_LANGUAGE)
+    line = f"Current genre: {name} ({genre.id})."
+    if genre.supports_vocals:
+        return line + (
+            " This genre is sung: every movement prompt must name at least one "
+            "singer or choir voice (Soprano, Alto, Tenor, Bass, Choir), the "
+            "language of its text, and the words to sing (or tell the composer "
+            "to write suitable words). The composer adds the IPA and calls "
+            "set_lyrics."
+        )
+    return line + " This genre has no sung parts: never plan lyrics or singers."
+
+
+def architect_system(style: StyleKit, genre: Genre) -> str:
+    """Build the architect system prompt for a style and genre.
 
     Args:
         style: Active style kit.
+        genre: Active genre.
 
     Returns:
         The system prompt text.
     """
-    return f"{ARCHITECT_SYSTEM}\n\n{_style_line(style)}"
+    return f"{ARCHITECT_SYSTEM}\n\n{_style_line(style)}\n\n{_genre_line(genre)}"
 
 
-def architect_instruction(style: StyleKit) -> str:
-    """Build the architect instruction for a style.
+def architect_instruction(style: StyleKit, genre: Genre) -> str:
+    """Build the architect instruction for a style and genre.
 
     Args:
         style: Active style kit.
+        genre: Active genre.
 
     Returns:
         The instruction text.
     """
-    return f"{ARCHITECT_INSTRUCTION}\n\n{_style_line(style)}"
+    return f"{ARCHITECT_INSTRUCTION}\n\n{_style_line(style)}\n\n{_genre_line(genre)}"
 
 
 def system_prompt(

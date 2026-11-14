@@ -8,7 +8,12 @@ from __future__ import annotations
 import pytest
 
 from harmoniatextor.domain.enums import Severity, WorkStatus
-from harmoniatextor.domain.models import CheckReport, CheckViolation, ThemeNote
+from harmoniatextor.domain.models import (
+    CheckReport,
+    CheckViolation,
+    Syllable,
+    ThemeNote,
+)
 from harmoniatextor.score.io import new_score, to_musicxml
 from harmoniatextor.score.streamops import ScoreEditor
 from harmoniatextor.service.service import (
@@ -39,6 +44,30 @@ def melody_xml(notes: list[tuple[str, float]], voice: str = "soprano") -> str:
     ScoreEditor(score).write_line(
         voice, 1, [ThemeNote(pitch, length) for pitch, length in notes]
     )
+    return to_musicxml(score)
+
+
+def measures_xml(
+    measures: list[list[tuple[str, float]]], voice: str = "soprano"
+) -> str:
+    """Build a multi-measure MusicXML fragment for one voice.
+
+    Args:
+        measures: One note list per measure; an empty list leaves the measure empty.
+        voice: Voice slot name.
+
+    Returns:
+        The resulting text.
+    """
+    score = new_score(key="C", time_signature="4/4", tempo_bpm=84, voices=[voice])
+    editor = ScoreEditor(score)
+    for index, notes in enumerate(measures, start=1):
+        if notes:
+            editor.write_line(
+                voice, index, [ThemeNote(pitch, length) for pitch, length in notes]
+            )
+        else:
+            editor.ensure_measure(voice, index)
     return to_musicxml(score)
 
 
@@ -764,6 +793,192 @@ class TestInstruments:
         assert not result.ok
         assert result.error_code == "BAD_PARAM"
 
+    def _lyric_work(self, service: CompositionService) -> tuple[str, str]:
+        work = service.create_work("Demo", "vocal", "C")
+        movement = work.movements[0]
+        service.submit_theme(
+            work.id,
+            movement.id,
+            melody_xml([("C5", 1.0), ("D5", 1.0)]),
+            check=False,
+        )
+        return work.id, movement.id
+
+    def test_set_lyrics_marks_vocal(self, service: CompositionService) -> None:
+        """Setting lyrics marks the voice as sung and stores its language.
+
+        Args:
+            service: The composition service.
+        """
+        work_id, movement_id = self._lyric_work(service)
+        result = service.set_lyrics(
+            work_id,
+            movement_id,
+            1,
+            "soprano",
+            "en",
+            [Syllable("love", "lʌv"), Syllable("you", "juː")],
+            check=False,
+        )
+        assert result.ok
+        assert service.vocal_voices(work_id) == {"soprano": "en"}
+        assert 'name="ipa"' in (result.full_musicxml or "")
+
+    def test_set_lyrics_check_reports_issues(self, service: CompositionService) -> None:
+        """The symbolic check warns about missing IPA after setting lyrics.
+
+        Args:
+            service: The composition service.
+        """
+        work_id, movement_id = self._lyric_work(service)
+        result = service.set_lyrics(
+            work_id,
+            movement_id,
+            1,
+            "soprano",
+            "en",
+            [Syllable("love", ""), Syllable("you", "")],
+            check=True,
+        )
+        assert result.report is not None
+        assert any(
+            item.rule_id == "lyrics" and item.kind == "missing_ipa"
+            for item in result.report.violations
+        )
+
+    def test_set_lyrics_errors(self, service: CompositionService) -> None:
+        """Unknown voices and syllable-count mismatches are rejected.
+
+        Args:
+            service: The composition service.
+        """
+        work_id, movement_id = self._lyric_work(service)
+        unknown = service.set_lyrics(
+            work_id, movement_id, 1, "alto", "en", [Syllable("a", "a")], check=False
+        )
+        assert not unknown.ok
+        assert unknown.error_code == "BAD_PARAM"
+        mismatch = service.set_lyrics(
+            work_id, movement_id, 1, "soprano", "en", [Syllable("a", "a")], check=False
+        )
+        assert not mismatch.ok
+        assert mismatch.error_code == "BAD_PARAM"
+
+    def test_set_lyrics_requires_vocal_genre(self, service: CompositionService) -> None:
+        """Genres other than the vocal genre reject lyrics.
+
+        Args:
+            service: The composition service.
+        """
+        work = service.create_work("Demo", "plain", "C")
+        movement = work.movements[0]
+        service.submit_theme(
+            work.id, movement.id, melody_xml([("C5", 1.0)]), check=False
+        )
+        result = service.set_lyrics(
+            work.id,
+            movement.id,
+            1,
+            "soprano",
+            "en",
+            [Syllable("a", "a")],
+            check=False,
+        )
+        assert not result.ok
+        assert result.error_code == "BAD_PARAM"
+
+    def test_clear_lyrics(self, service: CompositionService) -> None:
+        """Clearing a measure leaves a lyric error; clearing the voice removes it.
+
+        Args:
+            service: The composition service.
+        """
+        work_id, movement_id = self._lyric_work(service)
+        service.set_lyrics(
+            work_id,
+            movement_id,
+            1,
+            "soprano",
+            "en",
+            [Syllable("love", "lʌv"), Syllable("you", "juː")],
+            check=False,
+        )
+        cleared = service.clear_lyrics(work_id, movement_id, "soprano", 1)
+        assert not cleared.ok
+        assert cleared.report is not None
+        assert any(item.kind == "missing_lyric" for item in cleared.report.violations)
+        assert service.vocal_voices(work_id) == {"soprano": "en"}
+        assert service.clear_lyrics(work_id, movement_id, "soprano").ok
+        assert service.vocal_voices(work_id) == {}
+        unknown = service.clear_lyrics(work_id, movement_id, "alto")
+        assert not unknown.ok
+        assert unknown.error_code == "BAD_PARAM"
+
+    def test_clear_lyrics_without_lyrics(self, service: CompositionService) -> None:
+        """Clearing a part that has no lyrics is a successful no-op.
+
+        Args:
+            service: The composition service.
+        """
+        work_id, movement_id = self._lyric_work(service)
+        assert service.clear_lyrics(work_id, movement_id, "soprano", 1).ok
+        result = service.clear_lyrics(work_id, movement_id, "soprano")
+        assert result.ok
+        assert result.message == "No lyrics to clear."
+
+    def test_set_lyrics_check_failure(
+        self, service: CompositionService, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A failing check after setting lyrics is reported.
+
+        Args:
+            service: The composition service.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
+        work_id, movement_id = self._lyric_work(service)
+        failing = CheckReport(
+            [CheckViolation("r", Severity.ERROR, 1, None, None, "k", "m", "s")]
+        )
+        monkeypatch.setattr(service, "_check", lambda *_args, **_kwargs: failing)
+        result = service.set_lyrics(
+            work_id,
+            movement_id,
+            1,
+            "soprano",
+            "en",
+            [Syllable("love", "lʌv"), Syllable("you", "juː")],
+            check=True,
+        )
+        assert not result.ok
+        assert result.report is failing
+
+    def test_clear_lyrics_check_failure(
+        self, service: CompositionService, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A failing check after clearing lyrics is reported.
+
+        Args:
+            service: The composition service.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
+        work_id, movement_id = self._lyric_work(service)
+        service.set_lyrics(
+            work_id,
+            movement_id,
+            1,
+            "soprano",
+            "en",
+            [Syllable("love", "lʌv"), Syllable("you", "juː")],
+            check=False,
+        )
+        failing = CheckReport(
+            [CheckViolation("r", Severity.ERROR, 1, None, None, "k", "m", "s")]
+        )
+        monkeypatch.setattr(service, "_check", lambda *_args, **_kwargs: failing)
+        result = service.clear_lyrics(work_id, movement_id, "soprano", 1, check=True)
+        assert not result.ok
+        assert result.report is failing
+
     def test_add_part_check_failure(
         self, service: CompositionService, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -1057,6 +1272,29 @@ class TestArchitecture:
         ]
         assert "G5" in notes
 
+    def test_edit_creates_empty_measure(self, service: CompositionService) -> None:
+        """Editing beyond the end of an existing voice creates an empty measure.
+
+        Args:
+            service: The composition service.
+        """
+        work = service.create_work("Demo", "plain", "C")
+        movement_id = work.movements[0].id
+        service.submit_theme(
+            work.id, movement_id, melody_xml([("C5", 1.0)]), check=False
+        )
+        result = service.edit_measure(
+            work.id, movement_id, 4, "soprano", melody_xml([]), check=False
+        )
+        assert result.ok
+        measures = list(
+            service.current_score(work.id, movement_id)
+            .parts[0]
+            .getElementsByClass("Measure")
+        )
+        assert len(measures) == 4
+        assert not list(measures[-1].notes)
+
     def test_edit_measure_errors(self, service: CompositionService) -> None:
         """Bad fragments are rejected; empty fragments clear; voices are created on demand.
 
@@ -1100,6 +1338,140 @@ class TestArchitecture:
         result = service.edit_measure(work.id, movement_id, 1, "soprano", soprano)
         assert not result.ok
         assert result.report is not None
+
+    def test_edit_measure_range_cleared(self, service: CompositionService) -> None:
+        """Passing count clears every measure of the range.
+
+        Args:
+            service: The composition service.
+        """
+        work = service.create_work("Demo", "plain", "C")
+        movement_id = work.movements[0].id
+        service.submit_theme(
+            work.id,
+            movement_id,
+            melody_xml([("C5", 4.0)] * 4),
+            check=False,
+        )
+        result = service.edit_measure(
+            work.id, movement_id, 1, "soprano", "", count=2, check=False
+        )
+        assert result.ok
+        editor = ScoreEditor(service.current_score(work.id, movement_id))
+        assert editor.read_line("soprano", 1, 1) == []
+        assert editor.read_line("soprano", 2, 2) == []
+        assert editor.read_line("soprano", 3, 3) == [ThemeNote("C5", 4.0)]
+        assert editor.read_line("soprano", 4, 4) == [ThemeNote("C5", 4.0)]
+
+    def test_edit_measure_range_replaced(self, service: CompositionService) -> None:
+        """A multi-measure fragment replaces the range measure by measure.
+
+        Args:
+            service: The composition service.
+        """
+        work = service.create_work("Demo", "plain", "C")
+        movement_id = work.movements[0].id
+        service.submit_theme(
+            work.id,
+            movement_id,
+            melody_xml([("C5", 4.0)] * 3),
+            check=False,
+        )
+        fragment = measures_xml(
+            [[("G5", 1.0), ("A5", 1.0)], [("B5", 4.0)]],
+        )
+        result = service.edit_measure(
+            work.id, movement_id, 1, "soprano", fragment, count=2, check=False
+        )
+        assert result.ok
+        editor = ScoreEditor(service.current_score(work.id, movement_id))
+        assert editor.read_line("soprano", 1, 1) == [
+            ThemeNote("G5", 1.0),
+            ThemeNote("A5", 1.0),
+        ]
+        assert editor.read_line("soprano", 2, 2) == [ThemeNote("B5", 4.0)]
+        assert editor.read_line("soprano", 3, 3) == [ThemeNote("C5", 4.0)]
+
+    def test_edit_fragment_expands_count(self, service: CompositionService) -> None:
+        """A fragment longer than count expands the affected range.
+
+        Args:
+            service: The composition service.
+        """
+        work = service.create_work("Demo", "plain", "C")
+        movement_id = work.movements[0].id
+        service.submit_theme(
+            work.id,
+            movement_id,
+            melody_xml([("C5", 4.0)] * 3),
+            check=False,
+        )
+        fragment = measures_xml([[("G5", 4.0)], [("A5", 4.0)]])
+        result = service.edit_measure(
+            work.id, movement_id, 1, "soprano", fragment, check=False
+        )
+        assert result.ok
+        editor = ScoreEditor(service.current_score(work.id, movement_id))
+        assert editor.read_line("soprano", 1, 1) == [ThemeNote("G5", 4.0)]
+        assert editor.read_line("soprano", 2, 2) == [ThemeNote("A5", 4.0)]
+        assert editor.read_line("soprano", 3, 3) == [ThemeNote("C5", 4.0)]
+
+    def test_edit_range_creates_missing_measures(
+        self, service: CompositionService
+    ) -> None:
+        """Clearing a range beyond the current end creates the measures.
+
+        Args:
+            service: The composition service.
+        """
+        work = service.create_work("Demo", "plain", "C")
+        movement_id = work.movements[0].id
+        service.submit_theme(
+            work.id, movement_id, melody_xml([("C5", 4.0)]), check=False
+        )
+        result = service.edit_measure(
+            work.id, movement_id, 1, "soprano", "", count=3, check=False
+        )
+        assert result.ok
+        editor = ScoreEditor(service.current_score(work.id, movement_id))
+        assert editor.read_line("soprano", 1, 3) == []
+
+    def test_edit_sung_measure_warns_about_cleared_lyrics(
+        self, service: CompositionService
+    ) -> None:
+        """Rewriting a sung measure reports that its lyrics were cleared.
+
+        Args:
+            service: The composition service.
+        """
+        work = service.create_work("Demo", "vocal", "C")
+        movement_id = work.movements[0].id
+        service.submit_theme(
+            work.id,
+            movement_id,
+            melody_xml([("C5", 4.0)]),
+            check=False,
+        )
+        service.set_lyrics(
+            work.id,
+            movement_id,
+            1,
+            "soprano",
+            "en",
+            [Syllable("love", "lʌv")],
+            check=False,
+        )
+        result = service.edit_measure(
+            work.id,
+            movement_id,
+            1,
+            "soprano",
+            melody_xml([("E5", 4.0)]),
+            check=False,
+        )
+        assert result.ok
+        assert result.warnings
+        assert "set_lyrics" in result.warnings[0]
 
     def test_insert_measure(self, service: CompositionService) -> None:
         """A measure can be inserted in every voice.
@@ -1186,6 +1558,75 @@ class TestArchitecture:
             check=False,
         )
         assert empty.ok
+
+    def test_insert_measure_range(self, service: CompositionService) -> None:
+        """Passing count inserts that many empty measures.
+
+        Args:
+            service: The composition service.
+        """
+        work = service.create_work("Demo", "plain", "C")
+        movement_id = work.movements[0].id
+        service.submit_theme(
+            work.id, movement_id, melody_xml([("C5", 4.0)]), check=False
+        )
+        result = service.insert_measure(work.id, movement_id, 2, count=2, check=False)
+        assert result.ok
+        editor = ScoreEditor(service.current_score(work.id, movement_id))
+        assert editor.read_line("soprano", 1, 1) == [ThemeNote("C5", 4.0)]
+        assert editor.read_line("soprano", 2, 3) == []
+
+    def test_insert_measure_range_filled(self, service: CompositionService) -> None:
+        """A multi-measure fragment fills consecutive inserted measures.
+
+        Args:
+            service: The composition service.
+        """
+        work = service.create_work("Demo", "plain", "C")
+        movement_id = work.movements[0].id
+        service.submit_theme(
+            work.id, movement_id, melody_xml([("C5", 4.0)]), check=False
+        )
+        fragment = measures_xml([[], [("D5", 4.0)]])
+        result = service.insert_measure(
+            work.id,
+            movement_id,
+            1,
+            voice="soprano",
+            musicxml=fragment,
+            check=False,
+        )
+        assert result.ok
+        editor = ScoreEditor(service.current_score(work.id, movement_id))
+        assert editor.read_line("soprano", 1, 1) == []
+        assert editor.read_line("soprano", 2, 2) == [ThemeNote("D5", 4.0)]
+        assert editor.read_line("soprano", 3, 3) == [ThemeNote("C5", 4.0)]
+
+    def test_insert_fragment_expands_count(self, service: CompositionService) -> None:
+        """A longer fragment inserts more measures than count.
+
+        Args:
+            service: The composition service.
+        """
+        work = service.create_work("Demo", "plain", "C")
+        movement_id = work.movements[0].id
+        service.submit_theme(
+            work.id, movement_id, melody_xml([("C5", 4.0)]), check=False
+        )
+        fragment = measures_xml([[("D5", 4.0)], [("E5", 4.0)]])
+        result = service.insert_measure(
+            work.id,
+            movement_id,
+            1,
+            voice="soprano",
+            musicxml=fragment,
+            check=False,
+        )
+        assert result.ok
+        editor = ScoreEditor(service.current_score(work.id, movement_id))
+        assert editor.read_line("soprano", 1, 1) == [ThemeNote("D5", 4.0)]
+        assert editor.read_line("soprano", 2, 2) == [ThemeNote("E5", 4.0)]
+        assert editor.read_line("soprano", 3, 3) == [ThemeNote("C5", 4.0)]
 
     def test_delete_measure(self, service: CompositionService) -> None:
         """A measure can be deleted from every voice.

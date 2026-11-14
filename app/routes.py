@@ -40,6 +40,8 @@ from harmoniatextor.domain.enums import (
     VOICE_LABELS,
     WORK_STATUS_LABELS,
 )
+from harmoniatextor.score.io import from_musicxml, to_musicxml
+from harmoniatextor.score.lyrics import strip_hidden_lyrics
 from harmoniatextor.service.service import DEFAULT_TITLE
 
 __all__ = ["register_routes"]
@@ -744,11 +746,12 @@ def _register_api(app: Flask) -> None:
             return Response(status=404)
         mimetype = "application/vnd.recordare.musicxml+xml"
         try:
-            merged = service.merged_musicxml(work_id)
-            if merged:
-                return Response(merged, mimetype=mimetype)
-            fallback = service.current_musicxml(work_id, movement_id)
-            return Response(fallback, mimetype=mimetype)
+            xml = service.merged_musicxml(work_id)
+            if not xml:
+                xml = service.current_musicxml(work_id, movement_id)
+            if xml and work.vocal_voices:
+                xml = _strip_hidden_lyrics(xml)
+            return Response(xml, mimetype=mimetype)
         except Exception:
             app.logger.exception(
                 "score rendering failed for %s/%s", work_id, movement_id
@@ -922,6 +925,96 @@ def _preview_dir() -> Path:
     return Path(tempfile.gettempdir()) / "harmonia-textor-preview"
 
 
+def _preview_target(work: Any, namespace: str, fmt: str) -> Path:
+    """Return an immutable per-revision preview directory for one render.
+
+    The directory is keyed by the work's update timestamp, the moving namespace
+    (movement id or ``all``) and the format.  Repeated browser requests for the
+    same revision - including HTTP range requests while audio is playing - find
+    the already rendered file instead of overwriting a file that is currently
+    being streamed, which would truncate playback.  A new edit changes the
+    work's update timestamp and therefore renders into a fresh directory.
+
+    Args:
+        work: The work being exported.
+        namespace: Movement id, or ``all`` for a whole-work export.
+        fmt: Export format.
+
+    Returns:
+        The preview directory for this revision and format.
+    """
+    stamp = "".join(
+        character
+        for character in str(getattr(work, "updated_at", ""))
+        if character.isalnum()
+    )
+    safe_namespace = (
+        "".join(character for character in namespace if character.isalnum()) or "all"
+    )
+    safe_fmt = "".join(character for character in fmt if character.isalnum()) or "bin"
+    return (
+        _preview_dir()
+        / f"{stamp or 'work'}-{safe_namespace}-{safe_fmt}-v{_AUDIO_RENDER_VERSION}"
+    )
+
+
+#: Marker written only after a preview render finished successfully.  A partial
+#: file left by a failed render is never served.
+_PREVIEW_MARKER = ".complete"
+
+#: Bump this whenever the audio/vocal rendering pipeline changes, so previews
+#: rendered by an older build are not served from the per-revision cache.
+_AUDIO_RENDER_VERSION = "8"
+
+
+def _serve_preview(target: Path) -> Response | None:
+    """Return a cached completed preview response for ``target``, if any.
+
+    Args:
+        target: Per-revision preview directory.
+
+    Returns:
+        The cached response, or ``None`` when the render must run.
+    """
+    if not target.is_dir() or not (target / _PREVIEW_MARKER).is_file():
+        return None
+    cached = next(
+        (
+            item
+            for item in target.iterdir()
+            if item.is_file() and item.name != _PREVIEW_MARKER
+        ),
+        None,
+    )
+    if cached is None:
+        return None
+    return send_file(cached, as_attachment=True)
+
+
+def _mark_preview(target: Path) -> None:
+    """Record that a preview render finished successfully.
+
+    Args:
+        target: Per-revision preview directory.
+    """
+    target.mkdir(parents=True, exist_ok=True)
+    (target / _PREVIEW_MARKER).write_text("", encoding="utf-8")
+
+
+def _strip_hidden_lyrics(xml: str) -> str:
+    """Remove IPA and hidden lyric verses before rendering the staff.
+
+    Args:
+        xml: MusicXML to normalise.
+
+    Returns:
+        MusicXML without hidden lyric verses.
+    """
+    score = from_musicxml(xml)
+    strip_hidden_lyrics(score)
+    return to_musicxml(score)
+
+
 def _register_export(app: Flask) -> None:
     """Register the export routes.
 
@@ -949,12 +1042,19 @@ def _register_export(app: Flask) -> None:
             return _unknown_movement()
         exporter = get_export_service(app)
         save = bool(request.args.get("save"))
-        target = _downloads_dir() if save else _preview_dir()
+        if save:
+            result = exporter.export(work_id, movement_id, _downloads_dir(), fmt)
+            if not result.ok or result.path is None:
+                return jsonify({"ok": False, "error": result.error}), 400
+            return jsonify({"ok": True, "path": str(result.path)})
+        target = _preview_target(work, movement_id, fmt)
+        cached_response = _serve_preview(target)
+        if cached_response is not None:
+            return cached_response
         result = exporter.export(work_id, movement_id, target, fmt)
         if not result.ok or result.path is None:
             return jsonify({"ok": False, "error": result.error}), 400
-        if save:
-            return jsonify({"ok": True, "path": str(result.path)})
+        _mark_preview(target)
         return send_file(result.path, as_attachment=True)
 
     @app.get("/works/<work_id>/export/<fmt>")
@@ -969,16 +1069,24 @@ def _register_export(app: Flask) -> None:
             The result.
         """
         service = get_service(app)
-        if _load_work(service, work_id) is None:
+        work = _load_work(service, work_id)
+        if work is None:
             return _unknown_work()
         exporter = get_export_service(app)
         save = bool(request.args.get("save"))
-        target = _downloads_dir() if save else _preview_dir()
+        if save:
+            result = exporter.export_work(work_id, fmt, _downloads_dir())
+            if not result.ok or result.path is None:
+                return jsonify({"ok": False, "error": result.error}), 400
+            return jsonify({"ok": True, "path": str(result.path)})
+        target = _preview_target(work, "all", fmt)
+        cached_response = _serve_preview(target)
+        if cached_response is not None:
+            return cached_response
         result = exporter.export_work(work_id, fmt, target)
         if not result.ok or result.path is None:
             return jsonify({"ok": False, "error": result.error}), 400
-        if save:
-            return jsonify({"ok": True, "path": str(result.path)})
+        _mark_preview(target)
         return send_file(result.path, as_attachment=True)
 
 

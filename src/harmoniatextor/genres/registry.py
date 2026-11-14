@@ -11,6 +11,7 @@ from harmoniatextor.genres.builtin import (
     PlainGenre,
     SonataGenre,
     SymphonyGenre,
+    VocalGenre,
 )
 
 __all__ = ["GenreRegistry", "build_default_registry"]
@@ -20,6 +21,7 @@ _DEFAULT_GENRES: tuple[type[Genre], ...] = (
     SonataGenre,
     ConcertoGenre,
     SymphonyGenre,
+    VocalGenre,
 )
 
 
@@ -81,7 +83,7 @@ class GenreRegistry:
 
 
 def build_default_registry() -> GenreRegistry:
-    """Build a registry with the four built-in genres.
+    """Build a registry with the five built-in genres.
 
     Returns:
         A populated :class:`GenreRegistry`.

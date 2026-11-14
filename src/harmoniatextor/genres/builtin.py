@@ -13,6 +13,7 @@ __all__ = [
     "PlainGenre",
     "SonataGenre",
     "SymphonyGenre",
+    "VocalGenre",
 ]
 
 
@@ -27,6 +28,32 @@ class PlainGenre(Genre):
         self, tonic: str, measure_count: int, *, complete: bool = False
     ) -> CheckerContext:
         """Build a strict single-movement checker context.
+
+        Args:
+            tonic: Home key.
+            measure_count: The measure count.
+            complete: The complete.
+
+        Returns:
+            The checker context result.
+        """
+        return self._final_context(
+            tonic, measure_count, enforce=True, complete=complete
+        )
+
+
+class VocalGenre(Genre):
+    """A single-movement vocal piece; only this genre may add sung parts."""
+
+    id = "vocal"
+    display_name = "声乐曲"
+    movement_specs = (MovementSpec(name="第一乐章 · 咏叹", tempo=72),)
+    supports_vocals = True
+
+    def checker_context(
+        self, tonic: str, measure_count: int, *, complete: bool = False
+    ) -> CheckerContext:
+        """Build a vocal-piece checker context.
 
         Args:
             tonic: Home key.

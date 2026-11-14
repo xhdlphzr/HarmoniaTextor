@@ -41,11 +41,13 @@ class Genre(ABC):
         id: Stable genre identifier.
         display_name: Display name.
         movement_specs: Movement templates.
+        supports_vocals: Whether works of this genre may add sung parts.
     """
 
     id: str
     display_name: str
     movement_specs: tuple[MovementSpec, ...]
+    supports_vocals: bool = False
 
     def initialize_work(self, work_id: str, tonic: str) -> list[Movement]:
         """Create the movement skeleton for a new work.

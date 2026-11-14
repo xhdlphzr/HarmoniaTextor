@@ -12,6 +12,7 @@ from harmoniatextor.score.analysis import (
     first_melody,
     measure_count,
     measure_of,
+    melody_measures,
     onsets,
     voice_events,
 )
@@ -112,6 +113,55 @@ class TestAnalysis:
         score = stream.Score()
         score.insert(0.0, new_part("soprano"))
         assert first_melody(score) == ("", [])
+
+    def test_melody_measures_splits_by_measure(self, score4: stream.Score) -> None:
+        """The first melodic line keeps its measure boundaries.
+
+        Args:
+            score4: An empty four-voice score.
+        """
+        editor = ScoreEditor(score4)
+        editor.write_line("soprano", 1, [ThemeNote("C5", 4.0)])
+        editor.write_line("soprano", 2, [ThemeNote("D5", 2.0), ThemeNote("E5", 2.0)])
+        voice, measures = melody_measures(score4)
+        assert voice == "soprano"
+        assert measures == [
+            [ThemeNote("C5", 4.0)],
+            [ThemeNote("D5", 2.0), ThemeNote("E5", 2.0)],
+        ]
+
+    def test_melody_measures_keeps_empty_measures(self, score4: stream.Score) -> None:
+        """Empty fragment measures are preserved for alignment.
+
+        Args:
+            score4: An empty four-voice score.
+        """
+        editor = ScoreEditor(score4)
+        editor.write_line("soprano", 1, [ThemeNote("C5", 4.0)])
+        editor.write_line("soprano", 3, [ThemeNote("E5", 4.0)])
+        _voice, measures = melody_measures(score4)
+        assert measures[0] == [ThemeNote("C5", 4.0)]
+        assert measures[1] == []
+        assert measures[2] == [ThemeNote("E5", 4.0)]
+
+    def test_melody_measures_picks_first_sounding_part(
+        self, score4: stream.Score
+    ) -> None:
+        """A part without notes is skipped when another part sings.
+
+        Args:
+            score4: An empty four-voice score.
+        """
+        ScoreEditor(score4).write_line("bass", 1, [ThemeNote("C3", 4.0)])
+        voice, measures = melody_measures(score4)
+        assert voice == "bass"
+        assert measures == [[ThemeNote("C3", 4.0)]]
+
+    def test_melody_measures_without_notes(self) -> None:
+        """A score whose parts hold no notes yields no measures."""
+        score = stream.Score()
+        score.insert(0.0, new_part("soprano"))
+        assert melody_measures(score) == ("", [])
 
     def test_voice_events_ignores_rests(self, score4: stream.Score) -> None:
         """Rests do not produce events.

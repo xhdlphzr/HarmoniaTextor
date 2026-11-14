@@ -19,6 +19,7 @@ from pydantic import ValidationError
 
 from harmoniatextor.checker.context import CheckerContext
 from harmoniatextor.checker.engine import CheckEngine, format_feedback
+from harmoniatextor.checker.lyrics import lyric_violations
 from harmoniatextor.checker.profile import profile_for_rules
 from harmoniatextor.domain.enums import ToolKind, WorkStatus
 from harmoniatextor.domain.key import parse_key
@@ -28,13 +29,14 @@ from harmoniatextor.domain.models import (
     Movement,
     Revision,
     StyleSelection,
+    Syllable,
     Theme,
     ThemeNote,
     Work,
 )
 from harmoniatextor.genres.registry import GenreRegistry
 from harmoniatextor.genres.registry import build_default_registry as build_genres
-from harmoniatextor.score.analysis import first_melody, measure_count
+from harmoniatextor.score.analysis import first_melody, measure_count, melody_measures
 from harmoniatextor.score.io import from_musicxml, new_score, to_musicxml
 from harmoniatextor.score.merge import merge_scores
 from harmoniatextor.score.streamops import ScoreEditor
@@ -511,6 +513,18 @@ class CompositionService:
         """
         return bool(list(self.current_score(work_id, movement_id).recurse().notes))
 
+    def has_notes(self, work_id: str, movement_id: str) -> bool:
+        """Return whether a movement's current score contains any note.
+
+        Args:
+            work_id: Work identifier.
+            movement_id: Movement identifier.
+
+        Returns:
+            ``True`` when the score has at least one note.
+        """
+        return self._has_notes(work_id, movement_id)
+
     def _owning_movement(self, work: Work, target_id: str) -> Movement:
         """Resolve a composition target to its movement.
 
@@ -976,6 +990,165 @@ class CompositionService:
         """
         return dict(self.store.load_work(work_id).part_counts)
 
+    def vocal_voices(self, work_id: str) -> dict[str, str]:
+        """Return the voices that are sung and their language tags.
+
+        Args:
+            work_id: Work identifier.
+
+        Returns:
+            A voice-to-language mapping; presence marks a voice as vocal.
+        """
+        return dict(self.store.load_work(work_id).vocal_voices)
+
+    def set_lyrics(
+        self,
+        work_id: str,
+        movement_id: str,
+        measure: int,
+        voice: str,
+        language: str,
+        syllables: list[Syllable],
+        *,
+        check: bool = True,
+    ) -> ToolResult:
+        """Attach text and IPA to the notes of one sung measure.
+
+        Args:
+            work_id: Active work.
+            movement_id: Active movement.
+            measure: One-based measure number.
+            voice: Voice slot that sings.
+            language: Language tag of the original text.
+            syllables: One syllable per sounding note, in order.
+            check: Whether to run the symbolic checker immediately.
+
+        Returns:
+            A tool result carrying the full score.
+        """
+        work = self.store.load_work(work_id)
+        if not self.genres.get(work.genre).supports_vocals:
+            return ToolResult(
+                False,
+                error_code="BAD_PARAM",
+                message=(
+                    f"Genre {work.genre} does not support vocals; sung parts are "
+                    "only available in the vocal genre."
+                ),
+            )
+        movement = self._owning_movement(work, movement_id)
+        score = self.current_score(work_id, movement_id)
+        editor = self._editor(score, movement)
+        if editor.get_part(voice) is None:
+            return ToolResult(
+                False, error_code="BAD_PARAM", message=f"Unknown part: {voice}"
+            )
+        prepared = [
+            Syllable(
+                text=syllable.text,
+                ipa=syllable.ipa,
+                syllabic=syllable.syllabic,
+                language=syllable.language or language,
+            )
+            for syllable in syllables
+        ]
+        if not editor.set_lyrics(voice, measure, prepared):
+            return ToolResult(
+                False,
+                error_code="BAD_PARAM",
+                message=(
+                    f"Could not attach {len(syllables)} syllable(s) at measure "
+                    f"{measure}, voice {voice}: the note count must match and the "
+                    "measure must exist."
+                ),
+            )
+        work.vocal_voices[voice] = language
+        report = self._check(work, movement, score) if check else None
+        revision = self._save_revision(
+            work,
+            movement,
+            movement_id,
+            score,
+            RevisionOrigin(
+                ToolKind.LYRICS,
+                params={
+                    "measure": measure,
+                    "voice": voice,
+                    "language": language,
+                    "syllables": len(prepared),
+                },
+            ),
+            report,
+        )
+        if report is not None and not report.ok:
+            return ToolResult(False, message=format_feedback(report), report=report)
+        return ToolResult(
+            True,
+            full_musicxml=revision.full_xml,
+            message=format_feedback(report) if report is not None else "Lyrics set.",
+            report=report,
+        )
+
+    def clear_lyrics(
+        self,
+        work_id: str,
+        movement_id: str,
+        voice: str,
+        measure: int | None = None,
+        *,
+        check: bool = True,
+    ) -> ToolResult:
+        """Remove lyrics from a voice or from one measure of it.
+
+        Args:
+            work_id: Active work.
+            movement_id: Active movement.
+            voice: Voice slot to clear.
+            measure: Optional one-based measure; ``None`` clears the whole voice.
+            check: Whether to run the symbolic checker immediately.
+
+        Returns:
+            A tool result carrying the full score.
+        """
+        work = self.store.load_work(work_id)
+        movement = self._owning_movement(work, movement_id)
+        score = self.current_score(work_id, movement_id)
+        editor = self._editor(score, movement)
+        if editor.get_part(voice) is None:
+            return ToolResult(
+                False, error_code="BAD_PARAM", message=f"Unknown part: {voice}"
+            )
+        changed = editor.clear_lyrics(voice, measure)
+        if measure is None:
+            work.vocal_voices.pop(voice, None)
+        if not changed:
+            if measure is None:
+                work.updated_at = _now()
+                self.store.save_work(work)
+            return ToolResult(True, message="No lyrics to clear.")
+        report = self._check(work, movement, score) if check else None
+        revision = self._save_revision(
+            work,
+            movement,
+            movement_id,
+            score,
+            RevisionOrigin(
+                ToolKind.LYRICS,
+                params={"voice": voice, "measure": measure, "cleared": True},
+            ),
+            report,
+        )
+        if report is not None and not report.ok:
+            return ToolResult(False, message=format_feedback(report), report=report)
+        return ToolResult(
+            True,
+            full_musicxml=revision.full_xml,
+            message=format_feedback(report)
+            if report is not None
+            else "Lyrics cleared.",
+            report=report,
+        )
+
     def remove_part(
         self, work_id: str, movement_id: str, voice: str, *, check: bool = True
     ) -> ToolResult:
@@ -1249,26 +1422,30 @@ class CompositionService:
         voice: str,
         musicxml: str,
         *,
+        count: int = 1,
         check: bool = True,
     ) -> ToolResult:
-        """Replace or clear one measure of one voice.
+        """Replace or clear a range of consecutive measures of one voice.
 
-        An empty ``musicxml`` fragment clears the measure's sounding and resting
-        material instead of failing, so a measure can be emptied on purpose.
+        An empty ``musicxml`` fragment clears the range's sounding and resting
+        material instead of failing, so measures can be emptied on purpose.  A
+        fragment holding several measures replaces the range measure by measure
+        and expands ``count`` when the fragment is longer.
 
         Args:
             work_id: Active work.
             movement_id: Active movement.
-            measure: One-based measure number to replace.
+            measure: One-based first measure to replace.
             voice: Voice slot to replace.
-            musicxml: A MusicXML fragment whose first melody replaces the
-                measure; empty clears the measure.
+            musicxml: A MusicXML fragment whose first melody replaces the range
+                measure by measure; empty clears the range.
+            count: How many consecutive measures to replace or clear.
             check: Whether to run the symbolic checker immediately.
 
         Returns:
             A tool result carrying the full score.
         """
-        notes: list[ThemeNote] = []
+        fragment_measures: list[list[ThemeNote]] = []
         if musicxml.strip():
             try:
                 fragment = from_musicxml(musicxml)
@@ -1278,36 +1455,56 @@ class CompositionService:
                     error_code="BAD_PARAM",
                     message="Could not parse the edit fragment MusicXML.",
                 )
-            _source, notes = first_melody(fragment)
+            _source, fragment_measures = melody_measures(fragment)
+        span = max(count, len(fragment_measures)) if fragment_measures else count
         work = self.store.load_work(work_id)
         movement = self._owning_movement(work, movement_id)
         score = self.current_score(work_id, movement_id)
         editor = self._editor(score, movement)
-        if not notes and editor.get_part(voice) is None:
+        if not fragment_measures and editor.get_part(voice) is None:
             return ToolResult(
                 False, error_code="BAD_PARAM", message=f"Unknown part: {voice}"
             )
-        editor.clear_measure_range(voice, measure, measure)
-        if notes:
-            editor.write_line(voice, measure, notes)
+        end = measure + span - 1
+        cleared_lyrics = voice in work.vocal_voices and any(
+            measure <= number <= end for number, _syllable in editor.get_lyrics(voice)
+        )
+        editor.ensure_measure(voice, end)
+        editor.clear_measure_range(voice, measure, end)
+        for offset, notes in enumerate(fragment_measures):
+            if notes:
+                editor.write_line(voice, measure + offset, notes)
         report = self._check(work, movement, score) if check else None
         revision = self._save_revision(
             work,
             movement,
             movement_id,
             score,
-            RevisionOrigin(ToolKind.EDIT, params={"measure": measure, "voice": voice}),
+            RevisionOrigin(
+                ToolKind.EDIT,
+                params={"measure": measure, "voice": voice, "count": span},
+            ),
             report,
         )
         if report is not None and not report.ok:
             return ToolResult(False, message=format_feedback(report), report=report)
+        message = "Measure updated." if span == 1 else "Measures updated."
+        warnings = (
+            [
+                (
+                    "The edited measures of this sung voice lost their lyrics; call "
+                    "set_lyrics again for those measures."
+                )
+            ]
+            if cleared_lyrics
+            else []
+        )
         return ToolResult(
             True,
             full_musicxml=revision.full_xml,
-            message=format_feedback(report)
-            if report is not None
-            else "Measure updated.",
+            message=format_feedback(report) if report is not None else message,
             report=report,
+            warnings=warnings,
         )
 
     def insert_measure(
@@ -1316,18 +1513,20 @@ class CompositionService:
         movement_id: str,
         measure: int,
         *,
+        count: int = 1,
         voice: str | None = None,
         musicxml: str = "",
         check: bool = True,
     ) -> ToolResult:
-        """Insert a new measure in every voice, optionally filled with notes.
+        """Insert consecutive measures in every voice, optionally filled.
 
         Args:
             work_id: Active work.
             movement_id: Active movement.
-            measure: One-based position of the new measure.
+            measure: One-based position of the new measures.
+            count: How many consecutive measures to insert.
             voice: Voice that receives the fragment; required with ``musicxml``.
-            musicxml: Optional MusicXML fragment for the new measure.
+            musicxml: Optional MusicXML fragment for the new measures.
             check: Whether to run the symbolic checker immediately.
 
         Returns:
@@ -1343,7 +1542,7 @@ class CompositionService:
                 error_code="BAD_PARAM",
                 message="This movement has no voices yet; use add_part first.",
             )
-        editor.insert_measure(measure)
+        fragment_measures: list[list[ThemeNote]] = []
         if musicxml.strip():
             if not voice:
                 return ToolResult(
@@ -1359,10 +1558,17 @@ class CompositionService:
                     error_code="BAD_PARAM",
                     message="Could not parse the insert fragment.",
                 )
-            _source, notes = first_melody(fragment)
-            if notes:
-                editor.clear_measure_range(voice, measure, measure)
-                editor.write_line(voice, measure, notes)
+            _source, fragment_measures = melody_measures(fragment)
+        span = max(count, len(fragment_measures)) if fragment_measures else count
+        for _ in range(span):
+            editor.insert_measure(measure)
+        for offset, notes in enumerate(fragment_measures):
+            if not notes:
+                continue
+            assert voice is not None
+            target = measure + offset
+            editor.clear_measure_range(voice, target, target)
+            editor.write_line(voice, target, notes)
         report = self._check(work, movement, score) if check else None
         revision = self._save_revision(
             work,
@@ -1371,18 +1577,22 @@ class CompositionService:
             score,
             RevisionOrigin(
                 ToolKind.EDIT,
-                params={"measure": measure, "voice": voice or "", "action": "insert"},
+                params={
+                    "measure": measure,
+                    "count": span,
+                    "voice": voice or "",
+                    "action": "insert",
+                },
             ),
             report,
         )
         if report is not None and not report.ok:
             return ToolResult(False, message=format_feedback(report), report=report)
+        message = "New measure inserted." if span == 1 else "New measures inserted."
         return ToolResult(
             True,
             full_musicxml=revision.full_xml,
-            message=format_feedback(report)
-            if report is not None
-            else "New measure inserted.",
+            message=format_feedback(report) if report is not None else message,
             report=report,
         )
 
@@ -1673,7 +1883,15 @@ class CompositionService:
         context.enforce_voice_count = "voices" in rules
         report = self.engine.run(score, context, profile=profile_for_rules(rules))
         active = scopes if scopes is not None else self._exempt_scopes(work, movement)
-        return _filter_exemptions(report, active)
+        filtered = _filter_exemptions(report, active)
+        extra = lyric_violations(score, work.vocal_voices)
+        if not extra:
+            return filtered
+        violations = sorted(
+            [*filtered.violations, *extra],
+            key=lambda item: (item.measure, item.rule_id),
+        )
+        return CheckReport(violations=violations)
 
     def _save_revision(
         self,

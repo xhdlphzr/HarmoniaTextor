@@ -26,7 +26,7 @@ from harmoniatextor.agent.compression import (
     compress_messages,
     message_text,
 )
-from harmoniatextor.agent.loop import run_tool_calls
+from harmoniatextor.agent.loop import invoke_model, run_tool_calls
 from harmoniatextor.agent.prompts import style_display_name, system_prompt
 from harmoniatextor.agent.reviewer import ReviewerAI
 from harmoniatextor.agent.tools import build_tools
@@ -45,9 +45,12 @@ _MOVEMENT_TAIL = (
     "voices: first create the voices you need with add_part (the instrumentation "
     "is entirely your choice), then submit themes with submit_theme and develop "
     "the melody with technique_*; once broadly shaped, fine-tune measure by "
-    "measure and voice with edit(measure, voice, musicxml) (an empty fragment "
-    "clears that measure). Use insert / delete to add or remove measures. Do not "
-    "rewrite any other movement."
+    "measure and voice with edit(measure, voice, musicxml, count) (an empty "
+    "fragment clears count measures; a multi-measure fragment rewrites the whole "
+    "passage in one call). Call read() immediately before every multi-measure "
+    "edit/insert: without a fresh read the tool returns NEED_READ, because "
+    "insert/delete and other edits can shift measure numbers. Use insert / "
+    "delete to add or remove measures. Do not rewrite any other movement."
 )
 
 
@@ -75,8 +78,8 @@ class MovementComposer:
         service: Composition service.
         chat_model: Chat model driving each movement session.
         reviewer: Optional independent checker AI.
-        max_steps: Maximum turns per movement session.
-        max_reviews: Maximum review/fix rounds.
+        max_steps: Maximum turns per movement session, or ``None`` for no limit.
+        max_reviews: Maximum review/fix rounds, or ``None`` for no limit.
         context_window: Context window used to trigger compression.
     """
 
@@ -86,8 +89,8 @@ class MovementComposer:
         chat_model: BaseChatModel,
         *,
         reviewer: ReviewerAI | None = None,
-        max_steps: int = 40,
-        max_reviews: int = 5,
+        max_steps: int | None = None,
+        max_reviews: int | None = None,
         context_window: int = DEFAULT_CONTEXT_WINDOW,
     ) -> None:
         """Initialise the composer.
@@ -96,8 +99,8 @@ class MovementComposer:
             service: Composition service.
             chat_model: Chat model.
             reviewer: Optional checker AI.
-            max_steps: Maximum turns per movement.
-            max_reviews: Maximum review rounds.
+            max_steps: Maximum turns per movement, or ``None`` for no limit.
+            max_reviews: Maximum review rounds, or ``None`` for no limit.
             context_window: Context window used to trigger compression.
         """
         self.service = service
@@ -177,6 +180,7 @@ class MovementComposer:
         tools = build_tools(self.service, work_id, movement.id, techniques)
         mapping = {tool.name: tool for tool in tools}
         bound = self.chat_model.bind_tools(tools)
+        forced = self.chat_model.bind_tools(tools, tool_choice="required")
         messages = sessions.get(movement.id)
         if messages is None:
             genre = self.service.genres.get(work.genre)
@@ -209,9 +213,19 @@ class MovementComposer:
             )
         sessions[movement.id] = messages
         steps = 0
-        while steps < self.max_steps:
+        force_supported = True
+        while self.max_steps is None or steps < self.max_steps:
             self._compress(work_id, movement, goal, on_event, messages)
-            response = bound.invoke(messages)
+            empty = not self.service.has_notes(work_id, movement.id)
+            response, rejected = invoke_model(
+                messages,
+                bound,
+                forced,
+                force=force_supported and empty,
+                on_event=on_event,
+            )
+            if rejected:
+                force_supported = False
             messages.append(response)
             steps += 1
             text = message_text(response)
@@ -228,6 +242,7 @@ class MovementComposer:
                 )
             if run_tool_calls(messages, response, mapping, steps, on_event):
                 continue
+            _emit(on_event, {"kind": "phase", "phase": "symbolic"})
             report = self._movement_report(work_id, movement)
             if not report.ok:
                 feedback = self._fix_message(report)
@@ -318,8 +333,10 @@ class MovementComposer:
         """
         if any(item.rule_id == "empty" for item in report.violations):
             return (
-                "This movement has no notes yet, so it is not complete. Submit a "
-                "theme with submit_theme and develop it with technique_*."
+                "EMPTY SCORE: this movement has no notes yet. You must call a tool "
+                "now: use add_part(voice=..., instrument=...) to create the voices, "
+                "then submit_theme(musicxml=..., voice=..., instrument=..., key=...) "
+                "to write the first theme. Do not reply with prose."
             )
         return (
             "This movement still fails the symbolic layer; keep fixing:\n"
@@ -384,6 +401,7 @@ class MovementComposer:
         reviews = 0
         while True:
             score = self.service.current_musicxml(work_id, movement.id)
+            _emit(on_event, {"kind": "phase", "phase": "symbolic"})
             report = self.service.check_score(
                 work_id, movement.id, from_musicxml(score)
             )
@@ -411,7 +429,7 @@ class MovementComposer:
                 return True, ""
             suggestions = result.suggestions
             reviews += 1
-            if reviews >= self.max_reviews:
+            if self.max_reviews is not None and reviews >= self.max_reviews:
                 return False, suggestions
             _emit(on_event, {"kind": "movement_fix", "movement": movement.id})
             self._compose_movement(

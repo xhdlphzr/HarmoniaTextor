@@ -23,6 +23,7 @@ __all__ = [
     "BrokenChordParams",
     "ChromaticHarmonyParams",
     "ChromaticModulationParams",
+    "ClearLyricsParams",
     "ColorChordParams",
     "CounterRhythmParams",
     "DeleteMeasureParams",
@@ -54,6 +55,7 @@ __all__ = [
     "RondoParams",
     "RubatoParams",
     "SequenceParams",
+    "SetLyricsParams",
     "SetMovementPromptParams",
     "SetPartCountParams",
     "SetTempoParams",
@@ -61,6 +63,7 @@ __all__ = [
     "SetTitleParams",
     "StrettoParams",
     "SubmitThemeParams",
+    "SyllableParams",
     "SyncopationParams",
     "TranspositionParams",
     "VoiceExchangeParams",
@@ -781,6 +784,81 @@ class SetPartCountParams(_Params):
     )
 
 
+class SyllableParams(_Params):
+    """One syllable attached to a sung note.
+
+    Attributes:
+        text: Original-language text; empty continues the previous syllable.
+        ipa: IPA pronunciation; empty sustains the previous vowel (melisma).
+        syllabic: Single syllable or a begin/middle/end melisma part.
+        language: Optional per-syllable language override.
+    """
+
+    text: str = Field(
+        default="",
+        description=(
+            "Original-language text of the syllable. Empty continues the previous "
+            "syllable (melisma)."
+        ),
+    )
+    ipa: str = Field(
+        default="",
+        description=(
+            "IPA pronunciation of the syllable, e.g. 'lʌv'. Empty sustains the "
+            "previous vowel (melisma)."
+        ),
+    )
+    syllabic: Literal["single", "begin", "middle", "end"] = Field(
+        default="single",
+        description="Single syllable, or a begin/middle/end melisma part.",
+    )
+    language: str = Field(
+        default="",
+        description="Optional language override for this syllable.",
+    )
+
+
+class SetLyricsParams(_Params):
+    """Parameters for the set-lyrics tool.
+
+    Attributes:
+        measure: One-based measure whose notes receive the syllables.
+        voice: Voice slot that sings.
+        language: Language tag of the original text, e.g. ``en``/``zh``/``la``.
+        syllables: Syllables in note order.
+    """
+
+    measure: int = Field(ge=1, description="One-based measure number.")
+    voice: str = Field(min_length=1, description="Voice slot that sings.")
+    language: str = Field(
+        min_length=1,
+        description=(
+            "Language tag of the original text, e.g. 'en', 'zh', 'la'. Required; "
+            "it marks the text and never changes the IPA synthesis."
+        ),
+    )
+    syllables: list[SyllableParams] = Field(
+        min_length=1,
+        description="One syllable per sounding note, in order.",
+    )
+
+
+class ClearLyricsParams(_Params):
+    """Parameters for the clear-lyrics tool.
+
+    Attributes:
+        voice: Voice slot to clear.
+        measure: Optional one-based measure; empty clears the whole voice.
+    """
+
+    voice: str = Field(min_length=1, description="Voice slot to clear.")
+    measure: int | None = Field(
+        default=None,
+        ge=1,
+        description="Optional measure to clear; empty clears the whole voice.",
+    )
+
+
 class RemovePartParams(_Params):
     """Parameters for the remove-part tool.
 
@@ -889,15 +967,25 @@ class EditParams(_Params):
     Attributes:
         measure: One-based measure number to replace.
         voice: Voice slot whose measure is replaced.
-        musicxml: MusicXML fragment whose first melody replaces the measure;
-            empty clears the measure.
+        musicxml: MusicXML fragment whose first melody replaces the range;
+            empty clears the range.
+        count: How many consecutive measures to replace or clear.
     """
 
     measure: int = Field(ge=1, description="One-based measure number to replace.")
     voice: str = Field(min_length=1, description="Voice slot to replace.")
     musicxml: str = Field(
         default="",
-        description="MusicXML fragment for the measure; empty clears the measure.",
+        description="MusicXML fragment for the measures; empty clears the range.",
+    )
+    count: int = Field(
+        default=1,
+        ge=1,
+        description=(
+            "How many consecutive measures starting at `measure` to replace or "
+            "clear. A fragment containing several measures expands this count "
+            "automatically, so one call can rewrite a whole passage."
+        ),
     )
 
 
@@ -905,15 +993,30 @@ class InsertMeasureParams(_Params):
     """Parameters for the insert-measure tool.
 
     Attributes:
-        measure: One-based position of the new measure.
+        measure: One-based position of the new measure range.
         voice: Voice that receives the optional fragment.
-        musicxml: MusicXML fragment filling the new measure.
+        musicxml: MusicXML fragment filling the new measures.
+        count: How many consecutive empty or fragment-filled measures to insert.
     """
 
     measure: int = Field(ge=1, description="One-based position of the new measure.")
-    voice: str = Field(default="", description="Voice that receives the fragment.")
+    voice: str = Field(
+        min_length=1,
+        description=(
+            "Required. Voice slot for the optional fragment; pass it even when the "
+            "new measure is empty."
+        ),
+    )
     musicxml: str = Field(
-        default="", description="MusicXML fragment for the new measure."
+        default="", description="Optional MusicXML fragment for the new measures."
+    )
+    count: int = Field(
+        default=1,
+        ge=1,
+        description=(
+            "How many consecutive measures to insert. A fragment containing several "
+            "measures expands this count automatically."
+        ),
     )
 
 

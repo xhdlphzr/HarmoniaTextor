@@ -21,7 +21,10 @@ from typing import Any
 from werkzeug.serving import BaseWSGIServer, make_server
 
 from app.app import create_app
-from harmoniatextor.render.vendor import ensure_async
+from harmoniatextor.render.vendor import ensure_async as ensure_vendor
+from harmoniatextor.render.vocal.diffsinger_models import (
+    ensure_async as ensure_vocal_models,
+)
 
 __all__ = ["DesktopApp", "main"]
 
@@ -161,7 +164,8 @@ def _ensure_audio_backend(flask_app: Any) -> None:
         return
     export = extensions.get("harmonia_export")
     if export is not None:
-        ensure_async(export.vendor_root)
+        ensure_vendor(export.vendor_root)
+    ensure_vocal_models()
 
 
 def main() -> None:

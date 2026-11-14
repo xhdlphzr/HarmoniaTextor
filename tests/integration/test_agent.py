@@ -22,12 +22,14 @@ from harmoniatextor.agent.architect import Architect, plan_tree, render_plan
 from harmoniatextor.agent.compression import (
     content_text,
 )
-from harmoniatextor.agent.loop import AgentLoop
+from harmoniatextor.agent.loop import AgentLoop, invoke_model
 from harmoniatextor.agent.movements import MovementComposer
 from harmoniatextor.agent.planning_tools import build_planning_tools
 from harmoniatextor.agent.prompts import (
     ARCHITECT_INSTRUCTION,
     ARCHITECT_SYSTEM,
+    architect_instruction,
+    architect_system,
 )
 from harmoniatextor.agent.reviewer import (
     ReviewerAI,
@@ -41,7 +43,7 @@ from harmoniatextor.score.streamops import ScoreEditor
 from harmoniatextor.service.service import CompositionService, ToolResult
 from harmoniatextor.techniques import build_default_registry
 
-_EXPECTED_TOOL_COUNT = 47
+_EXPECTED_TOOL_COUNT = 49
 _AUTO_CONTINUE_CALLS = 2
 _EXPECTED_MESSAGES = 2
 _COMPRESSED_MESSAGES = 1
@@ -224,6 +226,74 @@ class RecordingChatModel(ValidatingChatModel):
         return super().invoke(messages, **_kwargs)
 
 
+class _RecordingBinding:
+    """One tool binding of a :class:`RecordingBindingChatModel`."""
+
+    def __init__(self, model: RecordingBindingChatModel, *, forced: bool) -> None:
+        """Initialise the binding.
+
+        Args:
+            model: The owning model.
+            forced: Whether this binding requires a tool call.
+        """
+        self.model = model
+        self.forced = forced
+
+    def invoke(self, _messages: object) -> AIMessage:
+        """Record the binding kind then return the next scripted message.
+
+        Args:
+            _messages: Conversation messages (ignored).
+
+        Returns:
+            The next scripted assistant message.
+
+        Raises:
+            ValueError: When the model is set to reject forced tool calls and
+                this binding is the forced one.
+        """
+        self.model.calls.append("forced" if self.forced else "auto")
+        if self.forced and self.model.reject_forced:
+            raise ValueError(
+                "HTTP 400: Thinking mode does not support this tool_choice"
+            )
+        message = self.model.responses[
+            min(self.model.cursor, len(self.model.responses) - 1)
+        ]
+        self.model.cursor += 1
+        return message
+
+
+class RecordingBindingChatModel:
+    """A scripted model that records which tool binding answers each turn."""
+
+    def __init__(
+        self, *, responses: list[AIMessage], reject_forced: bool = False
+    ) -> None:
+        """Initialise the script.
+
+        Args:
+            responses: Messages returned in order.
+            reject_forced: Whether the forced binding raises a provider error.
+        """
+        self.responses = responses
+        self.cursor = 0
+        self.reject_forced = reject_forced
+        self.calls: list[str] = []
+
+    def bind_tools(self, _tools: object, **kwargs: object) -> _RecordingBinding:
+        """Return a binding that remembers whether tools are forced.
+
+        Args:
+            _tools: The bound tools (ignored).
+            kwargs: Binding options; ``tool_choice`` marks the forced binding.
+
+        Returns:
+            The recording binding.
+        """
+        return _RecordingBinding(self, forced="tool_choice" in kwargs)
+
+
 def theme_xml() -> str:
     """Build a simple theme melody.
 
@@ -251,6 +321,19 @@ def note_xml(pitch: str) -> str:
     return to_musicxml(score)
 
 
+def multi_measure_xml() -> str:
+    """Build a two-measure melody as MusicXML.
+
+    Returns:
+        The resulting text.
+    """
+    score = new_score(key="C", time_signature="4/4", tempo_bpm=84, voices=["soprano"])
+    editor = ScoreEditor(score)
+    editor.write_line("soprano", 1, [ThemeNote("C5", 4.0)])
+    editor.write_line("soprano", 2, [ThemeNote("D5", 4.0)])
+    return to_musicxml(score)
+
+
 @pytest.fixture
 def prepared(service: CompositionService) -> tuple[CompositionService, str, str, int]:
     """Create a work with one submitted theme.
@@ -261,7 +344,7 @@ def prepared(service: CompositionService) -> tuple[CompositionService, str, str,
     Returns:
         The prepared result.
     """
-    work = service.create_work("Demo", "plain", "C")
+    work = service.create_work("Demo", "vocal", "C")
     movement_id = work.movements[0].id
     result = service.submit_theme(work.id, movement_id, theme_xml())
     return service, work.id, movement_id, result.theme_id or 1
@@ -362,12 +445,119 @@ class TestTools:
             {"measure": 1, "voice": "soprano", "mark": "dynamic", "value": "f"}
         )
         assert "ok" in marked
-        inserted = tools["insert"].invoke({"measure": 1})
+        lyrics = tools["set_lyrics"].invoke(
+            {
+                "measure": 1,
+                "voice": "soprano",
+                "language": "en",
+                "syllables": [
+                    {"text": "a", "ipa": "a"},
+                    {"text": "b", "ipa": "b"},
+                ],
+            }
+        )
+        assert json.loads(lyrics)["ok"] is True
+        cleared = tools["clear_lyrics"].invoke({"voice": "soprano"})
+        assert json.loads(cleared)["ok"] is True
+        inserted = tools["insert"].invoke({"measure": 1, "voice": "soprano"})
         assert "full_musicxml" in inserted
         deleted = tools["delete"].invoke({"measure": 1})
         assert "full_musicxml" in deleted
         full = tools["read"].invoke({})
         assert "score-partwise" in full
+
+    def test_multi_measure_tools(
+        self, prepared: tuple[CompositionService, str, str, int]
+    ) -> None:
+        """A fresh read unlocks each multi-measure edit/insert.
+
+        Args:
+            prepared: A prepared work and movement.
+        """
+        service, work_id, movement_id, _ = prepared
+        tools = {tool.name: tool for tool in build_tools(service, work_id, movement_id)}
+        assert "score-partwise" in tools["read"].invoke({})
+        edited = tools["edit"].invoke({"measure": 1, "voice": "soprano", "count": 2})
+        assert json.loads(edited)["ok"] is True
+        assert (
+            json.loads(
+                tools["insert"].invoke({"measure": 1, "voice": "soprano", "count": 2})
+            )["error_code"]
+            == "NEED_READ"
+        )
+        assert "score-partwise" in tools["read"].invoke({})
+        inserted = tools["insert"].invoke(
+            {"measure": 1, "voice": "soprano", "count": 2}
+        )
+        assert json.loads(inserted)["ok"] is True
+        assert "full_musicxml" in inserted
+
+    def test_multi_measure_requires_read(
+        self, prepared: tuple[CompositionService, str, str, int]
+    ) -> None:
+        """A multi-measure call without a fresh read is rejected; writes invalidate it.
+
+        Args:
+            prepared: A prepared work and movement.
+        """
+        service, work_id, movement_id, _ = prepared
+        tools = {tool.name: tool for tool in build_tools(service, work_id, movement_id)}
+        rejected = json.loads(
+            tools["edit"].invoke({"measure": 1, "voice": "soprano", "count": 2})
+        )
+        assert rejected["ok"] is False
+        assert rejected["error_code"] == "NEED_READ"
+        assert "read()" in rejected["message"]
+        # A fragment with several measures is a multi-measure call too.
+        fragment_rejected = json.loads(
+            tools["edit"].invoke(
+                {"measure": 1, "voice": "soprano", "musicxml": multi_measure_xml()}
+            )
+        )
+        assert fragment_rejected["error_code"] == "NEED_READ"
+        # An unparseable fragment falls through to the service's own error.
+        bad = json.loads(
+            tools["edit"].invoke({"measure": 1, "voice": "soprano", "musicxml": "nope"})
+        )
+        assert bad["error_code"] == "BAD_PARAM"
+        # A fresh read unlocks the next multi-measure call only once.
+        tools["read"].invoke({})
+        allowed = json.loads(
+            tools["edit"].invoke({"measure": 1, "voice": "soprano", "count": 2})
+        )
+        assert allowed["ok"] is True
+        again = json.loads(
+            tools["edit"].invoke({"measure": 1, "voice": "soprano", "count": 2})
+        )
+        assert again["error_code"] == "NEED_READ"
+        # Any other mutating tool also invalidates the previous read.
+        tools["read"].invoke({})
+        tools["set_tempo"].invoke({"bpm": 90})
+        after_mutation = json.loads(
+            tools["edit"].invoke({"measure": 1, "voice": "soprano", "count": 2})
+        )
+        assert after_mutation["error_code"] == "NEED_READ"
+
+    def test_single_measure_edit_needs_no_read(
+        self, prepared: tuple[CompositionService, str, str, int]
+    ) -> None:
+        """A single-measure edit is not gated by the read requirement.
+
+        Args:
+            prepared: A prepared work and movement.
+        """
+        service, work_id, movement_id, _ = prepared
+        tools = {tool.name: tool for tool in build_tools(service, work_id, movement_id)}
+        result = json.loads(
+            tools["edit"].invoke(
+                {
+                    "measure": 1,
+                    "voice": "soprano",
+                    "musicxml": theme_xml(),
+                }
+            )
+        )
+        assert result["ok"] is True
 
     def test_payload_with_report(self) -> None:
         """Payloads include violations from the report."""
@@ -546,6 +736,110 @@ class TestAgentLoop:
         assert outcome.final_text == "b"
         assert len(calls) == _AUTO_CONTINUE_CALLS
         assert any(event["kind"] == "assistant" for event in events)
+        assert [event.get("phase") for event in events if event["kind"] == "phase"] == [
+            "symbolic",
+            "symbolic",
+        ]
+        assert any(
+            event["kind"] == "assistant" and event.get("text") == "a"
+            for event in events
+        )
+
+    def test_empty_score_nudge(self, service: CompositionService) -> None:
+        """An empty score produces a strong tool-use nudge.
+
+        Args:
+            service: The composition service.
+        """
+        work = service.create_work("Demo", "plain", "C")
+        movement_id = work.movements[0].id
+        events: list[dict[str, Any]] = []
+        model = ScriptedChatModel(responses=[AIMessage(content="prose only")])
+        outcome = AgentLoop(service, cast("BaseChatModel", model), max_steps=1).run(
+            work.id, movement_id, "goal", on_event=events.append
+        )
+        assert not outcome.completed
+        assert any(
+            event["kind"] == "feedback" and "EMPTY SCORE" in event["text"]
+            for event in events
+        )
+
+    def test_forces_tools_while_empty(self, service: CompositionService) -> None:
+        """An empty score forces a tool call; later turns use automatic choice.
+
+        Args:
+            service: The composition service.
+        """
+        work = service.create_work("Demo", "plain", "C")
+        movement_id = work.movements[0].id
+        service.check = lambda *_args, **_kwargs: CheckReport([])  # type: ignore[method-assign]
+        model = RecordingBindingChatModel(
+            responses=[
+                tool_call(
+                    "submit_theme",
+                    {
+                        "musicxml": theme_xml(),
+                        "voice": "soprano",
+                        "instrument": "Soprano",
+                    },
+                ),
+                AIMessage(content="done"),
+            ]
+        )
+        events: list[dict[str, Any]] = []
+        outcome = AgentLoop(service, cast("BaseChatModel", model)).run(
+            work.id, movement_id, "goal", on_event=events.append
+        )
+        assert outcome.completed
+        assert model.calls == ["forced", "auto"]
+        assert not any(event["kind"] == "notice" for event in events)
+
+    def test_forced_tool_choice_falls_back(self, service: CompositionService) -> None:
+        """An endpoint that rejects a forced tool choice falls back safely.
+
+        Args:
+            service: The composition service.
+        """
+        work = service.create_work("Demo", "plain", "C")
+        movement_id = work.movements[0].id
+        empty = CheckReport(
+            [CheckViolation("empty", Severity.ERROR, 1, None, None, "k", "m", "s")]
+        )
+        reports = [empty, CheckReport([])]
+        calls: list[int] = []
+
+        def fake_check(*_args: object, **_kwargs: object) -> CheckReport:
+            calls.append(1)
+            return reports[min(len(calls) - 1, len(reports) - 1)]
+
+        service.check = fake_check  # type: ignore[method-assign]
+        model = RecordingBindingChatModel(
+            responses=[
+                AIMessage(content="I will start soon."),
+                tool_call(
+                    "submit_theme",
+                    {
+                        "musicxml": theme_xml(),
+                        "voice": "soprano",
+                        "instrument": "Soprano",
+                    },
+                ),
+                AIMessage(content="done"),
+            ],
+            reject_forced=True,
+        )
+        events: list[dict[str, Any]] = []
+        outcome = AgentLoop(service, cast("BaseChatModel", model)).run(
+            work.id, movement_id, "goal", on_event=events.append
+        )
+        assert outcome.completed
+        assert model.calls.count("forced") == 1
+        assert model.calls[1:] == ["auto", "auto", "auto"]
+        assert any(event["kind"] == "notice" for event in events)
+        assert any(
+            event["kind"] == "feedback" and "EMPTY SCORE" in event["text"]
+            for event in events
+        )
 
     def test_auto_continue_disabled(self, service: CompositionService) -> None:
         """A failing check stops immediately when auto-continue is disabled.
@@ -810,6 +1104,57 @@ class TestAgentLoopReview:
         assert outcome.completed
 
 
+class _RaisingBinding:
+    """A tool binding that always fails."""
+
+    def __init__(self, error: Exception) -> None:
+        """Initialise the binding.
+
+        Args:
+            error: The error to raise on every invoke.
+        """
+        self.error = error
+
+    def invoke(self, _messages: object) -> AIMessage:
+        """Raise the configured error.
+
+        Args:
+            _messages: Conversation messages (ignored).
+
+        Raises:
+            Exception: Always the configured error.
+        """
+        raise self.error
+
+
+class TestInvokeModel:
+    """Forced tool-call guarding."""
+
+    def test_does_not_force(self) -> None:
+        """Without forcing the automatic binding answers the turn."""
+        model = RecordingBindingChatModel(responses=[AIMessage(content="ok")])
+        bound = model.bind_tools([])
+        forced = model.bind_tools([], tool_choice="required")
+        response, rejected = invoke_model(
+            [], cast("Any", bound), cast("Any", forced), force=False, on_event=None
+        )
+        assert response.content == "ok"
+        assert not rejected
+        assert model.calls == ["auto"]
+
+    def test_reraises_unrelated_errors(self) -> None:
+        """Failures unrelated to the tool choice are not swallowed."""
+        binding = _RaisingBinding(RuntimeError("network down"))
+        with pytest.raises(RuntimeError, match="network down"):
+            invoke_model(
+                [],
+                cast("Any", binding),
+                cast("Any", binding),
+                force=True,
+                on_event=None,
+            )
+
+
 class TestPlanningTools:
     """Step 1 planning tools."""
 
@@ -870,6 +1215,21 @@ class TestPlanningTools:
 class TestArchitect:
     """The Step 1 planning loop."""
 
+    def test_vocal_genre_plans_lyrics(self, service: CompositionService) -> None:
+        """A vocal work's planner is told to plan singers and lyrics.
+
+        Args:
+            service: The composition service.
+        """
+        work = service.create_work("Demo", "vocal", "C")
+        style = service.style_for(work)
+        vocal = service.genres.get("vocal")
+        plain = service.genres.get("plain")
+        assert "This genre is sung" in architect_system(style, vocal)
+        assert "set_lyrics" in architect_system(style, vocal)
+        assert "singer or choir voice" in architect_instruction(style, vocal)
+        assert "no sung parts" in architect_system(style, plain)
+
     def test_fills_prompts(self, service: CompositionService) -> None:
         """A plan completes once every movement has a prompt.
 
@@ -899,6 +1259,10 @@ class TestArchitect:
         assert result.tree[0]["prompt"] == "p1"
         assert result.tree[1]["prompt"] == "p2"
         assert any(event["kind"] == "plan" for event in events)
+        assert any(
+            event["kind"] == "assistant" and event.get("text") == "done"
+            for event in events
+        )
 
     def test_plan_tree(self, service: CompositionService) -> None:
         """The plan tree carries movements and prompts.
@@ -1305,6 +1669,85 @@ class TestMovementComposer:
         assert all(
             service._has_notes(work_id, movement.id)
             for movement in service.get_work(work_id).movements
+        )
+
+    def test_forces_tools_while_empty(self, service: CompositionService) -> None:
+        """A movement starts by forcing a tool call, then relaxes.
+
+        Args:
+            service: The composition service.
+        """
+        work = service.create_work("Demo", "plain", "C", with_movements=False)
+        service.add_movement(work.id)
+        service.set_movement_prompt(work.id, "m01", "p1")
+        service.check_score = lambda *_args, **_kwargs: CheckReport([])  # type: ignore[method-assign]
+        model = RecordingBindingChatModel(
+            responses=[
+                tool_call(
+                    "submit_theme",
+                    {
+                        "musicxml": theme_xml(),
+                        "voice": "soprano",
+                        "instrument": "Soprano",
+                    },
+                ),
+                AIMessage(content="done"),
+            ]
+        )
+        events: list[dict[str, Any]] = []
+        result = MovementComposer(service, cast("BaseChatModel", model)).compose(
+            work.id, "goal", on_event=events.append
+        )
+        assert result.completed
+        assert model.calls == ["forced", "auto"]
+        assert not any(event["kind"] == "notice" for event in events)
+
+    def test_forced_tool_choice_falls_back(self, service: CompositionService) -> None:
+        """A movement survives an endpoint that rejects forced tool calls.
+
+        Args:
+            service: The composition service.
+        """
+        work = service.create_work("Demo", "plain", "C", with_movements=False)
+        service.add_movement(work.id)
+        service.set_movement_prompt(work.id, "m01", "p1")
+        empty = CheckReport(
+            [CheckViolation("empty", Severity.ERROR, 1, None, None, "k", "m", "s")]
+        )
+        reports = [empty, CheckReport([])]
+        calls: list[int] = []
+
+        def fake_check_score(*_args: object, **_kwargs: object) -> CheckReport:
+            calls.append(1)
+            return reports[min(len(calls) - 1, len(reports) - 1)]
+
+        service.check_score = fake_check_score  # type: ignore[method-assign]
+        model = RecordingBindingChatModel(
+            responses=[
+                AIMessage(content="I will start soon."),
+                tool_call(
+                    "submit_theme",
+                    {
+                        "musicxml": theme_xml(),
+                        "voice": "soprano",
+                        "instrument": "Soprano",
+                    },
+                ),
+                AIMessage(content="done"),
+            ],
+            reject_forced=True,
+        )
+        events: list[dict[str, Any]] = []
+        result = MovementComposer(service, cast("BaseChatModel", model)).compose(
+            work.id, "goal", on_event=events.append
+        )
+        assert result.completed
+        assert model.calls.count("forced") == 1
+        assert model.calls[1:] == ["auto", "auto", "auto"]
+        assert any(event["kind"] == "notice" for event in events)
+        assert any(
+            event["kind"] == "feedback" and "EMPTY SCORE" in event["text"]
+            for event in events
         )
 
     def test_review_runs_before_next_movement(

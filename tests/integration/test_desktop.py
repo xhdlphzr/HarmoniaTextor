@@ -151,17 +151,20 @@ class TestDesktop:
         assert captured.get("threaded") is True
 
     def test_ensure_audio_backend(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """The first launch kicks off the audio backend download.
+        """Startup downloads any missing audio/vocal backend files.
 
         Args:
             monkeypatch: The pytest monkeypatch fixture.
         """
         calls: list[object] = []
-        monkeypatch.setattr(desktop, "ensure_async", calls.append)
+        monkeypatch.setattr(desktop, "ensure_vendor", calls.append)
+        monkeypatch.setattr(
+            desktop, "ensure_vocal_models", lambda: calls.append("models")
+        )
         app = FakeFlaskApp(None)
         app.extensions["harmonia_export"] = FakeExport()
         desktop._ensure_audio_backend(app)
-        assert calls == ["vendir"]
+        assert calls == ["vendir", "models"]
 
     def test_ensure_audio_backend_without_export(self) -> None:
         """An app without the export extension is ignored."""

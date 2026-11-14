@@ -12,16 +12,22 @@ from harmoniatextor.genres import (
     build_default_registry,
 )
 
-_GENRE_COUNT = 4
+_GENRE_COUNT = 5
 
 
 class TestGenreRegistry:
     """Genre registration and lookup."""
 
     def test_defaults(self) -> None:
-        """Four genres are registered."""
+        """Five genres are registered."""
         registry = build_default_registry()
-        assert registry.ids() == ["plain", "sonata", "concerto", "symphony"]
+        assert registry.ids() == [
+            "plain",
+            "sonata",
+            "concerto",
+            "symphony",
+            "vocal",
+        ]
         assert len(registry.all()) == _GENRE_COUNT
 
     def test_unknown(self) -> None:

@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS works (
     style TEXT,
     prompt TEXT NOT NULL DEFAULT '',
     part_counts TEXT NOT NULL DEFAULT '{}',
+    vocal_voices TEXT NOT NULL DEFAULT '{}',
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
@@ -128,6 +129,7 @@ class ProjectStore:
             _ensure_column(conn, "works", "style", "TEXT")
             _ensure_column(conn, "works", "prompt", "TEXT NOT NULL DEFAULT ''")
             _ensure_column(conn, "works", "part_counts", "TEXT NOT NULL DEFAULT '{}'")
+            _ensure_column(conn, "works", "vocal_voices", "TEXT NOT NULL DEFAULT '{}'")
 
     @contextmanager
     def _connect(self) -> Iterator[sqlite3.Connection]:
@@ -155,8 +157,8 @@ class ProjectStore:
                 """
                 INSERT INTO works
                     (id, title, genre, tonic, status, style, prompt, part_counts,
-                     created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     vocal_voices, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT (id) DO UPDATE SET
                     title = excluded.title,
                     genre = excluded.genre,
@@ -165,6 +167,7 @@ class ProjectStore:
                     style = excluded.style,
                     prompt = excluded.prompt,
                     part_counts = excluded.part_counts,
+                    vocal_voices = excluded.vocal_voices,
                     created_at = excluded.created_at,
                     updated_at = excluded.updated_at
                 """,
@@ -179,6 +182,7 @@ class ProjectStore:
                     else None,
                     work.prompt,
                     json.dumps(work.part_counts, ensure_ascii=False),
+                    json.dumps(work.vocal_voices, ensure_ascii=False),
                     work.created_at,
                     work.updated_at,
                 ),
@@ -224,7 +228,7 @@ class ProjectStore:
             row = conn.execute(
                 """
                 SELECT id, title, genre, tonic, status, style, prompt, part_counts,
-                       created_at, updated_at
+                       vocal_voices, created_at, updated_at
                 FROM works WHERE id = ?
                 """,
                 (work_id,),
@@ -266,8 +270,12 @@ class ProjectStore:
                 str(key): int(value)
                 for key, value in json.loads(row[7] or "{}").items()
             },
-            created_at=row[8],
-            updated_at=row[9],
+            vocal_voices={
+                str(key): str(value)
+                for key, value in json.loads(row[8] or "{}").items()
+            },
+            created_at=row[9],
+            updated_at=row[10],
         )
 
     def list_works(self) -> list[str]:

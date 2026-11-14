@@ -10,6 +10,7 @@ from harmoniatextor.genres import (
     PlainGenre,
     SonataGenre,
     SymphonyGenre,
+    VocalGenre,
     build_default_registry,
 )
 from harmoniatextor.genres.base import Genre, MovementSpec
@@ -17,14 +18,15 @@ from harmoniatextor.genres.base import Genre, MovementSpec
 _SONATA_MOVEMENTS = 3
 _CONCERTO_MOVEMENTS = 3
 _SYMPHONY_MOVEMENTS = 4
-_GENRE_COUNT = 4
+_GENRE_COUNT = 5
+_VOCAL_MOVEMENTS = 1
 
 
 class TestGenres:
     """Genre behaviour."""
 
     def test_registry(self) -> None:
-        """The registry exposes the four built-in genres."""
+        """The registry exposes the five built-in genres."""
         registry = build_default_registry()
         assert len(registry.all()) == _GENRE_COUNT
         assert {genre.id for genre in registry.all()} == {
@@ -32,7 +34,19 @@ class TestGenres:
             "sonata",
             "concerto",
             "symphony",
+            "vocal",
         }
+
+    def test_vocal_genre(self) -> None:
+        """Only the vocal genre supports sung parts."""
+        genre = VocalGenre()
+        assert genre.supports_vocals
+        assert len(genre.initialize_work("w", "C")) == _VOCAL_MOVEMENTS
+        assert genre.checker_context("C", 16, complete=True).expectations[0].cadence
+        assert not PlainGenre().supports_vocals
+        assert not SonataGenre().supports_vocals
+        assert not ConcertoGenre().supports_vocals
+        assert not SymphonyGenre().supports_vocals
 
     def test_plain_movements(self) -> None:
         """Plain works have one movement."""

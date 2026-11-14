@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from music21 import layout, stream
 
-from harmoniatextor.domain.models import ThemeNote
+from harmoniatextor.domain.models import Syllable, ThemeNote
 from harmoniatextor.score.analysis import (
     voice_events,
 )
@@ -241,3 +241,28 @@ class TestAssociate:
         editor = ScoreEditor(score)
         assert editor.associate("lh", "rh") is False
         assert editor.associate("rh", "nope") is False
+
+
+class TestLyricsEditor:
+    """Editor lyric helpers."""
+
+    def test_set_get_clear(self) -> None:
+        """Lyrics round-trip through the editor."""
+        score = new_score(
+            key="C", time_signature="4/4", tempo_bpm=80, voices=["soprano"]
+        )
+        editor = ScoreEditor(score)
+        editor.write_line("soprano", 1, [ThemeNote("C5", 1.0)])
+        assert editor.set_lyrics("soprano", 1, [Syllable("a", "a")])
+        assert editor.get_lyrics("soprano") == [(1, Syllable("a", "a"))]
+        assert editor.clear_lyrics("soprano", 1)
+
+    def test_unknown_voice(self) -> None:
+        """Lyric helpers reject a missing voice."""
+        score = new_score(
+            key="C", time_signature="4/4", tempo_bpm=80, voices=["soprano"]
+        )
+        editor = ScoreEditor(score)
+        assert editor.set_lyrics("alto", 1, []) is False
+        assert editor.clear_lyrics("alto") is False
+        assert editor.get_lyrics("alto") == []
