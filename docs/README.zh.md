@@ -52,7 +52,7 @@ flowchart TD
     subgraph Symbolic["符号层"]
         Tech["25 个技法包"]
         Check["14 条检查点 + 体裁 profile"]
-        Genres["可插拔体裁<br/>单曲 · 奏鸣曲 · 协奏曲 · 交响曲"]
+        Genres["可插拔体裁<br/>单曲 · 奏鸣曲 · 协奏曲 · 交响曲 · 声乐曲"]
     end
 
     Bridge["music21 ↔ MusicXML 桥"]
@@ -83,9 +83,10 @@ flowchart TD
 - 会话达到模型上下文窗口的 90% 时自动压缩为结构化摘要并继续，不丢失目标与当前乐谱。
 - 36 个古典音乐创作技法（模仿、倒影、模进、密接和应、回旋曲式……）。
 - 15 条符号层对位检查点，按风格套件选择生效。
-- 可插拔体裁：单曲、奏鸣曲、协奏曲、交响曲。
+- 可插拔体裁：单曲、奏鸣曲、协奏曲、交响曲与声乐曲（仅声乐曲可加人声）。
 - 可插拔风格套件：内置巴洛克、古典主义、浪漫主义、印象派，并支持自定义规则/技法；创作提示、可用技法与生效规则都随所选风格变化。
 - 乐器化声部：智能体在选主题之外还要选声部槽位与乐器，并可为同种乐器编写多个声部（如 `violin1`、`violin2`）。
+- 人声声部：用 `set_lyrics` 标注原文、语言与 IPA；谱面显示原文与语言。中文/英文作品在可选 DiffSinger ONNX 模型存在时使用 DiffSinger（模型缺失时自动下载），其他语言或性能不足时回退到内置离线 FOF（共振峰波函数）歌手。
 - 单页 Web 工作台：实时进度、随乐谱增长实时刷新的五线谱渲染（OpenSheetMusicDisplay，每个乐器各自一条谱表）、自动播放音频、定稿/提意见与导出。
 - 全量快照修订模型，支持回退与审计日志。
 - SQLite 作品数据库：`~/.harmonia_textor/history.db`。
@@ -127,9 +128,21 @@ uv run ht                     # 原生桌面窗口
 
 配置优先级：显式参数 > 该配置文件 > 环境变量 `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` > 内置默认值。
 
+DeepSeek 接口（`api.deepseek.com`）会显式关闭思考模式：该接口在思考模式下会拒绝强制工具调用，并要求在后续请求中回传 `reasoning_content`，而本项目使用的 OpenAI 兼容客户端并不支持这一点。作曲家会在乐章还是空谱时强制调用工具，因此关闭思考模式才能让流程稳定且响应及时。
+
 ## 音频后端
 
 M4A/MP3 导出依赖 [FluidSynth](https://www.fluidsynth.org/)、General MIDI 音色库与 `ffmpeg`。软件**首次启动时会自动在后台把这三者下载到 `~/.harmonia_textor/vendor`**，因此新机器无需手工配置即可播放与导出音频；下载失败也只是音频不可用。设置环境变量 `HARMONIA_SOUNDFONT` 可指定自定义 `.sf2`/`.sf3`。试听台用 OpenSheetMusicDisplay 实时渲染五线谱，并可导出 PNG，无需服务端制谱器。
+
+## 人声后端（DiffSinger）
+
+中文与英文的人声声部在有 DiffSinger ONNX 模型、且机器 CPU 核心数不少于 `HARMONIA_DIFFSINGER_MIN_CORES`（默认 4）时使用 DiffSinger。这里不是“首次启动标记”，而是**每次启动都检查模型文件是否存在，缺哪个就在后台下载哪个**：三个适合个人电脑的模型放在 `~/.harmonia_textor/diffsinger`（合计约 1.47 GB），中文 OpenCpop 模型来自 [DiffSinger-ONNX-Infer](https://github.com/HighCWu/DiffSinger-ONNX-Infer)，英文 [Tiger](https://github.com/spicytigermeat/tiger_diffsinger) 声库，以及**中英双语男声** [Ameko Kero](https://github.com/theaimeltus/DiffSinger-Ameko-Kero-Legacy-Archive-) 声库。中文声部和平均音高约 E4 以下的英文声部使用 Ameko Kero，较高的英文声部使用 Tiger；设置 `HARMONIA_DIFFSINGER_MALE_MAX_MIDI=127` 可让所有英文声部都用男声。下载完成前、其他语言或推理失败时会自动回退到内置离线 FOF 歌手，保证人声声部不会静音。
+
+- `HARMONIA_DIFFSINGER=off` 完全关闭 DiffSinger，默认 `auto`。
+- `HARMONIA_DIFFSINGER_DIR` 覆盖模型目录；`HARMONIA_DIFFSINGER_MIN_CORES` 调整 CPU 门槛。
+- `HARMONIA_DIFFSINGER_MALE_MAX_MIDI` 调整男/女声分界（默认 64；设为 127 即所有英文都用男声）。
+- `HARMONIA_DIFFSINGER_STEPS` 与 `HARMONIA_DIFFSINGER_SPEAKER` 可调整英文 Tiger 音色（扩散步数默认 12，越大越慢通常越干净；speaker 默认 `tiger_fresh`）。
+- 歌词会按存储的原文转换为模型音素（中文用拼音，英文用 Tiger 词典，Ameko Kero 使用启发式回退）。Tiger 声库仅限个人/非商业使用并需要署名，详见其包内 `extra/LICENSE.md`；Ameko Kero 按 UFR Millefeuille 条款免费使用（禁止售卖/交易/用于 AI 训练），详见包内许可证；OpenCpop 模型仅建议科研/个人使用。
 
 ## 质量门禁
 
@@ -170,4 +183,4 @@ uv run --no-sync pyinstaller --noconfirm --clean HarmoniaTextor.spec
 
 ## 许可证
 
-MIT，见 [`LICENSES/MIT.txt`](../LICENSES/MIT.txt)。`assets/` 下的图标使用 CC-BY-NC-ND-4.0。首次启动下载的音频后端组件保留各自许可证（ffmpeg、FluidSynth 与 GeneralUser GS 音色库）。
+MIT，见 [`LICENSES/MIT.txt`](../LICENSES/MIT.txt)。`assets/` 下的图标使用 CC-BY-NC-ND-4.0。首次启动下载的音频后端组件保留各自许可证（ffmpeg、FluidSynth 与 GeneralUser GS 音色库）；可选的 DiffSinger 声库也保留各自许可证（Tiger 仅限个人/非商业并需署名；Ameko Kero 按 UFR Millefeuille 条款免费使用；OpenCpop 模型建议科研/个人使用）。

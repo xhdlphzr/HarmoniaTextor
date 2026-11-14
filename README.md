@@ -52,7 +52,7 @@ flowchart TD
     subgraph Symbolic["Symbolic layer"]
         Tech["25 technique packs"]
         Check["14 check rules + genre profiles"]
-        Genres["Pluggable genres<br/>plain · sonata · concerto · symphony"]
+        Genres["Pluggable genres<br/>plain · sonata · concerto · symphony · vocal"]
     end
 
     Bridge["music21 ↔ MusicXML bridge"]
@@ -83,9 +83,10 @@ flowchart TD
 - Automatic context compression at 90% of the model window keeps long sessions running without losing the goal or the current score.
 - 36 classical composition techniques (imitation, inversion, sequence, stretto, rondo, ...).
 - 15 symbolic counterpoint checks selected per style kit.
-- Pluggable genres: plain, sonata, concerto, symphony.
+- Pluggable genres: plain, sonata, concerto, symphony and vocal (the only genre that accepts sung parts).
 - Pluggable style kits: built-in Baroque, Classical, Romantic and Impressionist, plus custom rule/technique selections; the composer prompt, available techniques and enforced rules all follow the chosen style.
 - Instrument-aware parts: the agent chooses a voice slot and an instrument and may add several parts for the same instrument (e.g. `violin1`, `violin2`).
+- Sung parts: mark a voice as vocal with `set_lyrics` (original text, language tag and IPA); the staff shows the text and language. Chinese and English works can use the optional DiffSinger ONNX models (downloaded automatically whenever the model files are missing), with the built-in offline FOF (formant wave function) singer as the fallback for other languages or slower machines.
 - Single-page web desk: live progress, live staff-notation rendering (OpenSheetMusicDisplay) that refreshes as the score grows (all instruments on their own staves), auto-played audio, finalize/feedback and export.
 - Full-score revision model with rollback and audit journal.
 - SQLite project database at `~/.harmonia_textor/history.db`.
@@ -125,9 +126,21 @@ The composer agent reads `~/.harmonia_textor/config.json`; edit it from the gear
 
 The same endpoint drives both the composer and the independent reviewer. Settings resolve in this order: explicit arguments, then this file, then the `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` environment variables, then the built-in defaults.
 
+DeepSeek endpoints (`api.deepseek.com`) run with thinking mode explicitly disabled: there, thinking mode rejects a forced tool call and requires the model's `reasoning_content` to be sent back on every later request, which the OpenAI-compatible client does not support. The composer forces a tool call while a movement is still empty, so disabling thinking keeps the loop deterministic and responsive.
+
 ## Audio backend
 
 M4A/MP3 export needs [FluidSynth](https://www.fluidsynth.org/), a General MIDI soundfont and `ffmpeg`. On first launch the desktop app downloads all three into `~/.harmonia_textor/vendor` in the background, so a fresh machine can play and export audio without any manual setup, and a failed download simply leaves audio unavailable. Point `HARMONIA_SOUNDFONT` at a custom `.sf2`/`.sf3` file to override the soundfont. The audition desk renders staff notation live with OpenSheetMusicDisplay and can save it as a PNG without any server-side engraver.
+
+## Vocal backend (DiffSinger)
+
+Chinese and English sung parts use DiffSinger ONNX voice models when the machine has at least `HARMONIA_DIFFSINGER_MIN_CORES` CPU cores (default 4) and a model is installed. The app is presence-based rather than first-run based: on every startup it checks whether the three personal-PC sized models exist in `~/.harmonia_textor/diffsinger` (about 1.47 GB total) and downloads any missing one in the background: the OpenCpop Chinese model from [DiffSinger-ONNX-Infer](https://github.com/HighCWu/DiffSinger-ONNX-Infer), the English [Tiger](https://github.com/spicytigermeat/tiger_diffsinger) voicebank, and the bilingual male [Ameko Kero](https://github.com/theaimeltus/DiffSinger-Ameko-Kero-Legacy-Archive-) voicebank. Chinese lines and English lines below roughly E4 use Ameko Kero; higher English lines use Tiger. Set `HARMONIA_DIFFSINGER_MALE_MAX_MIDI=127` to use the male voice for all English too. Until a download finishes, and for other languages or when inference fails, the built-in offline FOF singer is used, so a vocal part always has sound.
+
+- `HARMONIA_DIFFSINGER=off` disables DiffSinger entirely; `auto` is the default.
+- `HARMONIA_DIFFSINGER_DIR` overrides the model directory; `HARMONIA_DIFFSINGER_MIN_CORES` changes the CPU threshold.
+- `HARMONIA_DIFFSINGER_MALE_MAX_MIDI` changes the male/female split (default 64; set 127 for an all-male English voice).
+- `HARMONIA_DIFFSINGER_STEPS` and `HARMONIA_DIFFSINGER_SPEAKER` tune the English Tiger voice (diffusion steps default 12; more is slower but usually cleaner; speaker defaults to `tiger_fresh`).
+- Lyrics are converted to the model's phonemes from the stored text (pinyin for Chinese, the Tiger word dictionary for English, with a heuristic fallback for Ameko Kero). The Tiger voicebank is licensed for personal/non-commercial use and requires attribution; Ameko Kero is free to use under the UFR Millefeuille terms (no selling/trading, no AI training); see the bundled license files. The OpenCpop model is intended for research/personal use.
 
 ## Quality gates
 
@@ -168,4 +181,4 @@ On release, CD builds the bundle on Windows, macOS and Ubuntu and uploads 1 GiB 
 
 ## License
 
-MIT. See [`LICENSES/MIT.txt`](LICENSES/MIT.txt). The icons under `assets/` are licensed under CC-BY-NC-ND-4.0. The audio backend components downloaded on first launch keep their own licenses (ffmpeg, FluidSynth and the GeneralUser GS soundfont).
+MIT. See [`LICENSES/MIT.txt`](LICENSES/MIT.txt). The icons under `assets/` are licensed under CC-BY-NC-ND-4.0. The audio backend components downloaded on first launch keep their own licenses (ffmpeg, FluidSynth and the GeneralUser GS soundfont), as do the optional DiffSinger voice models (Tiger is personal/non-commercial with attribution; Ameko Kero is free under the UFR Millefeuille terms; the OpenCpop model is for research/personal use).
