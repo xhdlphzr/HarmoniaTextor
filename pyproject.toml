@@ -23,6 +23,7 @@ classifiers = [
 ]
 dependencies = [
   "music21>=10.0",
+  "numpy>=2.0",
   "flask>=3.0",
   "pydantic>=2.6",
   "langchain-core>=1.0",
@@ -30,6 +31,8 @@ dependencies = [
   "langchain-openai>=1.0",
   "pywebview>=5.0",
   "pyyaml>=6.0.3",
+  "onnxruntime>=1.31.0",
+  "pypinyin>=0.55.0",
 ]
 
 [project.optional-dependencies]
@@ -69,7 +72,7 @@ packages = ["src/harmoniatextor", "app"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src", "."]
-addopts = "-q --cov=src --cov=app --cov-report=term-missing --cov-fail-under=100"
+addopts = "-W ignore::DeprecationWarning -q --cov=src --cov=app --cov-report=term-missing --cov-fail-under=100"
 filterwarnings = ["error"]
 
 [tool.coverage.run]
