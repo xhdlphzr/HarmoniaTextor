@@ -199,6 +199,7 @@ class ExportService:
                 self.features(),
                 fmt,
                 player_counts=self.service.part_counts(work_id),
+                vocal_voices=self.service.vocal_voices(work_id),
             )
         except FeatureUnavailableError as exc:
             return ExportResult(ok=False, error=str(exc))

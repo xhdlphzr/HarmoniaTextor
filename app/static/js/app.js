@@ -47,6 +47,27 @@ SPDX-License-Identifier: MIT
     }
   }
 
+  let audioHintWired = false;
+
+  function wireAudioHint() {
+    if (audioHintWired) {
+      return;
+    }
+    const audio = byId("audition");
+    if (!audio) {
+      return;
+    }
+    audioHintWired = true;
+    const clearHint = () => {
+      const hint = byId("audio-hint");
+      if (hint) {
+        hint.textContent = "";
+      }
+    };
+    audio.addEventListener("play", clearHint);
+    audio.addEventListener("playing", clearHint);
+  }
+
   function showToast(message, kind) {
     let container = byId("toast-container");
     if (!container) {
@@ -476,8 +497,9 @@ SPDX-License-Identifier: MIT
       return `/api/works/${workId}/movements/${movementId}/${suffix}`;
     }
 
-    function exportUrl(workId, movementId, fmt) {
-      return `/works/${workId}/movements/${movementId}/export/${fmt}`;
+    function exportUrl(workId, movementId, fmt, version) {
+      const base = `/works/${workId}/movements/${movementId}/export/${fmt}`;
+      return version ? `${base}?v=${encodeURIComponent(version)}` : base;
     }
 
     function setProgressVisible(visible) {
@@ -568,6 +590,8 @@ SPDX-License-Identifier: MIT
     function renderEvent(event) {
       if (event.kind === "start") {
         addProgress(t("progress.start"), "running");
+      } else if (event.kind === "phase") {
+        addProgress(t("progress.phase_" + event.phase), "running");
       } else if (event.kind === "thinking") {
         addProgress(t("progress.thinking", { step: event.step }), "running");
       } else if (event.kind === "tool_call") {
@@ -626,6 +650,8 @@ SPDX-License-Identifier: MIT
           event.text,
           event.layer === "reviewer" ? "running" : "bad"
         );
+      } else if (event.kind === "notice") {
+        addDetail(t("progress.notice"), event.text, "running");
       } else if (event.kind === "movement_done") {
         addProgress(t("progress.movement_done", { movement: event.movement }), "ok");
         refreshScore();
@@ -768,6 +794,11 @@ SPDX-License-Identifier: MIT
       const text = (prompt || "").trim();
       node.textContent = text || t("history.unsaved");
       node.classList.toggle("is-empty", !text);
+      node.dataset.raw = text;
+      const button = byId("copy-prompt-btn");
+      if (button) {
+        button.disabled = !text;
+      }
     }
 
     function renderPlanEmpty() {
@@ -883,6 +914,7 @@ SPDX-License-Identifier: MIT
 
     function showResult(workId, movementId, title, status, violations) {
       current = { workId, movementId };
+      const version = Date.now();
       const panel = byId("result-panel");
       if (panel) {
         panel.classList.remove("hidden");
@@ -895,20 +927,21 @@ SPDX-License-Identifier: MIT
       if (status && statusNode) {
         statusNode.textContent = status;
       }
-      setHref("export-musicxml", exportUrl(workId, movementId, "musicxml"));
-      setHref("export-m4a", exportUrl(workId, movementId, "m4a"));
-      setHref("export-mp3", exportUrl(workId, movementId, "mp3"));
+      setHref("export-musicxml", exportUrl(workId, movementId, "musicxml", version));
+      setHref("export-m4a", exportUrl(workId, movementId, "m4a", version));
+      setHref("export-mp3", exportUrl(workId, movementId, "mp3", version));
       renderViolations(violations || []);
-      playAudio(workId, movementId);
+      playAudio(workId, movementId, version);
     }
 
-    function playAudio(workId, movementId) {
+    function playAudio(workId, movementId, version) {
       const audio = byId("audition");
       const hint = byId("audio-hint");
       if (!audio) {
         return;
       }
-      audio.src = exportUrl(workId, movementId, "m4a");
+      wireAudioHint();
+      audio.src = exportUrl(workId, movementId, "m4a", version);
       audio.load();
       audio
         .play()
@@ -917,10 +950,14 @@ SPDX-License-Identifier: MIT
             hint.textContent = "";
           }
         })
-        .catch(() => {
-          if (hint) {
-            hint.textContent =
-              t("js.autoplay_failed");
+        .catch((error) => {
+          if (!hint || !error) {
+            return;
+          }
+          if (error.name === "NotAllowedError") {
+            hint.textContent = t("js.autoplay_failed");
+          } else if (error.name === "NotSupportedError") {
+            hint.textContent = t("js.audio_unavailable");
           }
         });
     }
@@ -1142,6 +1179,23 @@ SPDX-License-Identifier: MIT
         { prompt, genre: genreNode ? genreNode.value : "plain", style },
         byId("generate-btn")
       );
+    });
+
+    on("copy-prompt-btn", "click", () => {
+      const node = byId("context-prompt");
+      const text = node && node.dataset.raw ? node.dataset.raw : "";
+      if (!text) {
+        showToast(t("history.unsaved"), "bad");
+        return;
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(
+          () => showToast(t("history.copied"), "ok"),
+          () => showToast(t("js.copy_failed"), "bad")
+        );
+      } else {
+        showToast(t("js.copy_failed"), "bad");
+      }
     });
 
     on("score-btn", "click", () => {

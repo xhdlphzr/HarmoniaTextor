@@ -24,6 +24,9 @@ from harmoniatextor.i18n import (
     translate,
 )
 from harmoniatextor.render.exporter import ExportService
+from harmoniatextor.render.vocal.diffsinger_models import (
+    ensure_async as ensure_vocal_models,
+)
 from harmoniatextor.service.service import CompositionService
 from harmoniatextor.storage.project_store import ProjectStore
 
@@ -38,6 +41,9 @@ _NO_STORE_MIMETYPES = frozenset(
         "text/html",
         "application/json",
         "application/vnd.recordare.musicxml+xml",
+        "audio/mp4",
+        "audio/mpeg",
+        "audio/x-m4a",
     }
 )
 
@@ -150,4 +156,6 @@ def create_app(
 
     app.add_template_filter(local_time, "localtime")
     register_routes(app)
+    if not testing:
+        ensure_vocal_models()
     return app

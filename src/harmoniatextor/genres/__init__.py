@@ -11,6 +11,7 @@ from harmoniatextor.genres.builtin import (
     PlainGenre,
     SonataGenre,
     SymphonyGenre,
+    VocalGenre,
 )
 from harmoniatextor.genres.registry import GenreRegistry, build_default_registry
 
@@ -22,5 +23,6 @@ __all__ = [
     "PlainGenre",
     "SonataGenre",
     "SymphonyGenre",
+    "VocalGenre",
     "build_default_registry",
 ]

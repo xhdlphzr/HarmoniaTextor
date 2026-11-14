@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
 
 from harmoniatextor.domain.enums import Severity, ToolKind, WorkStatus
 from harmoniatextor.domain.key import KeySpec
@@ -18,11 +18,29 @@ __all__ = [
     "Movement",
     "Revision",
     "StyleSelection",
+    "Syllable",
     "Theme",
     "ThemeNote",
     "Work",
     "theme_fingerprint",
 ]
+
+
+@dataclass(frozen=True, slots=True)
+class Syllable:
+    """One sung syllable of a vocal line.
+
+    Attributes:
+        text: The original-language text of the syllable.
+        ipa: The International Phonetic Alphabet pronunciation.
+        syllabic: ``single``, ``begin``, ``middle`` or ``end``.
+        language: Optional per-syllable language override.
+    """
+
+    text: str
+    ipa: str = ""
+    syllabic: Literal["single", "begin", "middle", "end"] = "single"
+    language: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -288,6 +306,8 @@ class Work:
             works created before this was recorded.
         part_counts: How many players perform each voice (playback-only
             orchestration metadata; omitted voices play as one player).
+        vocal_voices: Voices that are sung, mapped to their original-text
+            language tag.  Presence marks a voice as vocal.
         created_at: ISO timestamp.
         updated_at: ISO timestamp.
     """
@@ -301,5 +321,6 @@ class Work:
     style: StyleSelection | None = None
     prompt: str = ""
     part_counts: dict[str, int] = field(default_factory=dict)
+    vocal_voices: dict[str, str] = field(default_factory=dict)
     created_at: str = ""
     updated_at: str = ""

@@ -187,6 +187,52 @@ class TestProjectStore:
         store = ProjectStore(tmp_path)
         assert store.load_work("w-1").part_counts == {}
 
+    def test_vocal_voices_roundtrip(self, tmp_path: Path) -> None:
+        """A work's sung voices and languages survive save/load.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
+        store = ProjectStore(tmp_path / "data")
+        work = make_work()
+        work.vocal_voices = {"soprano": "en", "tenor": "la"}
+        store.save_work(work)
+        assert store.load_work("w-1").vocal_voices == {
+            "soprano": "en",
+            "tenor": "la",
+        }
+
+    def test_vocal_voices_absent(self, tmp_path: Path) -> None:
+        """A work without sung voices loads an empty mapping.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
+        store = ProjectStore(tmp_path / "data")
+        store.save_work(make_work())
+        assert store.load_work("w-1").vocal_voices == {}
+
+    def test_works_vocal_voices_migration(self, tmp_path: Path) -> None:
+        """A works table created before the vocal column auto-fills empty.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+        """
+        connection = sqlite3.connect(tmp_path / "history.db")
+        connection.execute(
+            "CREATE TABLE works (id TEXT PRIMARY KEY, title TEXT, genre TEXT, tonic TEXT,"
+            " status TEXT, style TEXT, prompt TEXT, part_counts TEXT,"
+            " created_at TEXT, updated_at TEXT)"
+        )
+        connection.execute(
+            "INSERT INTO works VALUES"
+            " ('w-1', 'Demo', 'plain', 'C', 'draft', NULL, '', '{}', 't0', 't0')"
+        )
+        connection.commit()
+        connection.close()
+        store = ProjectStore(tmp_path)
+        assert store.load_work("w-1").vocal_voices == {}
+
     def test_works_prompt_migration(self, tmp_path: Path) -> None:
         """A works table created before the prompt column auto-fills blank.
 

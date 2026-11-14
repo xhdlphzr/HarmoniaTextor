@@ -20,6 +20,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from langchain_core.language_models import LanguageModelInput
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import (
     AIMessage,
@@ -29,6 +30,7 @@ from langchain_core.messages import (
     ToolMessage,
 )
 from langchain_core.messages.tool import ToolCall
+from langchain_core.runnables import Runnable
 from langchain_core.tools import BaseTool
 
 from harmoniatextor.agent.compression import (
@@ -55,10 +57,16 @@ __all__ = [
     "AgentRunResult",
     "ProgressCallback",
     "execute_call",
+    "invoke_model",
     "run_tool_calls",
 ]
 
 ProgressCallback = Callable[[dict[str, Any]], None]
+
+_FORCED_TOOLS_UNSUPPORTED = (
+    "This endpoint rejected a forced tool call; continuing with ordinary tool "
+    "selection. Keep calling tools on every turn."
+)
 
 
 @dataclass(slots=True)
@@ -91,8 +99,8 @@ class AgentLoop:
         service: Composition service.
         chat_model: Chat model driving the loop.
         reviewer: Optional independent reviewer AI.
-        max_steps: Maximum number of model turns.
-        max_reviews: Maximum number of reviewer rejections before giving up.
+        max_steps: Maximum number of model turns, or ``None`` for no limit.
+        max_reviews: Maximum reviewer rejections, or ``None`` for no limit.
         context_window: Context window used for compression.
         techniques: Technique registry used to build tools.
     """
@@ -104,7 +112,7 @@ class AgentLoop:
         *,
         reviewer: ReviewerAI | None = None,
         max_steps: int | None = None,
-        max_reviews: int = 5,
+        max_reviews: int | None = None,
         context_window: int = DEFAULT_CONTEXT_WINDOW,
         techniques: TechniqueRegistry | None = None,
     ) -> None:
@@ -115,7 +123,7 @@ class AgentLoop:
             chat_model: Chat model.
             reviewer: Optional independent reviewer AI.
             max_steps: Maximum number of model turns, or ``None`` for no limit.
-            max_reviews: Maximum number of reviewer rejections.
+            max_reviews: Maximum reviewer rejections, or ``None`` for no limit.
             context_window: Context window used for compression.
             techniques: Technique registry; defaults to the service registry.
         """
@@ -175,6 +183,7 @@ class AgentLoop:
         tools = build_tools(self.service, work_id, movement_id, techniques)
         mapping = {tool.name: tool for tool in tools}
         bound = self.chat_model.bind_tools(tools)
+        forced = self.chat_model.bind_tools(tools, tool_choice="required")
         prompt = system_prompt(genre, style, techniques, rules)
         messages: list[BaseMessage] = [SystemMessage(content=prompt)]
         instruction = goal if not feedback else f"{goal}\n\nHuman feedback: {feedback}"
@@ -192,23 +201,45 @@ class AgentLoop:
                 )
         steps = 0
         reviews = 0
+        force_supported = True
         while self.max_steps is None or steps < self.max_steps:
             self._compress(messages, work_id, movement_id, on_event)
             ensure_tool_responses(messages)
             steps += 1
             _emit(on_event, {"kind": "thinking", "step": steps})
-            response: AIMessage = bound.invoke(messages)
+            empty = not self.service.has_notes(work_id, movement_id)
+            response, rejected = invoke_model(
+                messages,
+                bound,
+                forced,
+                force=force_supported and empty,
+                on_event=on_event,
+            )
+            if rejected:
+                force_supported = False
             messages.append(response)
+            text = message_text(response)
+            if text:
+                _emit(
+                    on_event,
+                    {
+                        "kind": "assistant",
+                        "step": steps,
+                        "text": text,
+                        "ok": None,
+                        "violations": [],
+                    },
+                )
             if run_tool_calls(messages, response, mapping, steps, on_event):
                 continue
-            text = message_text(response)
+            _emit(on_event, {"kind": "phase", "phase": "symbolic"})
             report = self.service.check(work_id, movement_id)
             _emit(
                 on_event,
                 {
                     "kind": "assistant",
                     "step": steps,
-                    "text": text,
+                    "text": "",
                     "ok": report.ok,
                     "violations": report.to_dict()["violations"],
                 },
@@ -216,9 +247,18 @@ class AgentLoop:
             if not report.ok:
                 if not auto_continue:
                     return AgentRunResult(False, steps, text, messages, plan=plan_text)
-                feedback = "The symbolic layer still fails; keep fixing:\n" + (
-                    format_feedback(report)
-                )
+                if any(item.rule_id == "empty" for item in report.violations):
+                    feedback = (
+                        "EMPTY SCORE: this movement has no notes yet. You must call "
+                        "a tool now: use add_part(voice=..., instrument=...) to "
+                        "create the voices, then submit_theme(musicxml=..., "
+                        "voice=..., instrument=..., key=...) to write the first "
+                        "theme. Do not reply with prose."
+                    )
+                else:
+                    feedback = "The symbolic layer still fails; keep fixing:\n" + (
+                        format_feedback(report)
+                    )
                 _emit(
                     on_event,
                     {
@@ -250,7 +290,7 @@ class AgentLoop:
                     plan=plan_text,
                 )
             reviews += 1
-            if reviews >= self.max_reviews:
+            if self.max_reviews is not None and reviews >= self.max_reviews:
                 return AgentRunResult(
                     False,
                     steps,
@@ -359,6 +399,7 @@ class AgentLoop:
         work = self.service.get_work(work_id)
         style = self.service.style_for(work)
         rules = self.service.effective_rules(work)
+        _emit(on_event, {"kind": "phase", "phase": "symbolic"})
         report = self.service.check(work_id, movement_id)
         plan = self.service.latest_plan(work_id)
         requirement = goal if not plan else f"{goal}\n\nCreation plan (Step 1):\n{plan}"
@@ -465,6 +506,45 @@ def run_tool_calls(
         )
         messages.append(message)
     return True
+
+
+def invoke_model(
+    messages: list[BaseMessage],
+    bound: Runnable[LanguageModelInput, AIMessage],
+    forced: Runnable[LanguageModelInput, AIMessage],
+    *,
+    force: bool,
+    on_event: ProgressCallback | None,
+) -> tuple[AIMessage, bool]:
+    """Invoke the chat model, forcing a tool call while the score is empty.
+
+    Forcing a tool call keeps the composer from answering the first empty-score
+    turn with prose.  Some OpenAI-compatible endpoints reject
+    ``tool_choice="required"`` with an HTTP 400 (DeepSeek does so in thinking
+    mode); when that happens the turn is retried with ordinary tool selection so
+    the run can continue, and the caller stops forcing for the rest of the
+    session.
+
+    Args:
+        messages: Conversation messages.
+        bound: Model bound with tools and automatic tool choice.
+        forced: Model bound with tools and a required tool choice.
+        force: Whether this turn should force a tool call.
+        on_event: Optional progress callback.
+
+    Returns:
+        The assistant response and whether the endpoint rejected the forced
+        choice.
+    """
+    if not force:
+        return bound.invoke(messages), False
+    try:
+        return forced.invoke(messages), False
+    except Exception as exc:
+        if "tool_choice" not in str(exc).lower():
+            raise
+        _emit(on_event, {"kind": "notice", "text": _FORCED_TOOLS_UNSUPPORTED})
+        return bound.invoke(messages), True
 
 
 def _emit(on_event: ProgressCallback | None, event: dict[str, Any]) -> None:

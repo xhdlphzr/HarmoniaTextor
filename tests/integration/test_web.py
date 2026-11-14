@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import base64
 from pathlib import Path
+from typing import Any
 
 import pytest
 from flask import Flask
@@ -21,10 +22,10 @@ from app.app import (
     local_time,
 )
 from app.jobs import Job
-from app.routes import _stream
+from app.routes import _serve_preview, _stream
 from harmoniatextor import __version__
 from harmoniatextor.config import save_config
-from harmoniatextor.domain.models import ThemeNote
+from harmoniatextor.domain.models import Syllable, ThemeNote
 from harmoniatextor.score.io import new_score, to_musicxml
 from harmoniatextor.score.streamops import ScoreEditor
 
@@ -32,6 +33,19 @@ _HTTP_OK = 200
 _HTTP_REDIRECT = 302
 _HTTP_BAD_REQUEST = 400
 _HTTP_NOT_FOUND = 404
+
+
+def test_serve_preview_requires_rendered_file(tmp_path: Path) -> None:
+    """A completed marker without a rendered file is treated as a cache miss.
+
+    Args:
+        tmp_path: The pytest temporary path fixture.
+    """
+    target = tmp_path / "preview"
+    target.mkdir()
+    (target / ".complete").write_text("", encoding="utf-8")
+    assert _serve_preview(target) is None
+    assert _serve_preview(tmp_path / "missing") is None
 
 
 def _call(name: str, args: dict[str, object]) -> AIMessage:
@@ -175,8 +189,11 @@ class TestPages:
             client: The Flask test client.
         """
         response = client.get("/")
+        page = response.get_data(as_text=True)
         assert response.status_code == _HTTP_OK
-        assert "HarmoniaTextor" in response.get_data(as_text=True)
+        assert "HarmoniaTextor" in page
+        assert 'id="context-prompt"' in page
+        assert 'id="copy-prompt-btn"' in page
 
     def test_language_defaults_to_english(self, client: FlaskClient) -> None:
         """The interface is English by default.
@@ -229,6 +246,20 @@ class TestPages:
         response = client.get("/")
         assert "no-store" in response.headers.get("Cache-Control", "")
         response.close()
+
+    def test_production_app_starts_vocal_model_download(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A non-testing app starts the optional DiffSinger model download.
+
+        Args:
+            tmp_path: The pytest temporary path fixture.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
+        calls: list[str] = []
+        monkeypatch.setattr("app.app.ensure_vocal_models", lambda: calls.append("x"))
+        create_app(data_dir=tmp_path, vendor_dir=tmp_path / "vendor", testing=False)
+        assert calls == ["x"]
 
     def test_history_persists_across_restarts(self, tmp_path: Path) -> None:
         """Works survive an application restart on the same data directory.
@@ -516,6 +547,41 @@ class TestApi:
         assert response.status_code == _HTTP_OK
         assert "score-partwise" in response.get_data(as_text=True)
 
+    def test_score_hides_ipa_but_export_keeps_it(
+        self, app: Flask, client: FlaskClient
+    ) -> None:
+        """The rendered score hides IPA while the exported MusicXML keeps it.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
+        service = get_service(app)
+        work = service.create_work("Demo", "vocal", "C")
+        movement_id = work.movements[0].id
+        service.submit_theme(work.id, movement_id, theme_xml(), check=False)
+        service.set_lyrics(
+            work.id,
+            movement_id,
+            1,
+            "soprano",
+            "en",
+            [Syllable("love", "lʌv"), Syllable("you", "juː")],
+            check=False,
+        )
+        rendered = client.get(
+            f"/api/works/{work.id}/movements/{movement_id}/score"
+        ).get_data(as_text=True)
+        assert 'name="ipa"' not in rendered
+        assert "love" in rendered
+        data = client.get(
+            f"/works/{work.id}/movements/{movement_id}/export/musicxml?save=1"
+        ).get_json()
+        assert data["ok"] is True
+        exported = Path(data["path"]).read_text(encoding="utf-8")
+        assert 'name="ipa"' in exported
+        assert "[en]" in exported
+
     def test_score_failure(
         self, app: Flask, client: FlaskClient, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -737,6 +803,72 @@ class TestApi:
         assert data["ok"] is True
         assert data["path"]
 
+    def test_export_save_unavailable_audio(
+        self, app: Flask, client: FlaskClient
+    ) -> None:
+        """Saving audio without the backend reports the failure as JSON.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
+        work_id, movement_id = make_work(app)
+        response = client.get(
+            f"/works/{work_id}/movements/{movement_id}/export/m4a?save=1"
+        )
+        assert response.status_code == _HTTP_BAD_REQUEST
+        assert response.get_json()["ok"] is False
+
+    def test_export_all_preview_reuses_revision_file(
+        self,
+        app: Flask,
+        client: FlaskClient,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Whole-work previews are served from the rendered revision file.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+            tmp_path: The pytest temporary path fixture.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
+        preview = tmp_path / "pv"
+        monkeypatch.setattr("app.routes._preview_dir", lambda: preview)
+        work_id, _movement_id = make_work(app)
+        exporter = get_export_service(app)
+        original = exporter.export_work
+        calls: list[str] = []
+
+        def counting(*args: Any, **kwargs: Any) -> Any:
+            calls.append("export")
+            return original(*args, **kwargs)
+
+        monkeypatch.setattr(exporter, "export_work", counting)
+        url = f"/works/{work_id}/export/musicxml"
+        first = client.get(url)
+        assert first.status_code == _HTTP_OK
+        first.close()
+        second = client.get(url)
+        assert second.status_code == _HTTP_OK
+        second.close()
+        assert calls == ["export"]
+
+    def test_export_all_save_unavailable_audio(
+        self, app: Flask, client: FlaskClient
+    ) -> None:
+        """Saving a whole-work audio export without the backend reports failure.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+        """
+        work_id, _movement_id = make_work(app)
+        response = client.get(f"/works/{work_id}/export/m4a?save=1")
+        assert response.status_code == _HTTP_BAD_REQUEST
+        assert response.get_json()["ok"] is False
+
     def test_export_all_single(self, app: Flask, client: FlaskClient) -> None:
         """A single-movement work exports a single file.
 
@@ -812,8 +944,47 @@ class TestApi:
         )
         assert response.status_code == _HTTP_OK
         response.close()
-        assert list(preview.glob("*.musicxml"))
+        assert list(preview.rglob("*.musicxml"))
         assert not downloads.exists()
+
+    def test_export_preview_reuses_revision_file(
+        self,
+        app: Flask,
+        client: FlaskClient,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Repeated preview requests serve the same immutable revision file.
+
+        A browser range request must not trigger a second render that would
+        rewrite (and truncate) the file currently being streamed.
+
+        Args:
+            app: The Flask application.
+            client: The Flask test client.
+            tmp_path: The pytest temporary path fixture.
+            monkeypatch: The pytest monkeypatch fixture.
+        """
+        preview = tmp_path / "pv"
+        monkeypatch.setattr("app.routes._preview_dir", lambda: preview)
+        work_id, movement_id = make_work(app)
+        exporter = get_export_service(app)
+        original = exporter.export
+        calls: list[str] = []
+
+        def counting(*args: Any, **kwargs: Any) -> Any:
+            calls.append("export")
+            return original(*args, **kwargs)
+
+        monkeypatch.setattr(exporter, "export", counting)
+        url = f"/works/{work_id}/movements/{movement_id}/export/musicxml"
+        first = client.get(url)
+        assert first.status_code == _HTTP_OK
+        first.close()
+        second = client.get(url)
+        assert second.status_code == _HTTP_OK
+        second.close()
+        assert calls == ["export"]
 
     def test_save_png(self, app: Flask, client: FlaskClient) -> None:
         """The PNG endpoint writes the image and reports its path.

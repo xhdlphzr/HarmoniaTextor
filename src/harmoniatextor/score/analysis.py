@@ -17,6 +17,7 @@ __all__ = [
     "first_melody",
     "measure_count",
     "measure_of",
+    "melody_measures",
     "onsets",
     "voice_events",
     "voice_order",
@@ -226,3 +227,37 @@ def measure_count(score: stream.Score) -> int:
         for measure in part.getElementsByClass(stream.Measure):
             highest = max(highest, int(measure.number))
     return max(highest, 1)
+
+
+def melody_measures(score: stream.Score) -> tuple[str, list[list[ThemeNote]]]:
+    """Return the first non-empty melodic line split by measure.
+
+    Unlike :func:`first_melody`, the measure boundaries (and therefore the
+    measure count) are preserved, including trailing measures that hold only
+    rests.  Multi-measure edit/insert fragments are written one measure at a
+    time, so this is the alignment-preserving variant.
+
+    Args:
+        score: The score to inspect.
+
+    Returns:
+        A ``(voice, measures)`` tuple where ``measures`` holds one note list per
+        fragment measure; ``voice`` is empty and ``measures`` is empty when the
+        score has no notes at all.
+    """
+    for part in score.parts:
+        measures = list(part.getElementsByClass(stream.Measure))
+        lines = [
+            [
+                ThemeNote(
+                    pitch=element.nameWithOctave,
+                    quarter_length=float(element.quarterLength),
+                )
+                for element in measure.notes
+                if isinstance(element, m21note.Note)
+            ]
+            for measure in measures
+        ]
+        if any(lines):
+            return str(part.id or part.partName), lines
+    return "", []

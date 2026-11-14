@@ -8,7 +8,11 @@ from typing import Any, cast
 
 import pytest
 
-from harmoniatextor.agent.llm_factory import create_chat_model, resolve_setting
+from harmoniatextor.agent.llm_factory import (
+    create_chat_model,
+    is_deepseek_endpoint,
+    resolve_setting,
+)
 
 
 class TestLLMFactory:
@@ -111,6 +115,74 @@ class TestLLMFactory:
         assert captured["base_url"] == "cfg-url"
         assert captured["api_key"] == "cfg-key"
         assert "temperature" not in captured
+
+    def test_deepseek_disables_thinking(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """DeepSeek endpoints run with thinking disabled.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+        """
+        captured: dict[str, Any] = {}
+
+        def fake(**kwargs: Any) -> str:
+            captured.update(kwargs)
+            return "model"
+
+        monkeypatch.setattr("harmoniatextor.agent.llm_factory.ChatOpenAI", fake)
+        create_chat_model(
+            model="deepseek-flash",
+            base_url="https://api.deepseek.com",
+            api_key="k",
+        )
+        assert captured["extra_body"] == {"thinking": {"type": "disabled"}}
+
+    def test_other_endpoints_keep_default_thinking(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Non-DeepSeek endpoints receive no thinking parameter.
+
+        Args:
+            monkeypatch: The pytest monkeypatch fixture.
+        """
+        captured: dict[str, Any] = {}
+
+        def fake(**kwargs: Any) -> str:
+            captured.update(kwargs)
+            return "model"
+
+        monkeypatch.setattr("harmoniatextor.agent.llm_factory.ChatOpenAI", fake)
+        create_chat_model(
+            model="gpt-4o-mini",
+            base_url="https://api.openai.com/v1",
+            api_key="k",
+        )
+        assert captured["extra_body"] is None
+
+
+class TestDeepSeekEndpoint:
+    """DeepSeek endpoint detection."""
+
+    @pytest.mark.parametrize(
+        ("base_url", "expected"),
+        [
+            ("https://api.deepseek.com", True),
+            ("https://api.deepseek.com/v1", True),
+            ("https://deepseek.com", True),
+            ("https://api.openai.com/v1", False),
+            ("https://notdeepseek.com", False),
+            ("https://api.deepseek.com.evil.test", False),
+            (None, False),
+            ("", False),
+        ],
+    )
+    def test_detects_host(self, base_url: str | None, expected: bool) -> None:
+        """Only real DeepSeek hosts are detected.
+
+        Args:
+            base_url: The endpoint URL.
+            expected: Whether it is a DeepSeek endpoint.
+        """
+        assert is_deepseek_endpoint(base_url) is expected
 
 
 class TestResolveSetting:

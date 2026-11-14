@@ -9,7 +9,7 @@ that every technique can focus on musical transformation.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 
 from music21 import (
     articulations,
@@ -26,8 +26,13 @@ from music21 import key as m21key
 from music21 import note as m21note
 from music21 import pitch as m21pitch
 
-from harmoniatextor.domain.models import ThemeNote
+from harmoniatextor.domain.models import Syllable, ThemeNote
 from harmoniatextor.score.io import grand_staff_key, make_instrument, new_part
+from harmoniatextor.score.lyrics import (
+    attach_lyrics,
+    clear_lyrics,
+    read_lyrics,
+)
 
 __all__ = ["ScoreEditor"]
 
@@ -350,6 +355,65 @@ class ScoreEditor:
         else:
             return False
         return True
+
+    def set_lyrics(
+        self, voice: str, measure: int, syllables: Sequence[Syllable]
+    ) -> bool:
+        """Attach one syllable to each sounding note of a measure.
+
+        Args:
+            voice: Voice slot that sings.
+            measure: One-based measure number.
+            syllables: One syllable per sounding note, in order.
+
+        Returns:
+            ``True`` when the lyrics were attached.
+        """
+        part = self.get_part(voice)
+        if part is None:
+            return False
+        return attach_lyrics(part, measure, syllables)
+
+    def clear_lyrics(self, voice: str, measure: int | None = None) -> bool:
+        """Remove lyrics from a voice, or from one measure of it.
+
+        Args:
+            voice: Voice slot to clear.
+            measure: Optional one-based measure.
+
+        Returns:
+            ``True`` when anything was removed.
+        """
+        part = self.get_part(voice)
+        if part is None:
+            return False
+        return clear_lyrics(part, measure)
+
+    def get_lyrics(self, voice: str) -> list[tuple[int, Syllable]]:
+        """Read a voice's lyrics in performance order.
+
+        Args:
+            voice: Voice slot to inspect.
+
+        Returns:
+            ``(measure, syllable)`` pairs.
+        """
+        part = self.get_part(voice)
+        return read_lyrics(part) if part is not None else []
+
+    def ensure_measure(self, voice: str, number: int) -> stream.Measure:
+        """Return a measure, creating the voice and any missing measures.
+
+        Args:
+            voice: Voice slot to create or extend.
+            number: One-based measure number.
+
+        Returns:
+            The requested measure.
+        """
+        part = self.get_part(voice, create=True)
+        assert part is not None
+        return self._ensure_measure(part, number)
 
     def _ensure_measure(self, part: stream.Part, number: int) -> stream.Measure:
         """Return the measure with ``number``, creating intervening measures.

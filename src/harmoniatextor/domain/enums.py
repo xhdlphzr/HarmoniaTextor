@@ -60,6 +60,7 @@ class ToolKind(StrEnum):
     TEMPO = "tempo"
     METER = "meter"
     MARK = "mark"
+    LYRICS = "lyrics"
     MERGE = "merge"
 
 
@@ -121,5 +122,6 @@ TOOL_KIND_LABELS: dict[str, str] = {
     ToolKind.TEMPO.value: "tool.tempo",
     ToolKind.METER.value: "tool.meter",
     ToolKind.MARK.value: "tool.mark",
+    ToolKind.LYRICS.value: "tool.lyrics",
     ToolKind.MERGE.value: "tool.merge",
 }

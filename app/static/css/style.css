@@ -537,6 +537,13 @@ textarea.autogrow::-webkit-scrollbar-thumb {
   animation: fadeUp 320ms var(--ease) both;
 }
 
+.history-context-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
 .history-context-label {
   font-size: 0.85rem;
   letter-spacing: 0.06em;
@@ -546,6 +553,9 @@ textarea.autogrow::-webkit-scrollbar-thumb {
 .history-context-text {
   margin: 0;
   max-height: 12rem;
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .plan-detail.is-empty,

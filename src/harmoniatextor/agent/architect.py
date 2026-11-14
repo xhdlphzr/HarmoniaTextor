@@ -17,6 +17,7 @@ from typing import Any
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 
+from harmoniatextor.agent.compression import message_text
 from harmoniatextor.agent.loop import run_tool_calls
 from harmoniatextor.agent.planning_tools import build_planning_tools
 from harmoniatextor.agent.prompts import architect_instruction, architect_system
@@ -118,8 +119,8 @@ class Architect:
     Attributes:
         service: Composition service.
         chat_model: Chat model driving the planner.
-        max_steps: Maximum number of planner turns.
-        max_rounds: Maximum number of "still missing" nudges.
+        max_steps: Maximum planner turns, or ``None`` for no limit.
+        max_rounds: Maximum "still missing" nudges, or ``None`` for no limit.
     """
 
     def __init__(
@@ -127,16 +128,16 @@ class Architect:
         service: CompositionService,
         chat_model: BaseChatModel,
         *,
-        max_steps: int = 60,
-        max_rounds: int = 8,
+        max_steps: int | None = None,
+        max_rounds: int | None = None,
     ) -> None:
         """Initialise the architect.
 
         Args:
             service: Composition service.
             chat_model: Chat model.
-            max_steps: Maximum number of planner turns.
-            max_rounds: Maximum number of coverage nudges.
+            max_steps: Maximum planner turns, or ``None`` for no limit.
+            max_rounds: Maximum coverage nudges, or ``None`` for no limit.
         """
         self.service = service
         self.chat_model = chat_model
@@ -163,33 +164,48 @@ class Architect:
         tools = build_planning_tools(self.service, work_id)
         mapping = {tool.name: tool for tool in tools}
         bound = self.chat_model.bind_tools(tools)
-        style = self.service.style_for(self.service.get_work(work_id))
+        work = self.service.get_work(work_id)
+        style = self.service.style_for(work)
+        genre = self.service.genres.get(work.genre)
         messages: list[BaseMessage] = [
-            SystemMessage(architect_system(style)),
-            HumanMessage(f"{goal}\n\n{architect_instruction(style)}"),
+            SystemMessage(architect_system(style, genre)),
+            HumanMessage(f"{goal}\n\n{architect_instruction(style, genre)}"),
         ]
         _emit(on_event, {"kind": "plan_start"})
         steps = 0
         rounds = 0
         completed = False
-        while steps < self.max_steps:
+        while self.max_steps is None or steps < self.max_steps:
             response = bound.invoke(messages)
             messages.append(response)
             steps += 1
+            text = message_text(response)
+            if text:
+                _emit(
+                    on_event,
+                    {
+                        "kind": "assistant",
+                        "step": steps,
+                        "text": text,
+                        "ok": None,
+                        "violations": [],
+                    },
+                )
             if run_tool_calls(messages, response, mapping, steps, on_event):
                 continue
             movements = self.service.get_work(work_id).movements
             if not movements:
                 messages.append(HumanMessage(_NO_MOVEMENTS_MESSAGE))
+                _emit(on_event, {"kind": "notice", "text": _NO_MOVEMENTS_MESSAGE})
                 continue
             listing = _missing_listing(self.service, work_id)
             if listing:
                 rounds += 1
-                if rounds > self.max_rounds:
+                if self.max_rounds is not None and rounds > self.max_rounds:
                     break
-                messages.append(
-                    HumanMessage(_MISSING_MESSAGE.format(listing="\n".join(listing)))
-                )
+                nudge = _MISSING_MESSAGE.format(listing="\n".join(listing))
+                messages.append(HumanMessage(nudge))
+                _emit(on_event, {"kind": "notice", "text": nudge})
                 continue
             completed = True
             break
