@@ -12,7 +12,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from music21 import stream
 from pydantic import ValidationError
@@ -1509,9 +1509,10 @@ class CompositionService:
         Returns:
             The latest review event, or ``None`` when there is none.
         """
-        for event in reversed(self.store.load_journal(work_id)):
+        events: list[dict[str, Any]] = self.store.load_journal(work_id)
+        for event in reversed(events):
             if event.get("event") == "review":
-                return event
+                return cast("dict[str, Any]", event)
         return None
 
     def record_plan(self, work_id: str, movement_id: str, text: str) -> None:
